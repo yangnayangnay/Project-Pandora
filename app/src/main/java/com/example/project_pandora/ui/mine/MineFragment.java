@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment;
 import com.example.project_pandora.core.moon.MoonPhaseCalculator;
 import com.example.project_pandora.core.theme.ThemeManager;
 import com.example.project_pandora.databinding.FragmentMineBinding;
+import com.example.project_pandora.ui.focus.FocusActivity;
 
 public class MineFragment extends Fragment {
 
