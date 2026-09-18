@@ -116,6 +116,253 @@ public class AIController {
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
+    @GetMapping("/project-analysis")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getProjectAnalysis() {
+        Map<String, Object> result = new HashMap<>();
+
+        result.put("overview", getProjectOverview());
+        result.put("statusDistribution", getStatusDistribution());
+        result.put("priorityAnalysis", getPriorityAnalysis());
+        result.put("completionTrend", getCompletionTrend());
+        result.put("overdueAnalysis", getOverdueAnalysis());
+        result.put("teamRanking", getTeamRanking());
+        result.put("suggestions", generateProjectSuggestions(result));
+
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    private Map<String, Object> getProjectOverview() {
+        Map<String, Object> overview = new HashMap<>();
+        try {
+            Integer totalTasks = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM tasks WHERE deleted = 0", Integer.class);
+            Integer completedTasks = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM tasks WHERE deleted = 0 AND status IN ('COMPLETED', 'CONFIRMED')", Integer.class);
+            Integer inProgressTasks = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM tasks WHERE deleted = 0 AND status = 'IN_PROGRESS'", Integer.class);
+            Integer pendingTasks = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM tasks WHERE deleted = 0 AND status = 'PENDING'", Integer.class);
+            Integer rejectedTasks = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM tasks WHERE deleted = 0 AND status = 'REJECTED'", Integer.class);
+
+            totalTasks = totalTasks == null ? 0 : totalTasks;
+            completedTasks = completedTasks == null ? 0 : completedTasks;
+
+            double completionRate = totalTasks > 0 ? (completedTasks * 100.0 / totalTasks) : 0.0;
+
+            overview.put("totalTasks", totalTasks);
+            overview.put("completedTasks", completedTasks);
+            overview.put("inProgressTasks", inProgressTasks);
+            overview.put("pendingTasks", pendingTasks);
+            overview.put("rejectedTasks", rejectedTasks);
+            overview.put("completionRate", Math.round(completionRate * 100) / 100.0);
+        } catch (Exception e) {
+            overview.put("error", "统计数据查询失败");
+        }
+        return overview;
+    }
+
+    private List<Map<String, Object>> getStatusDistribution() {
+        List<Map<String, Object>> distribution = new ArrayList<>();
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT status, COUNT(*) as count FROM tasks WHERE deleted = 0 GROUP BY status");
+            for (Map<String, Object> row : rows) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("status", row.get("status"));
+                item.put("count", row.get("count"));
+                item.put("statusName", getStatusDisplayName((String) row.get("status")));
+                distribution.add(item);
+            }
+        } catch (Exception e) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("error", "状态分布查询失败");
+            distribution.add(item);
+        }
+        return distribution;
+    }
+
+    private List<Map<String, Object>> getPriorityAnalysis() {
+        List<Map<String, Object>> analysis = new ArrayList<>();
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT priority, " +
+                    "COUNT(*) as total, " +
+                    "SUM(CASE WHEN status IN ('COMPLETED','CONFIRMED') THEN 1 ELSE 0 END) as completed, " +
+                    "SUM(CASE WHEN status = 'IN_PROGRESS' THEN 1 ELSE 0 END) as inProgress " +
+                    "FROM tasks WHERE deleted = 0 GROUP BY priority");
+            for (Map<String, Object> row : rows) {
+                Map<String, Object> item = new HashMap<>();
+                String priority = (String) row.get("priority");
+                item.put("priority", priority);
+                item.put("priorityName", getPriorityDisplayName(priority));
+                item.put("total", row.get("total"));
+                item.put("completed", row.get("completed"));
+                item.put("inProgress", row.get("inProgress"));
+                int total = ((Number) row.get("total")).intValue();
+                int completed = ((Number) row.get("completed")).intValue();
+                double rate = total > 0 ? (completed * 100.0 / total) : 0.0;
+                item.put("completionRate", Math.round(rate * 100) / 100.0);
+                analysis.add(item);
+            }
+        } catch (Exception e) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("error", "优先级分析查询失败");
+            analysis.add(item);
+        }
+        return analysis;
+    }
+
+    private List<Map<String, Object>> getCompletionTrend() {
+        List<Map<String, Object>> trend = new ArrayList<>();
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT DATE(updated_at) as date, COUNT(*) as count " +
+                    "FROM tasks WHERE deleted = 0 AND status IN ('COMPLETED','CONFIRMED') " +
+                    "AND updated_at >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY) " +
+                    "GROUP BY DATE(updated_at) ORDER BY date");
+            for (Map<String, Object> row : rows) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("date", row.get("date").toString());
+                item.put("completedCount", row.get("count"));
+                trend.add(item);
+            }
+        } catch (Exception e) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("error", "完成趋势查询失败");
+            trend.add(item);
+        }
+        return trend;
+    }
+
+    private Map<String, Object> getOverdueAnalysis() {
+        Map<String, Object> overdue = new HashMap<>();
+        try {
+            Integer overdueCount = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM tasks WHERE deleted = 0 " +
+                    "AND end_time IS NOT NULL AND end_time < CURRENT_TIMESTAMP " +
+                    "AND status NOT IN ('COMPLETED','CONFIRMED')", Integer.class);
+            overdueCount = overdueCount == null ? 0 : overdueCount;
+
+            List<Map<String, Object>> overdueTasks = jdbcTemplate.queryForList(
+                    "SELECT id, name, priority, status, assignee_id, end_time " +
+                    "FROM tasks WHERE deleted = 0 " +
+                    "AND end_time IS NOT NULL AND end_time < CURRENT_TIMESTAMP " +
+                    "AND status NOT IN ('COMPLETED','CONFIRMED') " +
+                    "ORDER BY end_time ASC LIMIT 10");
+
+            overdue.put("overdueCount", overdueCount);
+            overdue.put("overdueTasks", overdueTasks);
+        } catch (Exception e) {
+            overdue.put("error", "逾期分析查询失败");
+        }
+        return overdue;
+    }
+
+    private List<Map<String, Object>> getTeamRanking() {
+        List<Map<String, Object>> ranking = new ArrayList<>();
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT u.username, u.role, " +
+                    "COUNT(t.id) as totalTasks, " +
+                    "SUM(CASE WHEN t.status IN ('COMPLETED','CONFIRMED') THEN 1 ELSE 0 END) as completedTasks " +
+                    "FROM users u LEFT JOIN tasks t ON u.id = t.assignee_id AND t.deleted = 0 " +
+                    "WHERE u.deleted = 0 " +
+                    "GROUP BY u.id, u.username, u.role " +
+                    "ORDER BY completedTasks DESC");
+            for (Map<String, Object> row : rows) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("username", row.get("username"));
+                item.put("role", row.get("role"));
+                item.put("totalTasks", row.get("totalTasks"));
+                item.put("completedTasks", row.get("completedTasks"));
+                int total = ((Number) row.get("totalTasks")).intValue();
+                int completed = ((Number) row.get("completedTasks")).intValue();
+                double rate = total > 0 ? (completed * 100.0 / total) : 0.0;
+                item.put("completionRate", Math.round(rate * 100) / 100.0);
+                ranking.add(item);
+            }
+        } catch (Exception e) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("error", "团队排名查询失败");
+            ranking.add(item);
+        }
+        return ranking;
+    }
+
+    private List<String> generateProjectSuggestions(Map<String, Object> analysisData) {
+        List<String> suggestions = new ArrayList<>();
+
+        try {
+            Map<String, Object> overview = (Map<String, Object>) analysisData.get("overview");
+            Number completionRateNum = (Number) overview.get("completionRate");
+            double completionRate = completionRateNum != null ? completionRateNum.doubleValue() : 0.0;
+
+            if (completionRate >= 80) {
+                suggestions.add("项目整体完成率达到 " + completionRate + "%，表现优秀，建议保持当前节奏");
+            } else if (completionRate >= 50) {
+                suggestions.add("项目整体完成率 " + completionRate + "%，进展正常，建议关注未完成任务");
+            } else if (completionRate > 0) {
+                suggestions.add("项目整体完成率仅 " + completionRate + "%，需加快进度，建议优先处理重要紧急任务");
+            } else {
+                suggestions.add("暂无已完成任务，建议尽快推进任务执行");
+            }
+
+            Map<String, Object> overdueAnalysis = (Map<String, Object>) analysisData.get("overdueAnalysis");
+            Number overdueCount = (Number) overdueAnalysis.get("overdueCount");
+            int overdueCnt = overdueCount != null ? overdueCount.intValue() : 0;
+            if (overdueCnt > 0) {
+                suggestions.add("当前有 " + overdueCnt + " 个逾期任务，建议优先处理逾期任务并调整截止时间");
+            } else {
+                suggestions.add("暂无逾期任务，时间管理良好");
+            }
+
+            List<Map<String, Object>> priorityAnalysis = (List<Map<String, Object>>) analysisData.get("priorityAnalysis");
+            for (Map<String, Object> pa : priorityAnalysis) {
+                String priority = (String) pa.get("priority");
+                Number rate = (Number) pa.get("completionRate");
+                if ("URGENT".equals(priority) && rate != null && rate.doubleValue() < 50) {
+                    suggestions.add("紧急任务完成率仅 " + rate + "%，建议集中资源优先处理");
+                    break;
+                }
+            }
+
+            List<Map<String, Object>> trend = (List<Map<String, Object>>) analysisData.get("completionTrend");
+            if (trend.isEmpty()) {
+                suggestions.add("近7天无任务完成记录，建议加强日常任务推进");
+            } else {
+                suggestions.add("近7天有 " + trend.size() + " 天有任务完成，保持良好工作节奏");
+            }
+        } catch (Exception e) {
+            suggestions.add("建议生成失败，请检查数据完整性");
+        }
+
+        return suggestions;
+    }
+
+    private String getStatusDisplayName(String status) {
+        if (status == null) return "未知";
+        switch (status) {
+            case "PENDING": return "待接收";
+            case "IN_PROGRESS": return "进行中";
+            case "COMPLETED": return "已完成";
+            case "CONFIRMED": return "已确认";
+            case "REJECTED": return "已退回";
+            default: return status;
+        }
+    }
+
+    private String getPriorityDisplayName(String priority) {
+        if (priority == null) return "中";
+        switch (priority) {
+            case "LOW": return "低";
+            case "MEDIUM": return "中";
+            case "HIGH": return "高";
+            case "URGENT": return "紧急";
+            default: return priority;
+        }
+    }
+
     private String calculateMbtiType(List<Integer> answers) {
         int e = 0, i = 0, s = 0, n = 0, t = 0, f = 0, j = 0, p = 0;
 
