@@ -1,0 +1,39 @@
+schema: spec-driven
+
+context: |
+  项目: Pandora（潘多拉）- 智能掌上工作系统
+  GitHub: https://github.com/yangnayangnay/Project-Pandora
+  
+  技术栈:
+    Android端: Java + MVVM + Retrofit2 + RxJava3 + Room + MPAndroidChart
+    后端: Spring Boot 3 + Java 17 + JdbcTemplate + H2(MySQL兼容) + JWT
+    Web管理端: Vue3 + Vite + Element Plus + Pinia + ECharts
+  
+  6个Epic:
+    Epic-1: 任务管理闭环（创建/分发/接收/进度/确认/四象限）
+    Epic-2: 日志管理闭环（录入/查询/统计/十大重要工作/晨星冒烟测试）
+    Epic-3: 视图展示闭环（月/周/日视图/导图页/信息数据地图）
+    Epic-4: AI智能分析闭环（MBTI/关键词/建议/AI地图/占卜/项目完成分析）
+    Epic-5: 角色权限闭环（5种角色/信息穿透/邀约请示/分层审核）
+    Epic-6: 界面与主题闭环（月相主题/底部导航/卡通风格）
+  
+  5种角色: ADMIN > FOUNDER > DEPT_HEAD > TEAM_LEADER > EMPLOYEE
+  
+  非功能需求:
+    NFR-1: 月相主题自动切换（8种月相）
+    NFR-2: 本地日志管理（50MB/7天自动清理）
+  
+  验收核心功能: 创建任务、日历视图、MBTI分析
+  
+  编码规范:
+    - 描述文本通过strings.xml统一管理，禁止硬编码
+    - 竖屏锁定
+    - 点击优于输入
+
+rules:
+  proposal:
+    - 每个proposal须关联到具体Epic和User Story
+    - 须包含验收标准
+  tasks:
+    - 任务粒度不超过2小时
+    - 每个任务须可独立验证
