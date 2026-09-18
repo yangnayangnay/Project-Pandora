@@ -75,6 +75,9 @@
         <activity
             android:name=".ui.ai.BirthdayWishActivity"
             android:screenOrientation="portrait" />
+        <activity
+            android:name=".ui.focus.FocusActivity"
+            android:screenOrientation="portrait" />
     </application>
 
 </manifest>

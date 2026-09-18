@@ -103,6 +103,58 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(top10));
     }
 
+    @PutMapping("/{logId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> editLog(
+            @PathVariable Long logId, @RequestBody Map<String, Object> request) {
+        Long userId = getCurrentUserId();
+
+        StringBuilder sql = new StringBuilder("UPDATE work_logs SET updated_at = CURRENT_TIMESTAMP");
+        List<Object> params = new ArrayList<>();
+
+        if (request.containsKey("workItem")) {
+            sql.append(", work_item = ?");
+            params.add(request.get("workItem"));
+        }
+        if (request.containsKey("completionStatus")) {
+            sql.append(", completion_status = ?");
+            params.add(request.get("completionStatus"));
+        }
+        if (request.containsKey("timeCost")) {
+            sql.append(", time_cost = ?");
+            params.add(request.get("timeCost"));
+        }
+        if (request.containsKey("logDate")) {
+            sql.append(", log_date = ?");
+            params.add(request.get("logDate"));
+        }
+
+        sql.append(" WHERE id = ? AND user_id = ? AND deleted = 0");
+        params.add(logId);
+        params.add(userId);
+
+        int updated = jdbcTemplate.update(sql.toString(), params.toArray());
+        if (updated == 0) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "日志不存在或无权编辑");
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", logId);
+        result.put("updated", true);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @DeleteMapping("/{logId}")
+    public ResponseEntity<ApiResponse<Void>> deleteLog(@PathVariable Long logId) {
+        Long userId = getCurrentUserId();
+        int updated = jdbcTemplate.update(
+                "UPDATE work_logs SET deleted = 1 WHERE id = ? AND user_id = ? AND deleted = 0",
+                logId, userId);
+        if (updated == 0) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "日志不存在或无权删除");
+        }
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
     private Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return (Long) auth.getPrincipal();

@@ -79,4 +79,31 @@ public class LogRepository {
                     throw new RuntimeException(response.getMessage());
                 });
     }
+
+    public Observable<Map<String, Object>> editLog(Long logId, String workItem, String completionStatus,
+                                                     Double timeCost, String logDate) {
+        Map<String, Object> request = new HashMap<>();
+        if (workItem != null) request.put("workItem", workItem);
+        if (completionStatus != null) request.put("completionStatus", completionStatus);
+        if (timeCost != null) request.put("timeCost", timeCost);
+        if (logDate != null) request.put("logDate", logDate);
+
+        return logApi.editLog(logId, request)
+                .subscribeOn(Schedulers.io())
+                .map(response -> {
+                    if (response.isSuccess() && response.getData() != null) {
+                        return response.getData();
+                    }
+                    throw new RuntimeException(response.getMessage());
+                });
+    }
+
+    public Observable<Void> deleteLog(Long logId) {
+        return logApi.deleteLog(logId)
+                .subscribeOn(Schedulers.io())
+                .map(response -> {
+                    if (response.isSuccess()) return null;
+                    throw new RuntimeException(response.getMessage());
+                });
+    }
 }

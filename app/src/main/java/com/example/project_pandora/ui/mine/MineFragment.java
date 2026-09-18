@@ -42,6 +42,9 @@ public class MineFragment extends Fragment {
 
         binding.btnSettings.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), ThemeSettingActivity.class)));
+
+        binding.btnFocus.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), FocusActivity.class)));
     }
 
     @Override

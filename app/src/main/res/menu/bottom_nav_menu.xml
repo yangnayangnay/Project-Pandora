@@ -2,24 +2,24 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/scheduleFragment"
-        android:icon="@drawable/ic_calendar"
-        android:title="@string/nav_schedule" />
+        android:id="@+id/mindmapFragment"
+        android:icon="@drawable/ic_mindmap"
+        android:title="@string/nav_mindmap" />
 
     <item
         android:id="@+id/viewFragment"
-        android:icon="@drawable/ic_mindmap"
+        android:icon="@drawable/ic_calendar"
         android:title="@string/nav_view" />
 
     <item
-        android:id="@+id/focusFragment"
-        android:icon="@drawable/ic_focus"
-        android:title="@string/nav_focus" />
+        android:id="@+id/logFragment"
+        android:icon="@drawable/ic_log"
+        android:title="@string/nav_log" />
 
     <item
-        android:id="@+id/statisticsFragment"
+        android:id="@+id/aimapFragment"
         android:icon="@drawable/ic_ai_map"
-        android:title="@string/nav_statistics" />
+        android:title="@string/nav_aimap" />
 
     <item
         android:id="@+id/mineFragment"

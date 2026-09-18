@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/action_stat"
+        android:title="统计"
+        android:icon="@android:drawable/ic_menu_sort_by_size"
+        app:showAsAction="ifRoom"
+        xmlns:app="http://schemas.android.com/apk/res-auto" />
+
+    <item
+        android:id="@+id/action_template"
+        android:title="模板"
+        android:icon="@android:drawable/ic_menu_save"
+        app:showAsAction="ifRoom"
+        xmlns:app="http://schemas.android.com/apk/res-auto" />
+
+</menu>
