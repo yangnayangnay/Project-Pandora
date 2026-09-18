@@ -12,7 +12,7 @@
         android:background="?attr/colorPrimary"
         app:title="@string/task_create"
         app:titleTextColor="@android:color/white"
-        app:navigationIcon="@drawable/abc_vector_back" />
+        app:navigationIcon="?attr/homeAsUpIndicator" />
 
     <ScrollView
         android:layout_width="match_parent"
