@@ -1,0 +1,24 @@
+*.iml
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+/build
+/app/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Backend
+pandora-backend/target/
+
+# Web frontend
+pandora-web/node_modules/
+pandora-web/dist/
+
+# H2 data
+pandora-data/
+
+# CodeArts
+.codeartsdoer/

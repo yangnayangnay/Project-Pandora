@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/scheduleFragment">
+
+    <fragment
+        android:id="@+id/scheduleFragment"
+        android:name="com.example.project_pandora.ui.view.ViewFragment"
+        android:label="@string/nav_schedule" />
+
+    <fragment
+        android:id="@+id/viewFragment"
+        android:name="com.example.project_pandora.ui.mindmap.MindMapFragment"
+        android:label="@string/nav_view" />
+
+    <fragment
+        android:id="@+id/focusFragment"
+        android:name="com.example.project_pandora.ui.focus.FocusFragment"
+        android:label="@string/nav_focus" />
+
+    <fragment
+        android:id="@+id/statisticsFragment"
+        android:name="com.example.project_pandora.ui.aimap.AIMapFragment"
+        android:label="@string/nav_statistics" />
+
+    <fragment
+        android:id="@+id/mineFragment"
+        android:name="com.example.project_pandora.ui.mine.MineFragment"
+        android:label="@string/nav_mine" />
+
+    <fragment
+        android:id="@+id/logFragment"
+        android:name="com.example.project_pandora.ui.log.LogFragment"
+        android:label="@string/nav_log" />
+
+</navigation>

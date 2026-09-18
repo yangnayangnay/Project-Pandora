@@ -1,0 +1,218 @@
+================================================================================
+Project: Pandora（潘多拉）- 代码改动记录
+================================================================================
+文档版本: v1.0
+更新日期: 2026-09-11
+
+格式说明：
+  日期 | 文件路径 | 改动类型(新增/修改/删除) | 关联需求 | 作者 | 改动描述
+
+================================================================================
+变更记录
+================================================================================
+
+2026-09-11 | docx/docx_generate/ | 新增 | 全局 | spec-task-agent | 初始化文档先行机制文件
+2026-09-11 | README.md | 新增 | 全局 | spec-task-agent | 创建项目README
+2026-09-11 | docx/docx_generate/tasks/task0.md | 新增 | Sprint0 | spec-task-agent | 创建任务执行方案
+2026-09-11 | docx/docx_generate/tasks/task0_operation.md | 新增 | Sprint0 | spec-task-agent | 创建详细执行文档
+
+2026-09-11 | pandora-backend/src/main/resources/db/pandora_schema.sql | 新增 | Epic-1~6 | spec-task-agent | 创建11张核心表建表脚本(4NF)
+2026-09-11 | pandora-backend/pom.xml | 新增 | 全局 | spec-task-agent | 创建Spring Boot 3工程配置
+2026-09-11 | pandora-backend/src/main/resources/application.yml | 新增 | 全局 | spec-task-agent | 创建后端配置文件
+2026-09-11 | pandora-backend/src/main/java/com/pandora/backend/PandoraBackendApplication.java | 新增 | 全局 | spec-task-agent | 创建后端主启动类
+2026-09-11 | pandora-backend/run-server.bat | 新增 | 全局 | spec-task-agent | 创建Windows批处理启动脚本
+
+2026-09-11 | pandora-backend/.../common/ | 新增 | 全局 | spec-task-agent | 创建通用组件层(ApiResponse/ErrorCode/BusinessException/PageResult/GlobalExceptionHandler)
+2026-09-11 | pandora-backend/.../auth/ | 新增 | Epic-5 | spec-task-agent | 创建认证鉴权模块(JwtUtil/AuthController/RoleAuthFilter/SecurityConfig)
+2026-09-11 | pandora-backend/.../audit/ | 新增 | Epic-5 | spec-task-agent | 创建审计切面(AuditAspect/AuditService/AuditController)
+2026-09-11 | pandora-backend/.../task/TaskController.java | 新增 | Epic-1 | spec-task-agent | 创建任务管理Controller(创建/列表/详情/进度/四象限/状态流转)
+2026-09-11 | pandora-backend/.../log/LogController.java | 新增 | Epic-2 | spec-task-agent | 创建日志管理Controller(录入/列表/统计/十大工作)
+2026-09-11 | pandora-backend/.../view/ViewController.java | 新增 | Epic-3 | spec-task-agent | 创建视图聚合Controller(月/周/日/导图/信息地图)
+2026-09-11 | pandora-backend/.../ai/AIController.java | 新增 | Epic-4 | spec-task-agent | 创建AI分析Controller(MBTI/关键词/建议/占卜)
+
+2026-09-11 | gradle/libs.versions.toml | 修改 | 全局 | spec-task-agent | 添加Retrofit/Room/RxJava/MPAndroidChart等依赖
+2026-09-11 | app/build.gradle.kts | 修改 | 全局 | spec-task-agent | 添加新依赖引用
+2026-09-11 | settings.gradle.kts | 修改 | 全局 | spec-task-agent | 添加JitPack仓库
+2026-09-11 | app/src/main/AndroidManifest.xml | 修改 | 全局 | spec-task-agent | 添加权限和竖屏锁定
+
+2026-09-11 | app/.../core/moon/MoonPhaseCalculator.java | 新增 | NFR-1 | spec-task-agent | 创建月相计算器(8种月相)
+2026-09-11 | app/.../core/divination/DivinationEngine.java | 新增 | Epic-4扩展 | spec-task-agent | 创建梅花易数占卜引擎(64卦)
+2026-09-11 | app/.../core/theme/ThemeManager.java | 新增 | NFR-1 | spec-task-agent | 创建主题管理器(AUTO/MANUAL模式)
+2026-09-11 | app/.../core/logger/PandoraLogger.java | 新增 | NFR-2 | spec-task-agent | 创建日志管理器(敏感过滤/定量清除)
+2026-09-11 | app/.../core/smoketest/SmokeTestEngine.java | 新增 | Epic-2 | spec-task-agent | 创建晨星冒烟测试引擎
+2026-09-11 | app/.../core/crash/CrashHandler.java | 新增 | 全局 | spec-task-agent | 创建全局崩溃处理器
+2026-09-11 | app/.../core/network/ | 新增 | 全局 | spec-task-agent | 创建网络层(ApiResponse/TokenManager/TokenInterceptor/NetworkClient)
+
+2026-09-11 | app/.../data/remote/ | 新增 | 全局 | spec-task-agent | 创建API接口定义(AuthApi/TaskApi/LogApi/AIApi)
+2026-09-11 | app/.../viewmodel/BaseViewModel.java | 新增 | 全局 | spec-task-agent | 创建MVVM基类
+
+2026-09-11 | app/.../MainActivity.java | 修改 | 全局 | spec-task-agent | 改造为底部导航+NavHostFragment
+2026-09-11 | app/src/main/res/layout/activity_main.xml | 修改 | 全局 | spec-task-agent | 改造为BottomNavigationView布局
+2026-09-11 | app/src/main/res/navigation/nav_graph.xml | 修改 | 全局 | spec-task-agent | 改造为5个主目的地导航图
+2026-09-11 | app/src/main/res/menu/bottom_nav_menu.xml | 新增 | Epic-6 | spec-task-agent | 创建底部导航菜单
+2026-09-11 | app/src/main/res/values/strings.xml | 修改 | 全局 | spec-task-agent | 添加业务文案字符串
+
+2026-09-11 | app/.../ui/mindmap/MindMapFragment.java | 新增 | Epic-3 | spec-task-agent | 创建导图页Fragment(四大板块)
+2026-09-11 | app/.../ui/view/ViewFragment.java | 新增 | Epic-3 | spec-task-agent | 创建视图页Fragment(月/周/日切换)
+2026-09-11 | app/.../ui/log/LogFragment.java | 新增 | Epic-2 | spec-task-agent | 创建日志页Fragment(含晨星冒烟测试)
+2026-09-11 | app/.../ui/aimap/AIMapFragment.java | 新增 | Epic-4 | spec-task-agent | 创建AI地图Fragment(含每日占卜)
+2026-09-11 | app/.../ui/mine/MineFragment.java | 新增 | Epic-5 | spec-task-agent | 创建我的Fragment(月相/主题展示)
+
+2026-09-11 | app/.../ui/login/LoginActivity.java | 新增 | Epic-5 | spec-task-agent | 创建登录页面
+2026-09-11 | app/.../ui/task/TaskCreateActivity.java | 新增 | Epic-1 | spec-task-agent | 创建任务创建页面(核心验收功能1)
+2026-09-11 | app/.../ui/ai/MBTITestActivity.java | 新增 | Epic-4 | spec-task-agent | 创建MBTI测试页面(核心验收功能3)
+2026-09-11 | app/.../ui/widget/CalendarView.java | 新增 | Epic-3 | spec-task-agent | 创建自定义日历视图(核心验收功能2)
+2026-09-11 | app/.../ui/widget/FourQuadrantView.java | 新增 | Epic-1 | spec-task-agent | 创建四象限任务视图
+
+2026-09-11 | app/src/main/res/layout/ | 新增 | 全局 | spec-task-agent | 创建Fragment和Activity布局文件
+2026-09-11 | app/src/main/res/drawable/ | 新增 | Epic-6 | spec-task-agent | 创建底部导航图标
+2026-09-11 | app/src/main/res/color/bottom_nav_color_selector.xml | 新增 | Epic-6 | spec-task-agent | 创建底部导航颜色选择器
+
+2026-09-11 | app/.../FirstFragment.java | 删除 | 全局 | spec-task-agent | 删除模板Fragment
+2026-09-11 | app/.../SecondFragment.java | 删除 | 全局 | spec-task-agent | 删除模板Fragment
+
+2026-09-11 | pandora-web/ | 新增 | 全局 | spec-task-agent | 创建Web管理端(Vue3+Vite+ElementPlus+Pinia)
+2026-09-11 | pandora-web/src/views/login/LoginView.vue | 新增 | Epic-5 | spec-task-agent | 创建Web登录页
+2026-09-11 | pandora-web/src/components/Layout.vue | 新增 | 全局 | spec-task-agent | 创建Web布局组件
+2026-09-11 | pandora-web/src/router/index.js | 新增 | 全局 | spec-task-agent | 创建路由配置
+2026-09-11 | pandora-web/src/utils/ | 新增 | 全局 | spec-task-agent | 创建工具函数(request.js/auth.js)
+2026-09-11 | pandora-web/src/stores/userStore.js | 新增 | 全局 | spec-task-agent | 创建Pinia用户状态管理
+================================================================================
+Sprint 0 业务功能实现 - 2026-09-11
+================================================================================
+
+2026-09-11 | app/.../model/ | 新增 | 全局 | codearts | 创建Model类(Task/WorkLog/MBTIReport/User/DivinationResult/Top10Work)
+2026-09-11 | app/.../data/remote/ViewApi.java | 新增 | Epic-3 | codearts | 创建视图API接口
+2026-09-11 | app/.../data/remote/AIApi.java | 修改 | Epic-4 | codearts | 修复URL拼写错误
+2026-09-11 | app/.../data/remote/TaskApi.java | 修改 | Epic-1 | codearts | 添加transitionStatus接口
+
+2026-09-11 | app/.../repository/TaskRepository.java | 新增 | Epic-1 | codearts | 创建任务Repository
+2026-09-11 | app/.../repository/LogRepository.java | 新增 | Epic-2 | codearts | 创建日志Repository
+2026-09-11 | app/.../repository/ViewRepository.java | 新增 | Epic-3 | codearts | 创建视图Repository
+2026-09-11 | app/.../repository/AIRepository.java | 新增 | Epic-4 | codearts | 创建AI Repository
+
+2026-09-11 | app/.../viewmodel/TaskViewModel.java | 新增 | Epic-1 | codearts | 创建任务ViewModel
+2026-09-11 | app/.../viewmodel/LogViewModel.java | 新增 | Epic-2 | codearts | 创建日志ViewModel
+2026-09-11 | app/.../viewmodel/ViewViewModel.java | 新增 | Epic-3 | codearts | 创建视图ViewModel
+2026-09-11 | app/.../viewmodel/AIViewModel.java | 新增 | Epic-4 | codearts | 创建AI ViewModel
+
+2026-09-11 | app/.../ui/task/TaskListFragment.java | 新增 | Epic-1 | codearts | 创建任务列表Fragment(核心验收功能1)
+2026-09-11 | app/.../ui/task/TaskListAdapter.java | 新增 | Epic-1 | codearts | 创建任务列表适配器
+2026-09-11 | app/.../ui/task/TaskDetailActivity.java | 新增 | Epic-1 | codearts | 创建任务详情Activity(状态流转/进度更新)
+2026-09-11 | app/.../ui/task/TaskDispatchActivity.java | 新增 | Epic-1 | codearts | 创建任务分发Activity
+2026-09-11 | app/.../ui/view/ViewFragment.java | 修改 | Epic-3 | codearts | 增强日历视图(月/周/日切换+数据加载)(核心验收功能2)
+2026-09-11 | app/.../ui/log/LogCreateActivity.java | 新增 | Epic-2 | codearts | 创建日志录入Activity
+2026-09-11 | app/.../ui/log/LogStatFragment.java | 新增 | Epic-2 | codearts | 创建日志统计Fragment(MPAndroidChart图表)
+2026-09-11 | app/.../ui/log/Top10WorkEditActivity.java | 新增 | Epic-2 | codearts | 创建十大重要工作编辑Activity
+2026-09-11 | app/.../ui/log/Top10Adapter.java | 新增 | Epic-2 | codearts | 创建十大工作适配器
+2026-09-11 | app/.../ui/ai/MBTIReportActivity.java | 新增 | Epic-4 | codearts | 创建MBTI报告展示Activity(核心验收功能3)
+2026-09-11 | app/.../ui/ai/DivinationActivity.java | 新增 | Epic-4扩展 | codearts | 创建每日占卜Activity(本地梅花易数)
+2026-09-11 | app/.../ui/ai/KeywordAnalysisActivity.java | 新增 | Epic-4 | codearts | 创建关键词分析Activity
+2026-09-11 | app/.../ui/ai/SuggestionActivity.java | 新增 | Epic-4 | codearts | 创建AI建议Activity
+2026-09-11 | app/.../ui/mine/ProfileActivity.java | 新增 | Epic-5 | codearts | 创建个人信息编辑Activity
+2026-09-11 | app/.../ui/mine/ThemeSettingActivity.java | 新增 | NFR-1 | codearts | 创建主题设置Activity(8种月相主题)
+
+2026-09-11 | app/src/main/res/layout/ | 新增 | 全局 | codearts | 创建12个新布局文件(task_list/task_detail/task_dispatch/log_create/log_stat/mbti_report/divination/keyword_analysis/suggestion/top10_work_edit/profile/theme_setting/item_task/item_top10)
+2026-09-11 | app/src/main/res/layout/fragment_view.xml | 修改 | Epic-3 | codearts | 增强日历视图布局(CalendarView+周/日视图容器)
+2026-09-11 | app/src/main/res/drawable/ | 新增 | 全局 | codearts | 创建7个drawable资源(ic_back/bg_status_tag/bg_priority_tag/bg_quadrant_tag/bg_mbti_type_card/bg_divination_card/bg_date_picker/bg_task_card)
+2026-09-11 | app/src/main/AndroidManifest.xml | 修改 | 全局 | codearts | 注册13个新Activity
+
+2026-09-11 | pandora-backend/.../task/TaskStateMachine.java | 新增 | Epic-1 | codearts | 创建任务状态机(待接收→进行中→已完成→已确认)
+2026-09-11 | pandora-backend/.../user/UserController.java | 新增 | Epic-5 | codearts | 创建用户Controller(me/list/panel/profile)
+2026-09-11 | pandora-backend/.../theme/ThemeController.java | 新增 | NFR-1 | codearts | 创建主题Controller(月相计算/偏好设置)
+2026-09-11 | pandora-backend/.../sync/SyncController.java | 新增 | 全局 | codearts | 创建同步Controller(离线同步/冲突处理)
+2026-09-11 | pandora-backend/.../permission/PermissionController.java | 新增 | Epic-5 | codearts | 创建权限Controller(邀约/审核规则)
+
+2026-09-11 | pandora-web/src/api/ | 新增 | 全局 | codearts | 创建8个API模块(auth/user/task/log/ai/permission/theme/audit)
+2026-09-11 | pandora-web/src/views/task/TaskQuadrantView.vue | 新增 | Epic-1 | codearts | 创建四象限看板
+2026-09-11 | pandora-web/src/views/ai/KeywordAnalysisView.vue | 新增 | Epic-4 | codearts | 创建关键词分析视图
+2026-09-11 | pandora-web/src/views/ai/AIInfoMapView.vue | 新增 | Epic-4 | codearts | 创建AI信息地图(ECharts关系图)
+2026-09-11 | pandora-web/src/views/user/DeptTeamView.vue | 新增 | Epic-5 | codearts | 创建部门团队管理视图
+2026-09-11 | pandora-web/src/views/permission/AuditRuleView.vue | 新增 | Epic-5 | codearts | 创建审核规则配置视图
+2026-09-11 | pandora-web/src/views/permission/InvitationView.vue | 新增 | Epic-5 | codearts | 创建邀约请示视图
+2026-09-11 | pandora-web/src/views/config/AuditLogView.vue | 新增 | Epic-5 | codearts | 创建审计日志视图
+2026-09-11 | pandora-web/src/stores/appStore.js | 新增 | 全局 | codearts | 创建Pinia应用状态管理
+2026-09-11 | pandora-web/src/router/index.js | 修改 | 全局 | codearts | 添加新路由(四象限/关键词/信息地图/部门团队/审核规则/邀约/审计日志)
+================================================================================
+2026-09-13 构建修复 + 占卜重构 + 导航修正
+================================================================================
+
+2026-09-13 | app/build.gradle.kts | 修改 | 全局 | codearts | 启用dataBinding=true(15个布局使用<layout>标签)
+2026-09-13 | gradle/libs.versions.toml | 修改 | 全局 | codearts | 添加circleimageview=3.1.0依赖
+2026-09-13 | app/src/main/res/values/strings.xml | 修改 | 全局 | codearts | 添加a11y描述/next/previous/lorem_ipsum字符串
+2026-09-13 | app/.../core/logger/PandoraLogger.java | 修改 | NFR-2 | codearts | Single.fromAction→Completable.fromAction(RxJava3 API修正)
+2026-09-13 | app/.../core/smoketest/SmokeTestEngine.java | 修改 | Epic-2 | codearts | 添加import java.io.File
+2026-09-13 | app/.../ui/mine/ThemeSettingActivity.java | 修改 | NFR-1 | codearts | binding.radioGroup→binding.radioGroupMode(id修正)
+2026-09-13 | app/src/main/res/layout/activity_theme_setting.xml | 修改 | NFR-1 | codearts | ?attr.colorPrimary→?attr/colorPrimary(语法修正)
+2026-09-13 | app/src/main/res/layout/item_task.xml | 修改 | Epic-1 | codearts | padding="2dp 8dp"→paddingHorizontal/paddingVertical
+2026-09-13 | app/src/main/res/layout/activity_task_detail.xml | 修改 | Epic-1 | codearts | padding="4dp 12dp"→paddingHorizontal/paddingVertical(3处)
+2026-09-13 | app/.../ui/log/Top10WorkEditActivity.java | 修改 | Epic-2 | codearts | Observable<Void> lambda ()→→ignored→(参数类型修正)
+2026-09-13 | app/.../ui/task/TaskDetailActivity.java | 修改 | Epic-1 | codearts | Observable<Void> lambda ()→→ignored→(2处)
+2026-09-13 | app/.../viewmodel/LogViewModel.java | 修改 | Epic-2 | codearts | showEmpty(bool)→if(...)showEmpty()else hideEmpty(); lambda ()→→ignored→
+2026-09-13 | app/.../viewmodel/TaskViewModel.java | 修改 | Epic-1 | codearts | showEmpty(bool)→if(...)showEmpty()else hideEmpty(); lambda ()→→ignored→(2处)
+2026-09-13 | app/.../ui/view/ViewFragment.java | 修改 | Epic-3 | codearts | TabLayout添加contentDescription(无障碍)
+2026-09-13 | app/.../ui/task/TaskListFragment.java | 修改 | Epic-1 | codearts | TabLayout添加contentDescription(无障碍)
+
+2026-09-13 | app/.../core/divination/HexagramTexts.java | 新增 | Epic-4扩展 | codearts | 创建64卦卦辞+爻辞数据(梅花编号顺序)
+2026-09-13 | app/.../core/divination/DivinationEngine.java | 修改 | Epic-4扩展 | codearts | 添加互卦计算/修正卦名映射/去掉宜忌/添加卦辞爻辞
+2026-09-13 | app/.../ui/ai/DivinationActivity.java | 修改 | Epic-4扩展 | codearts | 改为手动占卜(点击按钮才起卦)/显示互卦卦辞爻辞/去掉宜忌
+2026-09-13 | app/src/main/res/layout/activity_divination.xml | 修改 | Epic-4扩展 | codearts | 添加开始占卜按钮/互卦显示/卦辞爻辞区域/去掉宜忌区域
+
+2026-09-13 | app/.../ui/aimap/AIMapFragment.java | 修改 | Epic-4 | codearts | 改为分类入口(数据地图/职业性格/其他),占卜入其他类
+2026-09-13 | app/src/main/res/layout/fragment_aimap.xml | 修改 | Epic-4 | codearts | 重构为三类分类卡片布局
+2026-09-13 | app/.../ui/mine/MineFragment.java | 修改 | Epic-5 | codearts | 添加用户中心和设置入口
+2026-09-13 | app/src/main/res/layout/fragment_mine.xml | 修改 | Epic-5 | codearts | 添加用户中心/设置可点击入口卡片
+
+2026-09-13 | app/.../MainActivity.java | 修改 | 全局 | codearts | 添加adjustBottomNavHeight()底部导航高度自适应方法(≤屏幕12%)
+2026-09-13 | app/src/main/res/menu/bottom_nav_menu.xml | 修改 | Epic-6 | codearts | Tab顺序修正:导图/日志/视图/AI地图/我的
+2026-09-13 | app/.../ui/ai/DivinationActivity.java | 修改 | Epic-4扩展 | codearts | 添加每日一次占卜限制(SharedPreferences存储,0点刷新)
+
+2026-09-13 | app/src/main/res/menu/bottom_nav_menu.xml | 修改 | Epic-6 | codearts | 底部导航重构为:日程/视图/专注/统计/我的(按PDF文档)
+2026-09-13 | app/src/main/res/navigation/nav_graph.xml | 修改 | Epic-6 | codearts | 导航图重构:scheduleFragment→ViewFragment,viewFragment→MindMapFragment,新增focusFragment/statisticsFragment,logFragment改为子页
+2026-09-13 | app/src/main/res/values/strings.xml | 修改 | Epic-6 | codearts | 添加nav_schedule/nav_focus/nav_statistics/focus相关字符串,删除nav_mindmap/nav_ai_map
+2026-09-13 | app/.../ui/focus/FocusFragment.java | 新增 | Epic-6 | codearts | 创建专注页Fragment(番茄钟25min专注+5min休息,CountDownTimer实现)
+2026-09-13 | app/src/main/res/layout/fragment_focus.xml | 新增 | Epic-6 | codearts | 创建专注页布局(计时显示/模式标签/开始暂停重置按钮)
+2026-09-13 | app/src/main/res/drawable/ic_focus.xml | 新增 | Epic-6 | codearts | 创建专注页导航图标(时钟造型)
+2026-09-13 | app/.../ui/view/ViewFragment.java | 修改 | Epic-3 | codearts | 添加"查看日志"按钮导航到LogFragment(日志改为日程子页)
+2026-09-13 | app/src/main/res/layout/fragment_view.xml | 修改 | Epic-3 | codearts | 添加btnViewLogs按钮(查看日志入口)
+2026-09-13 | app/src/main/res/layout/fragment_mindmap.xml | 修改 | Epic-3 | codearts | 标题引用从nav_mindmap改为nav_view(适配导航重构)
+2026-09-14 | app/.../core/divination/DivinationEngine.java | 修改 | Epic-4扩展 | codearts | 去掉吉凶判断和描述生成,改为返回三种卦各自完整卦辞+6条爻辞
+2026-09-14 | app/.../ui/ai/DivinationActivity.java | 修改 | Epic-4扩展 | codearts | 显示本卦/互卦/变卦各自完整卦辞+6爻辞,去掉吉凶和描述,标注动爻位置
+2026-09-14 | app/src/main/res/layout/activity_divination.xml | 修改 | Epic-4扩展 | codearts | 三段式布局(本卦/互卦/变卦各含卦名+卦辞+6爻辞),去掉吉凶等级和描述区域
+2026-09-17 | app/.../core/divination/HexagramTexts.java | 修改 | Epic-4扩展 | codearts | 64卦卦辞和爻辞添加标准中文标点
+2026-09-17 | app/.../ui/ai/KeywordAnalysisActivity.java | 修改 | Epic-4 | codearts | 实现本地关键词分析(n-gram提取+停用词过滤+词频排序+子词合并),展示5步分析过程
+2026-09-17 | app/src/main/res/layout/activity_keyword_analysis.xml | 修改 | Epic-4 | codearts | 添加分析过程展示区(等宽字体),RecyclerView改为nestedScrollingEnabled=false
+2026-09-17 | app/.../ui/task/TaskListAdapter.java | 修改 | Epic-1 | codearts | 添加deadline紧急度计算+排序+序号显示+颜色标识(深红/淡红/黄/绿)
+2026-09-17 | app/src/main/res/layout/item_task.xml | 修改 | Epic-1 | codearts | 添加序号标签+紧急度指示条+截止日期显示
+2026-09-17 | app/.../ui/task/TaskDetailActivity.java | 修改 | Epic-1 | codearts | 添加紧急程度手动调整(4级RadioGroup+SharedPreferences存储)
+2026-09-17 | app/src/main/res/layout/activity_task_detail.xml | 修改 | Epic-1 | codearts | 添加紧急程度选择区(最高/高/中/低+提示文字)
+2026-09-17 | app/src/main/res/drawable/bg_urgent_*.xml | 新增 | Epic-1 | codearts | 创建4个紧急度颜色drawable(critical深红/high淡红/medium黄/low绿)
+2026-09-17 | app/.../ui/ai/MBTITestActivity.java | 修改 | Epic-4 | codearts | 支持12/24/36题三版本+36题题库+本地MBTI计算+SharedPreferences存储结果
+2026-09-17 | app/src/main/res/layout/activity_mbti_test.xml | 修改 | Epic-4 | codearts | 添加版本选择页+改用<layout>标签+toolbar
+2026-09-17 | app/.../ui/ai/MBTIReportActivity.java | 修改 | Epic-4 | codearts | 优先显示上次结果+历史记录列表(长按删除)+清空全部+16类型描述
+2026-09-17 | app/src/main/res/layout/activity_mbti_report.xml | 修改 | Epic-4 | codearts | 添加上次结果区+历史记录区+维度得分+清空按钮
+================================================================================
+2026-09-17 用户注册登录 + 数据库切换 + 权限分级
+================================================================================
+
+2026-09-17 | pandora-backend/pom.xml | 修改 | Epic-5 | codearts | 移除spring-boot-starter-data-redis,添加H2和Oracle JDBC(ojdbc11)依赖
+2026-09-17 | pandora-backend/src/main/resources/application.yml | 修改 | Epic-5 | codearts | 切换H2数据库(MySQL兼容模式,E盘文件存储),移除Redis配置,启用H2 Console,配置SQL初始化
+2026-09-17 | pandora-backend/src/main/resources/application-oracle.yml | 新增 | Epic-5 | codearts | 创建Oracle profile配置(预留,用户手动安装Oracle后切换)
+2026-09-17 | pandora-backend/src/main/resources/db/h2_schema.sql | 新增 | Epic-5 | codearts | 创建H2兼容建表脚本(11张表,CREATE IF NOT EXISTS,管理员初始数据)
+2026-09-17 | pandora-backend/.../auth/SessionStore.java | 新增 | Epic-5 | codearts | 创建内存Session存储(ConcurrentHashMap,替代Redis)
+2026-09-17 | pandora-backend/.../auth/AuthController.java | 修改 | Epic-5 | codearts | 替换Redis为SessionStore,添加/auth/register注册接口(用户名查重+BCrypt加密+角色验证)
+2026-09-17 | pandora-backend/.../auth/RoleAuthFilter.java | 修改 | Epic-5 | codearts | 替换Redis为SessionStore,白名单添加/auth/register和/h2-console
+2026-09-17 | pandora-backend/.../auth/SecurityConfig.java | 修改 | Epic-5 | codearts | 添加权限分级访问控制(ADMIN/FOUNDER可管理审核规则和审计日志,DEPT_HEAD可查看用户面板),启用MethodSecurity,放行H2 Console
+2026-09-17 | pandora-backend/.../common/ErrorCode.java | 修改 | Epic-5 | codearts | 添加USERNAME_ALREADY_EXISTS/PASSWORD_TOO_SHORT/INVALID_ROLE错误码
+2026-09-17 | pandora-backend/.../theme/ThemeController.java | 修改 | NFR-1 | codearts | 替换Redis缓存为ConcurrentHashMap内存缓存(月相计算)
+2026-09-17 | pandora-web/src/views/login/RegisterView.vue | 新增 | Epic-5 | codearts | 创建Web注册页面(用户名+密码+确认密码+角色选择)
+2026-09-17 | pandora-web/src/api/auth.js | 修改 | Epic-5 | codearts | 添加register API调用
+2026-09-17 | pandora-web/src/router/index.js | 修改 | Epic-5 | codearts | 添加/register路由,已登录用户重定向到首页
+2026-09-17 | pandora-web/src/views/login/LoginView.vue | 修改 | Epic-5 | codearts | 添加"去注册"链接
+2026-09-17 | app/.../ui/login/RegisterActivity.java | 新增 | Epic-5 | codearts | 创建Android注册Activity(用户名+密码+确认密码+角色Spinner)
+2026-09-17 | app/src/main/res/layout/activity_register.xml | 新增 | Epic-5 | codearts | 创建注册页布局
+2026-09-17 | app/.../data/remote/AuthApi.java | 修改 | Epic-5 | codearts | 添加register接口方法
+2026-09-17 | app/.../ui/login/LoginActivity.java | 修改 | Epic-5 | codearts | 添加"去注册"按钮
+2026-09-17 | app/src/main/res/layout/activity_login.xml | 修改 | Epic-5 | codearts | 添加去注册按钮
+2026-09-17 | app/src/main/AndroidManifest.xml | 修改 | Epic-5 | codearts | 注册RegisterActivity
+2026-09-17 | app/src/main/res/values/strings.xml | 修改 | Epic-5 | codearts | 添加注册相关字符串资源

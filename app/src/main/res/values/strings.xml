@@ -1,0 +1,101 @@
+<resources>
+    <string name="app_name">潘多拉</string>
+    <string name="action_settings">设置</string>
+
+    <!-- 注册登录 -->
+    <string name="register_title">用户注册</string>
+    <string name="hint_username">用户名</string>
+    <string name="hint_password">密码</string>
+    <string name="hint_confirm_password">确认密码</string>
+    <string name="hint_role">选择角色</string>
+    <string name="btn_register">注 册</string>
+    <string name="btn_go_login">已有账号？去登录</string>
+    <string name="btn_go_register">没有账号？去注册</string>
+
+    <!-- 底部导航 -->
+    <string name="nav_schedule">日程</string>
+    <string name="nav_view">视图</string>
+    <string name="nav_focus">专注</string>
+    <string name="nav_statistics">其他</string>
+    <string name="nav_mine">我的</string>
+    <string name="nav_log">日志</string>
+
+    <!-- 无障碍描述 -->
+    <string name="a11y_tab_view_mode">选择时间维度视图，月视图、周视图或日视图</string>
+    <string name="a11y_tab_task_status">按任务状态筛选</string>
+
+    <!-- 通用 -->
+    <string name="loading">加载中...</string>
+    <string name="empty">暂无数据</string>
+    <string name="retry">重试</string>
+    <string name="confirm">确认</string>
+    <string name="cancel">取消</string>
+    <string name="save">保存</string>
+    <string name="delete">删除</string>
+    <string name="edit">编辑</string>
+    <string name="next">下一步</string>
+    <string name="previous">上一步</string>
+    <string name="lorem_ipsum">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</string>
+
+    <!-- 任务管理 -->
+    <string name="task_create">创建任务</string>
+    <string name="task_name">任务名称</string>
+    <string name="task_priority">优先级</string>
+    <string name="task_status">状态</string>
+    <string name="task_assignee">责任人</string>
+    <string name="task_start_time">开始时间</string>
+    <string name="task_end_time">截止时间</string>
+    <string name="task_progress">进度说明</string>
+    <string name="task_quadrant_important_urgent">重要且紧急</string>
+    <string name="task_quadrant_important_not_urgent">重要不紧急</string>
+    <string name="task_quadrant_not_important_urgent">紧急不重要</string>
+    <string name="task_quadrant_not_important_not_urgent">不重要不紧急</string>
+
+    <!-- 日志管理 -->
+    <string name="log_create">添加日志</string>
+    <string name="log_work_item">工作事项</string>
+    <string name="log_completion">完成情况</string>
+    <string name="log_time_cost">时间花费</string>
+    <string name="log_date">日志日期</string>
+
+    <!-- AI分析 -->
+    <string name="ai_mbti_test">MBTI性格测试</string>
+    <string name="ai_keyword_analysis">关键词分析</string>
+    <string name="ai_suggestion">AI建议</string>
+    <string name="ai_divination">每日占卜</string>
+
+    <!-- 专注功能 -->
+    <string name="focus_mode_work">专注中</string>
+    <string name="focus_mode_break">休息中</string>
+    <string name="focus_start">开始</string>
+    <string name="focus_pause">暂停</string>
+    <string name="focus_reset">重置</string>
+    <string name="focus_session_count">已完成 0 个专注周期</string>
+
+    <!-- 日程页 -->
+    <string name="schedule_view_logs">查看日志</string>
+
+    <!-- 主题 -->
+    <string name="theme_auto">跟随月相</string>
+    <string name="theme_manual">手动选择</string>
+    <string name="moon_new">新月</string>
+    <string name="moon_waxing_crescent">蛾眉月</string>
+    <string name="moon_first_quarter">上弦月</string>
+    <string name="moon_waxing_gibbous">盈凸月</string>
+    <string name="moon_full">满月</string>
+    <string name="moon_waning_gibbous">亏凸月</string>
+    <string name="moon_last_quarter">下弦月</string>
+    <string name="moon_waning_crescent">残月</string>
+
+    <!-- 生日祝福 -->
+    <string name="birthday_title">生日祝福</string>
+    <string name="birthday_set">设置我的生日</string>
+    <string name="birthday_month">月</string>
+    <string name="birthday_day">日</string>
+    <string name="birthday_save">保存</string>
+    <string name="birthday_today">🎂 生日快乐！\n\n愿你在新的一岁里：\n工作顺心如意，前程似锦\n生活幸福美满，健康平安\n每一个梦想都能实现\n每一天都充满阳光\n\n🎉 Happy Birthday！</string>
+    <string name="birthday_not_set">还未设置生日，请先设置\n点击上方保存你的生日日期</string>
+    <string name="birthday_days_left">距离生日还有 %1$d 天</string>
+    <string name="birthday_passed">生日已过，明年再见！\n距离下次生日还有 %1$d 天</string>
+    <string name="birthday_saved">生日已保存</string>
+</resources>
