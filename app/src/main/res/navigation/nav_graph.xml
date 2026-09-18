@@ -2,11 +2,16 @@
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/mindmapFragment">
+    app:startDestination="@id/homeFragment">
+
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.example.project_pandora.ui.mindmap.MindMapFragment"
+        android:label="@string/nav_home" />
 
     <fragment
         android:id="@+id/mindmapFragment"
-        android:name="com.example.project_pandora.ui.mindmap.MindMapFragment"
+        android:name="com.example.project_pandora.ui.task.QuadrantFragment"
         android:label="@string/nav_mindmap" />
 
     <fragment
