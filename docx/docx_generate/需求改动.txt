@@ -26,3 +26,13 @@ Project: Pandora（潘多拉）- 需求改动记录
 2026-09-17 | MBTI测试改进 | Epic-4 | 用户 | 1.支持12/24/36题三版本选择 2.本地计算MBTI类型 3.优先显示上次测试结果及类型介绍 4.历史记录查看(长按删除)和清空
 2026-09-17 | 卦辞标点 | Epic-4扩展 | 用户 | 64卦卦辞和爻辞添加标准中文标点(，。：！？等)
 2026-09-17 | 用户注册登录 | Epic-5 | 用户 | 1.后端添加/auth/register注册接口(用户名+密码+角色) 2.去掉Redis依赖改用内存Session 3.数据库切换为H2(MySQL兼容模式,文件存储E盘) 4.Oracle profile预留 5.权限分级访问控制(ADMIN/FOUNDER/DEPT_HEAD/TEAM_LEADER/EMPLOYEE五级) 6.Web端注册页面 7.Android端注册页面
+2026-09-18 | 底部导航重构 | Epic-6 | 用户 | 底部栏改为6项：首页/导图/视图/日志/AI地图/我的。原"日程"和"视图"内容互换，"专注"移入"我的"，"统计"改名为"AI地图"
+2026-09-18 | 首页信息面板 | Epic-3 | 用户 | 新增首页tab(信息面板)，内容为原导图MindMapFragment四大板块(公司10大重要/公司派发10大/个人10大重要/个人日志)
+2026-09-18 | 导图改四象限 | Epic-1 | 用户 | 导图tab改为四象限视图：第1象限=重要不紧急(绿)，第2象限=重要且紧急(红)，第3象限=紧急不重要(橙)，第4象限=不重要不紧急(灰)
+2026-09-18 | 专注移入我的 | Epic-6 | 用户 | 专注功能(番茄钟)从底部导航移入"我的"页面，新建FocusActivity包装FocusFragment
+2026-09-18 | 日志功能增强 | Epic-2 | 用户 | 1.日志支持编辑(PUT /log/{id})和删除(DELETE /log/{id}) 2.查看过往日志(RecyclerView列表+下拉刷新) 3.日志模板保存和调用(SharedPreferences) 4.统计入口
+2026-09-18 | OpenSpec初始化 | 全局 | codearts | 初始化OpenSpec框架(CLI v1.13.1)，创建6个核心能力规格和initial-mvp-delivery变更(proposal+design+tasks+specs)
+2026-09-18 | 项目完成分析 | Epic-4 | codearts | 后端新增GET /ai/project-analysis接口，包含完成率/状态分布/优先级分析/7天趋势/逾期分析/团队排名/AI建议
+2026-09-18 | 视图重叠修复 | Epic-6 | codearts | 修复fragment_view.xml中TabLayout与"查看日志"按钮重叠，TabLayout宽度改为0dp约束到按钮左侧
+2026-09-18 | 返回按钮补全 | Epic-6 | codearts | 给TaskCreateActivity添加toolbar和返回按钮，修复资源链接(abc_vector_back→?attr/homeAsUpIndicator)
+2026-09-18 | 生日祝福 | Epic-6 | 用户 | "统计"改名为"其他"并添加生日祝福功能(设置生日/显示祝福/倒计时)，后移入AI地图tab

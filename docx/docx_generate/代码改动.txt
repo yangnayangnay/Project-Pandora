@@ -216,3 +216,34 @@ Sprint 0 业务功能实现 - 2026-09-11
 2026-09-17 | app/src/main/res/layout/activity_login.xml | 修改 | Epic-5 | codearts | 添加去注册按钮
 2026-09-17 | app/src/main/AndroidManifest.xml | 修改 | Epic-5 | codearts | 注册RegisterActivity
 2026-09-17 | app/src/main/res/values/strings.xml | 修改 | Epic-5 | codearts | 添加注册相关字符串资源
+2026-09-18 | app/src/main/res/layout/fragment_view.xml | 修改 | Epic-6 | codearts | 修复TabLayout与按钮重叠(TabLayout宽度0dp约束到按钮左侧)
+2026-09-18 | app/src/main/res/layout/activity_task_create.xml | 修改 | Epic-6 | codearts | 添加toolbar和返回按钮(navigationIcon=?attr/homeAsUpIndicator)
+2026-09-18 | app/src/main/res/layout/activity_birthday_wish.xml | 新增 | Epic-6 | codearts | 创建生日祝福页布局(设置生日Spinner+祝福展示)
+2026-09-18 | app/.../ui/ai/BirthdayWishActivity.java | 新增 | Epic-6 | codearts | 创建生日祝福Activity(设置生日/显示祝福/倒计时计算)
+2026-09-18 | app/src/main/res/layout/fragment_aimap.xml | 修改 | Epic-6 | codearts | 添加生日祝福入口
+2026-09-18 | app/.../ui/aimap/AIMapFragment.java | 修改 | Epic-6 | codearts | 添加生日祝福点击事件
+2026-09-18 | pandora-backend/.../ai/AIController.java | 修改 | Epic-4 | codearts | 新增GET /ai/project-analysis接口(完成率/状态分布/优先级/趋势/逾期/团队排名/AI建议)
+2026-09-18 | app/src/main/res/menu/bottom_nav_menu.xml | 修改 | Epic-6 | codearts | 底部导航改为6项：首页/导图/视图/日志/AI地图/我的
+2026-09-18 | app/src/main/res/navigation/nav_graph.xml | 修改 | Epic-6 | codearts | 导航图更新：homeFragment→MindMapFragment, mindmapFragment→QuadrantFragment
+2026-09-18 | app/src/main/res/values/strings.xml | 修改 | Epic-6 | codearts | 添加nav_home/nav_mindmap/nav_aimap字符串
+2026-09-18 | app/src/main/res/drawable/ic_home.xml | 新增 | Epic-6 | codearts | 创建首页图标
+2026-09-18 | app/.../ui/task/QuadrantFragment.java | 新增 | Epic-1 | codearts | 创建四象限Fragment(2x2布局,调用GET /task/quadrant)
+2026-09-18 | app/src/main/res/layout/fragment_quadrant.xml | 新增 | Epic-1 | codearts | 创建四象限布局(重要不紧急/重要且紧急/紧急不重要/不重要不紧急)
+2026-09-18 | app/src/main/res/layout/fragment_mine.xml | 修改 | Epic-6 | codearts | 添加专注模式入口
+2026-09-18 | app/.../ui/mine/MineFragment.java | 修改 | Epic-6 | codearts | 添加专注模式点击事件(跳转FocusActivity)
+2026-09-18 | app/.../ui/focus/FocusActivity.java | 新增 | Epic-6 | codearts | 创建专注Activity(包装FocusFragment+toolbar+返回按钮)
+2026-09-18 | app/src/main/res/layout/activity_focus.xml | 新增 | Epic-6 | codearts | 创建专注Activity布局
+2026-09-18 | app/src/main/AndroidManifest.xml | 修改 | Epic-6 | codearts | 注册FocusActivity和BirthdayWishActivity
+2026-09-18 | pandora-backend/.../log/LogController.java | 修改 | Epic-2 | codearts | 新增PUT /log/{id}(编辑)和DELETE /log/{id}(删除)端点
+2026-09-18 | app/.../data/remote/LogApi.java | 修改 | Epic-2 | codearts | 添加editLog和deleteLog接口方法
+2026-09-18 | app/.../repository/LogRepository.java | 修改 | Epic-2 | codearts | 添加editLog和deleteLog方法
+2026-09-18 | app/src/main/res/layout/fragment_log.xml | 修改 | Epic-2 | codearts | 改为RecyclerView+SwipeRefreshLayout展示日志列表
+2026-09-18 | app/.../ui/log/LogFragment.java | 修改 | Epic-2 | codearts | 加载日志列表+点击编辑+长按删除+下拉刷新
+2026-09-18 | app/.../ui/log/LogAdapter.java | 新增 | Epic-2 | codearts | 创建日志列表适配器
+2026-09-18 | app/src/main/res/layout/item_log.xml | 新增 | Epic-2 | codearts | 创建日志列表项布局
+2026-09-18 | app/src/main/res/layout/activity_log_create.xml | 修改 | Epic-2 | codearts | 添加模板保存/使用按钮+返回按钮修复
+2026-09-18 | app/.../ui/log/LogCreateActivity.java | 修改 | Epic-2 | codearts | 添加编辑模式+模板保存/使用/删除功能(SharedPreferences)
+2026-09-18 | app/src/main/res/menu/menu_log.xml | 新增 | Epic-2 | codearts | 创建日志页菜单(统计+模板)
+2026-09-18 | openspec/config.yaml | 新增 | 全局 | codearts | OpenSpec项目配置(技术栈/6个Epic/5种角色/NFR/编码规范)
+2026-09-18 | openspec/specs/*.md | 新增 | 全局 | codearts | 6个核心能力规格文件(任务/日志/视图/AI/权限/主题)
+2026-09-18 | openspec/changes/initial-mvp-delivery/ | 新增 | 全局 | codearts | 初始MVP交付变更(proposal+design+tasks+specs)
