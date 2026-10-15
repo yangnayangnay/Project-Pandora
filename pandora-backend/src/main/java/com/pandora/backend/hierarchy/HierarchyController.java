@@ -124,8 +124,12 @@ public class HierarchyController {
                 Map<String, Object> child = new HashMap<>();
                 child.put("id", subId);
                 // B8：字段 null 兜底
-                Object realName = rel.get("SUB_NAME") != null ? rel.get("SUB_NAME") : rel.get("sub_name");
+                Object username = rel.get("SUB_USERNAME") != null ? rel.get("SUB_USERNAME") : rel.get("sub_username");
+                child.put("username", username != null ? username : "");
+                Object realName = rel.get("SUB_REAL_NAME") != null ? rel.get("SUB_REAL_NAME") : rel.get("sub_real_name");
                 child.put("realName", realName != null ? realName : "");
+                Object displayName = rel.get("SUB_NAME") != null ? rel.get("SUB_NAME") : rel.get("sub_name");
+                child.put("displayName", displayName != null ? displayName : "");
                 Object role = rel.get("SUB_ROLE") != null ? rel.get("SUB_ROLE") : rel.get("sub_role");
                 child.put("role", role != null ? role : "");
                 child.put("children", buildChildren(subId, relations, visited));

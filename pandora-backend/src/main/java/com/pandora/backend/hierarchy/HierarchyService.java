@@ -156,7 +156,7 @@ public class HierarchyService {
 
     public List<Map<String, Object>> getHierarchyTree() {
         List<Map<String, Object>> allRelations = jdbcTemplate.queryForList(
-                "SELECT h.superior_id, h.subordinate_id, COALESCE(u1.real_name, u1.username) as sup_name, u1.role as sup_role, COALESCE(u2.real_name, u2.username) as sub_name, u2.role as sub_role FROM user_hierarchy h JOIN users u1 ON h.superior_id = u1.id JOIN users u2 ON h.subordinate_id = u2.id WHERE u1.deleted = 0 AND u2.deleted = 0 ORDER BY h.superior_id");
+                "SELECT h.superior_id, h.subordinate_id, COALESCE(u1.real_name, u1.username) as sup_name, u1.role as sup_role, COALESCE(u2.real_name, u2.username) as sub_name, u2.role as sub_role, u2.username as sub_username, u2.real_name as sub_real_name FROM user_hierarchy h JOIN users u1 ON h.superior_id = u1.id JOIN users u2 ON h.subordinate_id = u2.id WHERE u1.deleted = 0 AND u2.deleted = 0 ORDER BY h.superior_id");
         List<Map<String, Object>> roots = jdbcTemplate.queryForList(
                 "SELECT id, username, real_name, role FROM users WHERE deleted = 0 AND approval_status = 'APPROVED' AND id NOT IN (SELECT subordinate_id FROM user_hierarchy) ORDER BY id");
         return allRelations;
