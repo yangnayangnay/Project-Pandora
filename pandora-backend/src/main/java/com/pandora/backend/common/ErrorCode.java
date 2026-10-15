@@ -55,6 +55,13 @@ public enum ErrorCode {
     LAST_ADMIN_PROTECTION(4045, "至少保留一位管理员权限"),
     PERSONAL_TOP10_INJECT_FORBIDDEN(4046, "禁止篡改他人信息"),
 
+    TOP10_TASK_ALREADY_MARKED(4047, "该任务已在十大派发中，不可重复选择"),
+    TOP10_CONTENT_DUPLICATE(4048, "该事项内容已存在，请勿重复添加"),
+    TOP10_RANK_OUT_OF_RANGE(4049, "排名序号必须在1-10之间"),
+    TOP10_SAVE_VERIFY_FAILED(4050, "保存失败，请重试。若多次失败请联系管理员"),
+    HIERARCHY_CYCLE_DETECTED(4060, "检测到循环引用，已截断"),
+    HIERARCHY_ORPHAN_NODE(4061, "存在孤儿节点（上级已删除），已单独展示"),
+
     AI_CONFIG_INVALID(5003, "AI配置参数无效"),
     AI_QUOTA_LOW(5004, "AI额度不足"),
     AI_FALLBACK_UNAVAILABLE(5005, "兜底AI不可用"),

@@ -219,47 +219,19 @@ public class ViewController {
     }
 
     private List<Map<String, Object>> buildPersonalLog(Long userId, String role) {
-        java.sql.Date today = new java.sql.Date(System.currentTimeMillis());
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.DAY_OF_MONTH, -1);
-        java.sql.Date yesterday = new java.sql.Date(cal.getTimeInMillis());
-
-        Integer showYesterday = 1;
+        // B7 修复：仅查询当前用户最近 1 条日志，移除下属合并与今日+昨日过滤
+        // role 参数保留以保持方法签名不变，但不再使用
         try {
-            Map<String, Object> userSettings = jdbcTemplate.queryForMap(
-                    "SELECT show_yesterday_log FROM users WHERE id = ?", userId);
-            Object val = userSettings.get("show_yesterday_log");
-            if (val instanceof Number) {
-                showYesterday = ((Number) val).intValue();
-            }
-        } catch (Exception ignored) {}
-
-        List<Long> userIds = new ArrayList<>();
-        userIds.add(userId);
-        if (!"EMPLOYEE".equals(role)) {
-            List<Long> subIds = hierarchyService.getSubordinateIds(userId);
-            for (Long subId : subIds) {
-                if (!userIds.contains(subId)) {
-                    userIds.add(subId);
-                }
-            }
+            return jdbcTemplate.queryForList(
+                    "SELECT l.*, u.username, u.real_name FROM work_logs l " +
+                    "JOIN users u ON l.user_id = u.id " +
+                    "WHERE l.user_id = ? AND l.deleted = 0 " +
+                    "ORDER BY l.log_date DESC, l.created_at DESC " +
+                    "LIMIT 1", userId);
+        } catch (Exception e) {
+            // 异常时返回空列表，不抛异常
+            return Collections.emptyList();
         }
-
-        String placeholders = String.join(",", Collections.nCopies(userIds.size(), "?"));
-        List<Object> params = new ArrayList<>(userIds);
-
-        StringBuilder sql = new StringBuilder(
-                "SELECT l.*, u.username, u.real_name FROM work_logs l JOIN users u ON l.user_id = u.id WHERE l.deleted = 0 AND l.user_id IN (" + placeholders + ")");
-        params.add(today.toString());
-        sql.append(" AND l.log_date = ?");
-        if (showYesterday == 1) {
-            sql.append(" OR (l.deleted = 0 AND l.log_date = ? AND l.user_id IN (" + placeholders + "))");
-            params.add(yesterday.toString());
-            params.addAll(userIds);
-        }
-        sql.append(" ORDER BY l.log_date DESC, l.created_at DESC LIMIT 10");
-
-        return jdbcTemplate.queryForList(sql.toString(), params.toArray());
     }
 
 

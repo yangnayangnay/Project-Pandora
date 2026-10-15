@@ -2,6 +2,7 @@ package com.example.project_pandora.repository;
 
 import android.content.Context;
 
+import com.example.project_pandora.core.exception.BusinessException;
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.data.remote.Top10Api;
 
@@ -26,7 +27,7 @@ public class Top10Repository {
                     if (response.isSuccess() && response.getData() != null) {
                         return response.getData();
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -37,7 +38,7 @@ public class Top10Repository {
                     if (response.isSuccess() && response.getData() != null) {
                         return response.getData();
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -48,7 +49,7 @@ public class Top10Repository {
                     if (response.isSuccess() && response.getData() != null) {
                         return response.getData();
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -57,7 +58,7 @@ public class Top10Repository {
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
                     if (response.isSuccess()) return null;
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -68,7 +69,7 @@ public class Top10Repository {
                     if (response.isSuccess() && response.getData() != null) {
                         return response.getData();
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -79,7 +80,7 @@ public class Top10Repository {
                     if (response.isSuccess() && response.getData() != null) {
                         return response.getData();
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -88,7 +89,7 @@ public class Top10Repository {
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
                     if (response.isSuccess()) return null;
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -105,7 +106,7 @@ public class Top10Repository {
                     if (response.isSuccess() && response.getData() != null) {
                         return response.getData();
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 }

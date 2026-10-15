@@ -68,6 +68,12 @@ const routes = [
         meta: { title: '部门团队' }
       },
       {
+        path: 'user/hierarchy-relation',
+        name: 'HierarchyRelation',
+        component: () => import('@/views/user/HierarchyRelationView.vue'),
+        meta: { title: '人员关系' }
+      },
+      {
         path: 'ai',
         name: 'AI',
         component: () => import('@/views/ai/TaskCompletionView.vue'),

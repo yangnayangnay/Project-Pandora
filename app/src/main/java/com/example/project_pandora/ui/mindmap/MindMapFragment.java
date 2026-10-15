@@ -139,10 +139,18 @@ public class MindMapFragment extends Fragment {
                 .subscribe(
                         this::displayMindMap,
                         error -> {
-                            showEmpty(binding.listCompanyImportant, "\u52A0\u8F7D\u5931\u8D25");
-                            showEmpty(binding.listCompanyDispatch, "\u52A0\u8F7D\u5931\u8D25");
-                            showEmpty(binding.listPersonalImportant, "\u52A0\u8F7D\u5931\u8D25");
-                            showEmpty(binding.listPersonalLog, "\u52A0\u8F7D\u5931\u8D25");
+                            String errorMsg;
+                            if (error instanceof com.example.project_pandora.core.exception.BusinessException) {
+                                com.example.project_pandora.core.exception.BusinessException be =
+                                        (com.example.project_pandora.core.exception.BusinessException) error;
+                                errorMsg = com.example.project_pandora.core.util.ErrorMessageMapper.map(be.getCode(), be.getMessage());
+                            } else {
+                                errorMsg = com.example.project_pandora.core.util.NetworkErrorClassifier.classify(error);
+                            }
+                            showEmpty(binding.listCompanyImportant, errorMsg);
+                            showEmpty(binding.listCompanyDispatch, errorMsg);
+                            showEmpty(binding.listPersonalImportant, errorMsg);
+                            showEmpty(binding.listPersonalLog, errorMsg);
                         }
                 ));
     }

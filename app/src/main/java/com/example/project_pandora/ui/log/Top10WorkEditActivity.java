@@ -104,7 +104,15 @@ public class Top10WorkEditActivity extends AppCompatActivity {
                             finish();
                         },
                         error -> {
-                            Toast.makeText(this, "保存失败", Toast.LENGTH_SHORT).show();
+                            String errorMsg;
+                            if (error instanceof com.example.project_pandora.core.exception.BusinessException) {
+                                com.example.project_pandora.core.exception.BusinessException be =
+                                        (com.example.project_pandora.core.exception.BusinessException) error;
+                                errorMsg = com.example.project_pandora.core.util.ErrorMessageMapper.map(be.getCode(), be.getMessage());
+                            } else {
+                                errorMsg = com.example.project_pandora.core.util.NetworkErrorClassifier.classify(error);
+                            }
+                            Toast.makeText(this, errorMsg, Toast.LENGTH_SHORT).show();
                             binding.btnSave.setEnabled(true);
                         }
                 );

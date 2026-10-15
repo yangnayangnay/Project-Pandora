@@ -73,7 +73,7 @@ public class HierarchyManageActivity extends AppCompatActivity {
                                 loadRelations();
                             }
                         },
-                        error -> Toast.makeText(this, "加载用户失败", Toast.LENGTH_SHORT).show()
+                        error -> Toast.makeText(this, com.example.project_pandora.core.util.NetworkErrorClassifier.classify(error), Toast.LENGTH_SHORT).show()
                 ));
     }
 
@@ -101,7 +101,7 @@ public class HierarchyManageActivity extends AppCompatActivity {
                                 binding.textNoRelations.setVisibility(relations.isEmpty() ? View.VISIBLE : View.GONE);
                             }
                         },
-                        error -> Toast.makeText(this, "加载层级关系失败", Toast.LENGTH_SHORT).show()
+                        error -> Toast.makeText(this, com.example.project_pandora.core.util.NetworkErrorClassifier.classify(error), Toast.LENGTH_SHORT).show()
                 ));
     }
 
@@ -158,7 +158,15 @@ public class HierarchyManageActivity extends AppCompatActivity {
                         error -> {
                             binding.btnAddRelation.setEnabled(true);
                             binding.btnAddRelation.setText("添加关系");
-                            binding.textError.setText("添加失败: " + error.getMessage());
+                            String errorMsg;
+                            if (error instanceof com.example.project_pandora.core.exception.BusinessException) {
+                                com.example.project_pandora.core.exception.BusinessException be =
+                                        (com.example.project_pandora.core.exception.BusinessException) error;
+                                errorMsg = com.example.project_pandora.core.util.ErrorMessageMapper.map(be.getCode(), be.getMessage());
+                            } else {
+                                errorMsg = com.example.project_pandora.core.util.NetworkErrorClassifier.classify(error);
+                            }
+                            binding.textError.setText(errorMsg);
                             binding.textError.setVisibility(View.VISIBLE);
                         }
                 ));
@@ -183,7 +191,7 @@ public class HierarchyManageActivity extends AppCompatActivity {
                                             loadRelations();
                                         }
                                     },
-                                    error -> Toast.makeText(this, "替换失败", Toast.LENGTH_SHORT).show()
+                                    error -> Toast.makeText(this, com.example.project_pandora.core.util.NetworkErrorClassifier.classify(error), Toast.LENGTH_SHORT).show()
                             ));
                 })
                 .setNegativeButton("取消", null)
@@ -199,7 +207,7 @@ public class HierarchyManageActivity extends AppCompatActivity {
                             Toast.makeText(this, "关系已删除", Toast.LENGTH_SHORT).show();
                             loadRelations();
                         },
-                        error -> Toast.makeText(this, "删除失败", Toast.LENGTH_SHORT).show()
+                        error -> Toast.makeText(this, com.example.project_pandora.core.util.NetworkErrorClassifier.classify(error), Toast.LENGTH_SHORT).show()
                 ));
     }
 

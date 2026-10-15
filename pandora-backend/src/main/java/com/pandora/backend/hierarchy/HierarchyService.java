@@ -1,5 +1,7 @@
 package com.pandora.backend.hierarchy;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -9,6 +11,8 @@ import java.util.*;
 
 @Service
 public class HierarchyService {
+
+    private static final Logger log = LoggerFactory.getLogger(HierarchyService.class);
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -156,6 +160,25 @@ public class HierarchyService {
         List<Map<String, Object>> roots = jdbcTemplate.queryForList(
                 "SELECT id, username, real_name, role FROM users WHERE deleted = 0 AND approval_status = 'APPROVED' AND id NOT IN (SELECT subordinate_id FROM user_hierarchy) ORDER BY id");
         return allRelations;
+    }
+
+    /**
+     * B10：查询孤儿节点 - 上级已软删除但下属仍有效的用户
+     */
+    public List<Map<String, Object>> getOrphanNodes() {
+        try {
+            List<Map<String, Object>> orphans = jdbcTemplate.queryForList(
+                    "SELECT DISTINCT u.id, u.username, u.real_name, u.role FROM users u " +
+                    "JOIN user_hierarchy h ON u.id = h.subordinate_id " +
+                    "JOIN users sup ON h.superior_id = sup.id " +
+                    "WHERE sup.deleted = 1 AND u.deleted = 0 AND u.approval_status = 'APPROVED'");
+            if (!orphans.isEmpty()) {
+                log.warn("检测到 {} 个孤儿节点（上级已删除）", orphans.size());
+            }
+            return orphans;
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
     }
 
     private String getUserRole(Long userId) {

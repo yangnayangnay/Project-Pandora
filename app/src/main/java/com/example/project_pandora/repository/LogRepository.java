@@ -2,6 +2,7 @@ package com.example.project_pandora.repository;
 
 import android.content.Context;
 
+import com.example.project_pandora.core.exception.BusinessException;
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.data.remote.LogApi;
 
@@ -35,7 +36,7 @@ public class LogRepository {
                     if (response.isSuccess() && response.getData() != null) {
                         return response.getData();
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -50,7 +51,7 @@ public class LogRepository {
                         }
                         return list;
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -61,7 +62,7 @@ public class LogRepository {
                     if (response.isSuccess() && response.getData() != null) {
                         return normalizeKeys(response.getData());
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -72,7 +73,7 @@ public class LogRepository {
                     if (response.isSuccess() && response.getData() != null) {
                         return response.getData();
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -81,7 +82,7 @@ public class LogRepository {
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
                     if (response.isSuccess()) return null;
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -92,7 +93,7 @@ public class LogRepository {
                     if (response.isSuccess() && response.getData() != null) {
                         return response.getData();
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -110,7 +111,7 @@ public class LogRepository {
                     if (response.isSuccess() && response.getData() != null) {
                         return response.getData();
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -119,7 +120,7 @@ public class LogRepository {
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
                     if (response.isSuccess()) return null;
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -134,7 +135,7 @@ public class LogRepository {
                         }
                         return list;
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -149,7 +150,7 @@ public class LogRepository {
                         }
                         return list;
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -160,7 +161,7 @@ public class LogRepository {
                     if (response.isSuccess() && response.getData() != null) {
                         return response.getData();
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 
@@ -171,7 +172,7 @@ public class LogRepository {
                     if (response.isSuccess() && response.getData() != null) {
                         return normalizeKeys(response.getData());
                     }
-                    throw new RuntimeException(response.getMessage());
+                    throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
 

@@ -9,6 +9,7 @@
         <el-menu-item index="/log/all"><el-icon><Notebook /></el-icon>全量日志</el-menu-item>
         <el-menu-item index="/top10/company-important"><el-icon><Trophy /></el-icon>公司十大事项</el-menu-item>
         <el-menu-item index="/user"><el-icon><User /></el-icon>人员管理</el-menu-item>
+        <el-menu-item index="/user/hierarchy-relation"><el-icon><Connection /></el-icon>人员关系</el-menu-item>
         <el-menu-item index="/permission/approval"><el-icon><CircleCheck /></el-icon>账号审批</el-menu-item>
         <el-menu-item index="/ai"><el-icon><MagicStick /></el-icon>任务完成分析</el-menu-item>
         <el-menu-item index="/config/audit-log"><el-icon><Document /></el-icon>系统日志</el-menu-item>

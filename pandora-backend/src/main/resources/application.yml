@@ -56,6 +56,8 @@ pandora:
     auto-init: true
   personal:
     log-range-days: 30
+  top10:
+    cleanup-dirty-data: true
   ai:
     quota-threshold: 100
     monitor-interval-ms: 300000

@@ -18,7 +18,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
         log.warn("Business exception: code={}, message={}", e.getErrorCode().getCode(), e.getMessage());
         HttpStatus status = mapErrorCodeToHttpStatus(e.getErrorCode());
-        return ResponseEntity.status(status).body(ApiResponse.error(e.getErrorCode()));
+        // 如果 BusinessException 携带了自定义 message（与枚举默认 message 不同），使用自定义 message
+        String message = e.getMessage();
+        if (message == null || message.equals(e.getErrorCode().getMessage())) {
+            return ResponseEntity.status(status).body(ApiResponse.error(e.getErrorCode()));
+        } else {
+            return ResponseEntity.status(status).body(ApiResponse.error(e.getErrorCode().getCode(), message));
+        }
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -44,7 +50,9 @@ public class GlobalExceptionHandler {
             case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
             case FORBIDDEN, FORBIDDEN_ACTION -> HttpStatus.FORBIDDEN;
             case NOT_FOUND, USER_NOT_FOUND -> HttpStatus.NOT_FOUND;
-            case CONFLICT, TASK_CONFLICT, RULE_CONFLICT -> HttpStatus.CONFLICT;
+            case CONFLICT, TASK_CONFLICT, RULE_CONFLICT,
+                 TOP10_TASK_ALREADY_MARKED, TOP10_CONTENT_DUPLICATE,
+                 HIERARCHY_CYCLE_DETECTED -> HttpStatus.CONFLICT;
             case AI_TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;
             case AI_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             default -> HttpStatus.BAD_REQUEST;

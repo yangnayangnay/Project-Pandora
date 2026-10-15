@@ -195,7 +195,17 @@ public class CompanyDispatchManageActivity extends AppCompatActivity {
                             Toast.makeText(this, "已标记为十大任务", Toast.LENGTH_SHORT).show();
                             binding.tabLayout.getTabAt(0).select();
                         },
-                        error -> Toast.makeText(this, "标记失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
+                        error -> {
+                            String errorMsg;
+                            if (error instanceof com.example.project_pandora.core.exception.BusinessException) {
+                                com.example.project_pandora.core.exception.BusinessException be =
+                                        (com.example.project_pandora.core.exception.BusinessException) error;
+                                errorMsg = com.example.project_pandora.core.util.ErrorMessageMapper.map(be.getCode(), be.getMessage());
+                            } else {
+                                errorMsg = com.example.project_pandora.core.util.NetworkErrorClassifier.classify(error);
+                            }
+                            Toast.makeText(this, errorMsg, Toast.LENGTH_SHORT).show();
+                        }
                 ));
     }
 
