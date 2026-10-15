@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat;
 import com.example.project_pandora.MainActivity;
 import com.example.project_pandora.R;
 import com.example.project_pandora.core.network.NetworkClient;
+import com.example.project_pandora.core.network.NetworkStateMonitor;
 import com.example.project_pandora.core.network.ServerConnectivityMonitor;
 import com.example.project_pandora.core.network.TokenManager;
 import com.example.project_pandora.core.sync.ServerConnectivity;
@@ -180,6 +181,9 @@ public class LoginActivity extends AppCompatActivity {
                                 }
 
                                 tm.saveLastUsername(username);
+
+                                ServerConnectivity conn = ServerConnectivityMonitor.getInstance().getCurrentState();
+                                NetworkStateMonitor.getInstance().onServerConnectivityChanged(conn);
 
                                 startActivity(new Intent(this, MainActivity.class));
                                 finish();
