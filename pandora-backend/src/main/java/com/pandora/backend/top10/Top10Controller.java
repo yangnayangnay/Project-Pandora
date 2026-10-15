@@ -29,7 +29,7 @@ public class Top10Controller {
     @GetMapping("/company-important")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCompanyImportant() {
         List<Map<String, Object>> list = jdbcTemplate.queryForList(
-                "SELECT * FROM top10_works WHERE work_type = 'COMPANY_IMPORTANT' AND deleted = 0 ORDER BY rank_order LIMIT 10");
+                "SELECT * FROM top10_works WHERE work_type = 'COMPANY_IMPORTANT' AND deleted = 0 ORDER BY rank_order");
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 
@@ -120,7 +120,7 @@ public class Top10Controller {
                 "SELECT t.*, tk.name AS task_name, u.real_name AS assignee_name, u.username AS assignee_username " +
                 "FROM top10_works t LEFT JOIN tasks tk ON t.related_task_id = tk.id " +
                 "LEFT JOIN users u ON tk.assignee_id = u.id " +
-                "WHERE t.work_type = 'COMPANY_DISPATCH' AND t.deleted = 0 ORDER BY t.rank_order LIMIT 10");
+                "WHERE t.work_type = 'COMPANY_DISPATCH' AND t.deleted = 0 ORDER BY t.rank_order");
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 

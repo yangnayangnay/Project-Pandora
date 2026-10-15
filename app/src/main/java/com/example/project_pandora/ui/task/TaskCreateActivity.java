@@ -76,6 +76,8 @@ public class TaskCreateActivity extends AppCompatActivity {
                     content.put("endTime", selectedEndTime);
                     boolean isUrgent = binding.rgUrgency.getCheckedRadioButtonId() == R.id.rb_urgent;
                     content.put("isUrgent", isUrgent);
+                    boolean isImportant = binding.rgImportance.getCheckedRadioButtonId() == R.id.rb_important;
+                    content.put("isImportant", isImportant);
                     int pos = binding.spinnerAssignee.getSelectedItemPosition();
                     if (pos >= 0 && pos < assigneeIds.size()) {
                         content.put("assigneeId", assigneeIds.get(pos));
@@ -158,6 +160,14 @@ public class TaskCreateActivity extends AppCompatActivity {
                 binding.rgUrgency.check(R.id.rb_not_urgent);
             }
         }
+        Object isImportant = content.get("isImportant");
+        if (isImportant instanceof Boolean) {
+            if ((Boolean) isImportant) {
+                binding.rgImportance.check(R.id.rb_important);
+            } else {
+                binding.rgImportance.check(R.id.rb_not_important);
+            }
+        }
         Object assigneeIdObj = content.get("assigneeId");
         if (assigneeIdObj != null) {
             Long assigneeId = Long.parseLong(assigneeIdObj.toString());
@@ -223,6 +233,7 @@ public class TaskCreateActivity extends AppCompatActivity {
         }
 
         boolean isUrgent = binding.rgUrgency.getCheckedRadioButtonId() == R.id.rb_urgent;
+        boolean isImportant = binding.rgImportance.getCheckedRadioButtonId() == R.id.rb_important;
         int assigneePos = binding.spinnerAssignee.getSelectedItemPosition();
         Long assigneeId = assigneeIds.get(assigneePos);
 
@@ -230,7 +241,7 @@ public class TaskCreateActivity extends AppCompatActivity {
         request.put("name", name);
         request.put("priority", isUrgent ? "URGENT" : "MEDIUM");
         request.put("assigneeId", assigneeId);
-        request.put("isImportant", false);
+        request.put("isImportant", isImportant);
         request.put("isUrgent", isUrgent);
         request.put("endTime", selectedEndTime);
 

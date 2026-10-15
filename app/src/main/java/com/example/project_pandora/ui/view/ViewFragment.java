@@ -506,6 +506,16 @@ public class ViewFragment extends Fragment {
                 holder.statusText.setTextColor(Color.parseColor("#D32F2F"));
             }
             holder.statusText.setText(sb.toString());
+
+            holder.itemView.setOnClickListener(v -> {
+                Object taskId = item.get("id");
+                if (taskId == null) taskId = item.get("ID");
+                if (taskId instanceof Number) {
+                    Intent intent = new Intent(v.getContext(), com.example.project_pandora.ui.task.TaskDetailActivity.class);
+                    intent.putExtra("taskId", ((Number) taskId).longValue());
+                    v.getContext().startActivity(intent);
+                }
+            });
         }
 
         @Override

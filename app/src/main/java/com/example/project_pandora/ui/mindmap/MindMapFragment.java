@@ -24,6 +24,7 @@ import com.example.project_pandora.core.network.TokenManager;
 import com.example.project_pandora.core.util.RoleDisplayUtil;
 import com.example.project_pandora.databinding.FragmentMindmapBinding;
 import com.example.project_pandora.data.remote.UserApi;
+import com.example.project_pandora.repository.LogRepository;
 import com.example.project_pandora.repository.ViewRepository;
 import com.example.project_pandora.ui.log.Top10WorkEditActivity;
 import com.example.project_pandora.ui.task.CompanyDispatchManageActivity;
@@ -99,6 +100,26 @@ public class MindMapFragment extends Fragment {
             } else {
                 Toast.makeText(requireContext(), "权限不足，仅管理员可操作", Toast.LENGTH_SHORT).show();
             }
+        });
+
+        binding.fabAdd.setOnClickListener(v -> {
+            String[] options = {"录入日志", "创建任务", "自动生成日志"};
+            new AlertDialog.Builder(requireContext())
+                    .setTitle("快速操作")
+                    .setItems(options, (dialog, which) -> {
+                        switch (which) {
+                            case 0:
+                                startActivity(new Intent(requireContext(), com.example.project_pandora.ui.log.LogCreateActivity.class));
+                                break;
+                            case 1:
+                                startActivity(new Intent(requireContext(), com.example.project_pandora.ui.task.TaskCreateActivity.class));
+                                break;
+                            case 2:
+                                performAutoGenerate();
+                                break;
+                        }
+                    })
+                    .show();
         });
 
         applyCompanyEditPermission(canEditCompany);
@@ -392,6 +413,19 @@ public class MindMapFragment extends Fragment {
         tv.setTextColor(0xFF999999);
         tv.setPadding(8, 16, 8, 16);
         container.addView(tv);
+    }
+
+    private void performAutoGenerate() {
+        LogRepository logRepository = new LogRepository(requireContext());
+        disposables.add(logRepository.autoGenerateLogs()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        result -> {
+                            Toast.makeText(requireContext(), "自动生成完成", Toast.LENGTH_SHORT).show();
+                            loadMindMapData();
+                        },
+                        error -> Toast.makeText(requireContext(), "生成失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
+                ));
     }
 
     @Override

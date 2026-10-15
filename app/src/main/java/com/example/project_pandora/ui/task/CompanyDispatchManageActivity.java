@@ -122,7 +122,32 @@ public class CompanyDispatchManageActivity extends AppCompatActivity {
             items.add(text);
         }
         if (items.isEmpty()) items.add("暂无十大任务");
-        binding.recyclerView.setAdapter(new SimpleTextAdapter(items, null));
+        binding.recyclerView.setAdapter(new SimpleTextAdapter(items, position -> {
+            if (position < 0 || position >= currentDispatch.size()) return;
+            Map<String, Object> item = currentDispatch.get(position);
+            Object taskIdObj = item.get("related_task_id");
+            if (taskIdObj == null) taskIdObj = item.get("RELATED_TASK_ID");
+            if (taskIdObj == null) return;
+            long taskId = ((Number) taskIdObj).longValue();
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle("取消标记")
+                    .setMessage("确定将该任务从十大派发中移除？")
+                    .setPositiveButton("移除", (d, w) -> unmarkDispatch(taskId))
+                    .setNegativeButton("取消", null)
+                    .show();
+        }));
+    }
+
+    private void unmarkDispatch(long taskId) {
+        disposables.add(top10Repository.unmarkCompanyDispatch(taskId)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        v -> {
+                            Toast.makeText(this, "已移除", Toast.LENGTH_SHORT).show();
+                            loadCurrentDispatch();
+                        },
+                        error -> Toast.makeText(this, "移除失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
+                ));
     }
 
     private void loadAllTasks() {

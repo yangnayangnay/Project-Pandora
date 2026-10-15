@@ -50,8 +50,8 @@ public class TaskController {
             throw new BusinessException(ErrorCode.FORBIDDEN_ACTION, "无权分配给该用户");
         }
 
-        Boolean isImportant = (Boolean) taskRequest.getOrDefault("isImportant", false);
-        Boolean isUrgent = (Boolean) taskRequest.getOrDefault("isUrgent", false);
+        Boolean isImportant = toBool(taskRequest.get("isImportant"));
+        Boolean isUrgent = toBool(taskRequest.get("isUrgent"));
 
         Object endTimeObj = taskRequest.get("endTime");
         Object startTimeObj = taskRequest.get("startTime");
@@ -193,7 +193,7 @@ public class TaskController {
 
         if (request.containsKey("isUrgent")) {
             sql.append(", is_urgent = ?");
-            params.add(Boolean.TRUE.equals(request.get("isUrgent")) ? 1 : 0);
+            params.add(toBool(request.get("isUrgent")) ? 1 : 0);
         }
         if (request.containsKey("endTime")) {
             sql.append(", end_time = ?");
@@ -320,6 +320,13 @@ public class TaskController {
     private Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return (Long) auth.getPrincipal();
+    }
+
+    private static Boolean toBool(Object v) {
+        if (v == null) return false;
+        if (v instanceof Boolean) return (Boolean) v;
+        if (v instanceof Number) return ((Number) v).intValue() != 0;
+        return Boolean.parseBoolean(v.toString());
     }
 
     @DeleteMapping("/{taskId}")

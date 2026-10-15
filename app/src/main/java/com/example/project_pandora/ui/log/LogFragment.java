@@ -10,6 +10,9 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.Toast;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -71,6 +74,7 @@ public class LogFragment extends Fragment {
         setupSearch();
         setupFab();
         setupSwipeRefresh();
+        setHasOptionsMenu(true);
 
         if (binding.tabLayout.getTabCount() > 0) {
             binding.tabLayout.getTabAt(TAB_MY_LOG).select();
@@ -193,6 +197,47 @@ public class LogFragment extends Fragment {
                 loadSubordinateLogs(subId, sDate, eDate, kw);
             }
         });
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_stat) {
+            showLogStats();
+            return true;
+        } else if (id == R.id.action_template) {
+            startActivity(new Intent(requireContext(), LogCreateActivity.class));
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void showLogStats() {
+        disposables.add(logRepository.getLogStats()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        stats -> {
+                            StringBuilder sb = new StringBuilder();
+                            Object total = stats.get("total");
+                            if (total == null) total = stats.get("TOTAL");
+                            Object pending = stats.get("pending");
+                            if (pending == null) pending = stats.get("PENDING");
+                            Object completed = stats.get("completed");
+                            if (completed == null) completed = stats.get("COMPLETED");
+                            Object totalTime = stats.get("totalTime");
+                            if (totalTime == null) totalTime = stats.get("TOTAL_TIME");
+                            sb.append("总日志数: ").append(total != null ? total : 0).append("\n");
+                            sb.append("待完成: ").append(pending != null ? pending : 0).append("\n");
+                            sb.append("已完成: ").append(completed != null ? completed : 0).append("\n");
+                            sb.append("总工时: ").append(totalTime != null ? totalTime : 0).append("小时");
+                            new AlertDialog.Builder(requireContext())
+                                    .setTitle("日志统计")
+                                    .setMessage(sb.toString())
+                                    .setPositiveButton("确定", null)
+                                    .show();
+                        },
+                        error -> Toast.makeText(requireContext(), "统计加载失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
+                ));
     }
 
     private void clearSearchInputs() {

@@ -1,5 +1,6 @@
 package com.example.project_pandora.ui.log;
 
+import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
 import android.widget.TextView;
@@ -82,6 +83,16 @@ public class SubordinateLogAdapter extends RecyclerView.Adapter<SubordinateLogAd
             } else {
                 binding.imageAvatar.setImageResource(R.mipmap.ic_launcher);
             }
+
+            itemView.setOnClickListener(v -> {
+                Object id = log.get("id");
+                if (id == null) id = log.get("ID");
+                if (id instanceof Number) {
+                    Intent intent = new Intent(itemView.getContext(), LogDetailActivity.class);
+                    intent.putExtra(LogDetailActivity.EXTRA_LOG_ID, ((Number) id).longValue());
+                    itemView.getContext().startActivity(intent);
+                }
+            });
         }
     }
 }
