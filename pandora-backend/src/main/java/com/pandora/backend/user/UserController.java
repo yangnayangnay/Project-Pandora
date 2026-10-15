@@ -386,6 +386,7 @@ public class UserController {
 
 
     @PostMapping("/rename-batch")
+    @Auditable(operationType = "USER_BATCH_RENAME", targetType = "USER")
     public ResponseEntity<ApiResponse<Map<String, Object>>> renameBatch() {
         String role = getCurrentUserRole();
         if (!"ADMIN".equals(role)) {

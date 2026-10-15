@@ -81,9 +81,9 @@ public class AuditController {
             if (operatorName.isEmpty()) operatorName = str(log.get("operator_id"));
             writer.write(csvEscape(operatorName));
             writer.write(",");
-            writer.write(csvEscape(str(log.get("operation_type"))));
+            writer.write(csvEscape(AuditLabelMapper.toChineseOperationType(str(log.get("operation_type")))));
             writer.write(",");
-            writer.write(csvEscape(str(log.get("target_type"))));
+            writer.write(csvEscape(AuditLabelMapper.toChineseTargetType(str(log.get("target_type")))));
             writer.write(",");
             writer.write(csvEscape(str(log.get("target_id"))));
             writer.write(",");

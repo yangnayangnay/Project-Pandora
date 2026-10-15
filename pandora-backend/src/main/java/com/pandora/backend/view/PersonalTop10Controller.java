@@ -1,5 +1,6 @@
 package com.pandora.backend.view;
 
+import com.pandora.backend.audit.Auditable;
 import com.pandora.backend.common.ApiResponse;
 import com.pandora.backend.common.BusinessException;
 import com.pandora.backend.common.ErrorCode;
@@ -20,6 +21,7 @@ public class PersonalTop10Controller {
     private JdbcTemplate jdbcTemplate;
 
     @PostMapping("/inject")
+    @Auditable(operationType = "PERSONAL_TOP10_INJECT", targetType = "PERSONAL_TOP10")
     public ResponseEntity<ApiResponse<Map<String, Object>>> inject(@RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
 
@@ -56,6 +58,7 @@ public class PersonalTop10Controller {
     }
 
     @PutMapping("/inject/{id}")
+    @Auditable(operationType = "PERSONAL_TOP10_UPDATE", targetType = "PERSONAL_TOP10")
     public ResponseEntity<ApiResponse<Map<String, Object>>> update(@PathVariable Long id, @RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
 
@@ -85,6 +88,7 @@ public class PersonalTop10Controller {
     }
 
     @DeleteMapping("/inject/{id}")
+    @Auditable(operationType = "PERSONAL_TOP10_DELETE", targetType = "PERSONAL_TOP10")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         Long userId = getCurrentUserId();
 

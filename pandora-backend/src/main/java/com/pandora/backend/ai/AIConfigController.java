@@ -1,5 +1,6 @@
 package com.pandora.backend.ai;
 
+import com.pandora.backend.audit.Auditable;
 import com.pandora.backend.common.ApiResponse;
 import com.pandora.backend.common.BusinessException;
 import com.pandora.backend.common.ErrorCode;
@@ -45,6 +46,7 @@ public class AIConfigController {
     }
 
     @PutMapping("/config")
+    @Auditable(operationType = "AI_CONFIG_UPDATE", targetType = "AI_CONFIG")
     public ResponseEntity<ApiResponse<Void>> updateConfig(@RequestBody Map<String, Object> request) {
         checkAdmin();
         String apiUrl = (String) request.get("apiUrl");

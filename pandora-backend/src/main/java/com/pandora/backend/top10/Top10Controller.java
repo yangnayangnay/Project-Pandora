@@ -1,5 +1,6 @@
 package com.pandora.backend.top10;
 
+import com.pandora.backend.audit.Auditable;
 import com.pandora.backend.common.ApiResponse;
 import com.pandora.backend.common.BusinessException;
 import com.pandora.backend.common.ErrorCode;
@@ -42,6 +43,7 @@ public class Top10Controller {
     }
 
     @PostMapping("/company-important")
+    @Auditable(operationType = "COMPANY_IMPORTANT_CREATE", targetType = "COMPANY_IMPORTANT")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createCompanyImportant(@RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
         if (!functionPermissionService.check(userId, FunctionCode.COMPANY_IMPORTANT_EDIT.getCode())) {
@@ -93,6 +95,7 @@ public class Top10Controller {
     }
 
     @PutMapping("/company-important/{id}")
+    @Auditable(operationType = "COMPANY_IMPORTANT_UPDATE", targetType = "COMPANY_IMPORTANT")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateCompanyImportant(@PathVariable Long id, @RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
         if (!functionPermissionService.check(userId, FunctionCode.COMPANY_IMPORTANT_EDIT.getCode())) {
@@ -147,6 +150,7 @@ public class Top10Controller {
     }
 
     @DeleteMapping("/company-important/{id}")
+    @Auditable(operationType = "COMPANY_IMPORTANT_DELETE", targetType = "COMPANY_IMPORTANT")
     public ResponseEntity<ApiResponse<Void>> deleteCompanyImportant(@PathVariable Long id) {
         Long userId = getCurrentUserId();
         if (!functionPermissionService.check(userId, FunctionCode.COMPANY_IMPORTANT_EDIT.getCode())) {
@@ -172,6 +176,7 @@ public class Top10Controller {
     }
 
     @PostMapping("/company-dispatch/mark")
+    @Auditable(operationType = "COMPANY_DISPATCH_MARK", targetType = "COMPANY_DISPATCH")
     public ResponseEntity<ApiResponse<Map<String, Object>>> markCompanyDispatch(@RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
         if (!functionPermissionService.check(userId, FunctionCode.COMPANY_DISPATCH_EDIT.getCode())) {
@@ -255,6 +260,7 @@ public class Top10Controller {
     }
 
     @DeleteMapping("/company-dispatch/mark/{taskId}")
+    @Auditable(operationType = "COMPANY_DISPATCH_UNMARK", targetType = "COMPANY_DISPATCH")
     public ResponseEntity<ApiResponse<Void>> unmarkCompanyDispatch(@PathVariable Long taskId) {
         Long userId = getCurrentUserId();
         if (!functionPermissionService.check(userId, FunctionCode.COMPANY_DISPATCH_EDIT.getCode())) {
@@ -268,6 +274,7 @@ public class Top10Controller {
     }
 
     @PutMapping("/company-dispatch/{id}")
+    @Auditable(operationType = "COMPANY_DISPATCH_UPDATE", targetType = "COMPANY_DISPATCH")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateCompanyDispatch(@PathVariable Long id, @RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
         if (!functionPermissionService.check(userId, FunctionCode.COMPANY_DISPATCH_EDIT.getCode())) {
@@ -305,6 +312,7 @@ public class Top10Controller {
     }
 
     @PostMapping("/company-dispatch/create")
+    @Auditable(operationType = "COMPANY_DISPATCH_CREATE", targetType = "COMPANY_DISPATCH")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createAndMarkCompanyDispatch(@RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
         if (!functionPermissionService.check(userId, FunctionCode.COMPANY_DISPATCH_EDIT.getCode())) {

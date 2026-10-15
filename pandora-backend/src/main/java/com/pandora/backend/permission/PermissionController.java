@@ -1,5 +1,6 @@
 package com.pandora.backend.permission;
 
+import com.pandora.backend.audit.Auditable;
 import com.pandora.backend.common.ApiResponse;
 import com.pandora.backend.common.BusinessException;
 import com.pandora.backend.common.ErrorCode;
@@ -42,6 +43,7 @@ public class PermissionController {
     }
 
     @PostMapping("/subjects")
+    @Auditable(operationType = "PERMISSION_SUBJECT_ADD", targetType = "PERMISSION")
     public ResponseEntity<ApiResponse<Void>> addSubjects(@RequestBody Map<String, Object> request) {
         Long operatorId = getCurrentUserId();
         checkAdmin();
@@ -52,6 +54,7 @@ public class PermissionController {
     }
 
     @DeleteMapping("/subjects")
+    @Auditable(operationType = "PERMISSION_SUBJECT_REMOVE", targetType = "PERMISSION")
     public ResponseEntity<ApiResponse<Void>> removeSubjects(@RequestBody Map<String, Object> request) {
         Long operatorId = getCurrentUserId();
         checkAdmin();
@@ -62,6 +65,7 @@ public class PermissionController {
     }
 
     @PutMapping("/subjects")
+    @Auditable(operationType = "PERMISSION_SUBJECT_REPLACE", targetType = "PERMISSION")
     public ResponseEntity<ApiResponse<Void>> replaceSubjects(@RequestBody Map<String, Object> request) {
         Long operatorId = getCurrentUserId();
         checkAdmin();

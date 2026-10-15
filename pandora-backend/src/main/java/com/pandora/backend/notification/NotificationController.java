@@ -1,5 +1,6 @@
 package com.pandora.backend.notification;
 
+import com.pandora.backend.audit.Auditable;
 import com.pandora.backend.common.ApiResponse;
 import com.pandora.backend.common.BusinessException;
 import com.pandora.backend.common.ErrorCode;
@@ -51,6 +52,7 @@ public class NotificationController {
     }
 
     @PutMapping("/{id}/read")
+    @Auditable(operationType = "NOTIFICATION_MARK_READ", targetType = "NOTIFICATION")
     public ResponseEntity<ApiResponse<Void>> markAsRead(@PathVariable Long id) {
         Long userId = getCurrentUserId();
         int updated = jdbcTemplate.update(

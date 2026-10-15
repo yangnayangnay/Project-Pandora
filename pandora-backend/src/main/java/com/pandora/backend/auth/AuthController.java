@@ -247,6 +247,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
+    @Auditable(operationType = "AUTH_TOKEN_REFRESH", targetType = "TOKEN")
     public ResponseEntity<ApiResponse<Map<String, String>>> refresh(@RequestBody Map<String, String> request) {
         String refreshToken = request.get("refreshToken");
         if (refreshToken == null || !jwtUtil.validateToken(refreshToken)) {

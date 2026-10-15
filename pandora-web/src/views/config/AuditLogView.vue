@@ -6,7 +6,7 @@
         start-placeholder="开始时间" end-placeholder="结束时间" format="YYYY-MM-DD HH:mm:ss"
         value-format="YYYY-MM-DD HH:mm:ss" style="width: 380px" />
       <el-select v-model="filters.operationType" placeholder="操作类型" clearable style="width: 180px">
-        <el-option v-for="t in operationTypes" :key="t" :label="t" :value="t" />
+        <el-option v-for="t in operationTypes" :key="t.value" :label="t.label" :value="t.value" />
       </el-select>
       <el-input v-model="filters.keyword" placeholder="关键字" clearable style="width: 180px" />
       <el-button type="primary" @click="loadLogs">查询</el-button>
@@ -20,8 +20,16 @@
           {{ row.operator_real_name || row.operator_name || row.operator_id }}
         </template>
       </el-table-column>
-      <el-table-column prop="operation_type" label="操作类型" width="160" />
-      <el-table-column prop="target_type" label="目标类型" width="120" />
+      <el-table-column label="操作类型" width="160">
+        <template #default="{ row }">
+          {{ mapOperationType(row.operation_type) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="目标类型" width="120">
+        <template #default="{ row }">
+          {{ mapTargetType(row.target_type) }}
+        </template>
+      </el-table-column>
       <el-table-column prop="target_id" label="目标ID" width="100" />
       <el-table-column prop="operation_content" label="操作内容" show-overflow-tooltip />
       <el-table-column prop="detail" label="详情" width="200" show-overflow-tooltip />
@@ -37,6 +45,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { getAuditLogs, exportAuditLogs } from '@/api/audit'
+import { mapOperationType, mapTargetType, operationTypeOptions } from '@/utils/auditLabelMap'
 
 const logs = ref([])
 const loading = ref(false)
@@ -49,17 +58,7 @@ const filters = reactive({
 })
 const pagination = reactive({ page: 1, size: 20, total: 0 })
 
-const operationTypes = [
-  'LOGIN', 'LOGOUT',
-  'TASK_CREATE', 'TASK_PROGRESS_UPDATE', 'TASK_TRANSITION',
-  'LOG_CREATE', 'LOG_UPDATE', 'LOG_DELETE', 'LOG_AUTO_GENERATE', 'TOP10_UPDATE',
-  'TEST_DATA_CLEANUP',
-  'USER_REGISTER', 'USER_APPROVE', 'USER_REJECT', 'USER_PROFILE_UPDATE', 'USER_PASSWORD_CHANGE',
-  'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET_APPROVE', 'PASSWORD_RESET_REJECT', 'PASSWORD_RESET_EXECUTE',
-  'EMPLOYEE_RECORD_CREATE', 'EMPLOYEE_RECORD_UPDATE', 'EMPLOYEE_RECORD_DELETE',
-  'PERM_INVITATION_CREATE', 'PERM_INVITATION_RESPOND', 'PERM_AUDIT_RULE_CREATE',
-  'AI_MBTI_SUBMIT', 'AI_KEYWORD_ANALYSIS', 'DATA_SYNC'
-]
+const operationTypes = operationTypeOptions
 
 function buildParams() {
   const params = {
