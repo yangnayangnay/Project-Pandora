@@ -169,7 +169,7 @@ public class LogRepository {
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
                     if (response.isSuccess() && response.getData() != null) {
-                        return response.getData();
+                        return normalizeKeys(response.getData());
                     }
                     throw new RuntimeException(response.getMessage());
                 });

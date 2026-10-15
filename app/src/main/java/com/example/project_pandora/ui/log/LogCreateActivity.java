@@ -71,6 +71,7 @@ public class LogCreateActivity extends AppCompatActivity {
 
         checkEditMode();
         setupTemplateButtons();
+        setupAiDraftButton();
         setupAutoSave();
         checkDraftRestore();
         templateMigrationHelper.migrateIfNeeded();
@@ -195,6 +196,46 @@ public class LogCreateActivity extends AppCompatActivity {
     private void setupTemplateButtons() {
         binding.btnSaveTemplate.setOnClickListener(v -> saveAsTemplate());
         binding.btnUseTemplate.setOnClickListener(v -> showTemplateDialog());
+    }
+
+    private void setupAiDraftButton() {
+        binding.btnAiDraft.setOnClickListener(v -> performAiDraft());
+    }
+
+    private void performAiDraft() {
+        binding.btnAiDraft.setEnabled(false);
+        binding.btnAiDraft.setText("起草中...");
+        disposables.add(logRepository.generateDraft()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        this::handleDraftResponse,
+                        error -> onDraftFailed(error.getMessage())
+                ));
+    }
+
+    private void handleDraftResponse(Map<String, Object> response) {
+        Object draftTextObj = response.get("drafttext");
+        String draftText = draftTextObj != null ? draftTextObj.toString() : "";
+        if (draftText.isEmpty()) {
+            onDraftFailed("草稿内容为空");
+        } else {
+            onDraftSuccess(draftText);
+        }
+    }
+
+    private void onDraftSuccess(String draftText) {
+        binding.editWorkItem.setText(draftText);
+        resetDraftButton();
+    }
+
+    private void onDraftFailed(String errorMessage) {
+        Toast.makeText(this, "起草失败: " + errorMessage, Toast.LENGTH_SHORT).show();
+        resetDraftButton();
+    }
+
+    private void resetDraftButton() {
+        binding.btnAiDraft.setEnabled(true);
+        binding.btnAiDraft.setText("AI起草");
     }
 
     private void saveAsTemplate() {

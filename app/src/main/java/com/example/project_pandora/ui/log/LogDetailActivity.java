@@ -9,6 +9,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.project_pandora.core.network.TokenManager;
+import com.example.project_pandora.core.util.BackToolbarHelper;
 import com.example.project_pandora.databinding.ActivityLogDetailBinding;
 import com.example.project_pandora.repository.LogRepository;
 
@@ -29,6 +30,9 @@ public class LogDetailActivity extends AppCompatActivity {
     private long logId;
     private String currentRole;
     private Long currentUserId;
+    private String editWorkItem;
+    private String editTimeCost;
+    private String editLogDate;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,16 +51,16 @@ public class LogDetailActivity extends AppCompatActivity {
         currentRole = tm.getRole();
         currentUserId = tm.getUserId();
 
-        setSupportActionBar(binding.toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setTitle("日志详情");
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        }
+        BackToolbarHelper.setupBack(binding.toolbar, this::finish);
+        binding.toolbar.setTitle("日志详情");
 
         binding.btnEdit.setOnClickListener(v -> {
             Intent intent = new Intent(this, LogCreateActivity.class);
             intent.putExtra("editMode", true);
             intent.putExtra("logId", logId);
+            intent.putExtra("workItem", editWorkItem);
+            intent.putExtra("timeCost", editTimeCost);
+            intent.putExtra("logDate", editLogDate);
             startActivity(intent);
         });
 
@@ -91,9 +95,11 @@ public class LogDetailActivity extends AppCompatActivity {
 
         Object workItem = log.get("work_item");
         binding.textWorkItem.setText(workItem != null ? workItem.toString() : "");
+        editWorkItem = workItem != null ? workItem.toString() : null;
 
         Object date = log.get("log_date");
         binding.textDate.setText(date != null ? date.toString() : "");
+        editLogDate = date != null ? date.toString() : null;
 
         Object status = log.get("completion_status");
         String statusText = "进行中";
@@ -110,6 +116,7 @@ public class LogDetailActivity extends AppCompatActivity {
 
         Object timeCost = log.get("time_cost");
         binding.textTimeCost.setText(timeCost != null ? timeCost + " 小时" : "未记录");
+        editTimeCost = timeCost != null ? timeCost.toString() : null;
 
         Object username = log.get("username");
         Object realName = log.get("real_name");
@@ -172,12 +179,7 @@ public class LogDetailActivity extends AppCompatActivity {
     }
 
     @Override
-    public boolean onSupportNavigateUp() {
-        finish();
-        return true;
-    }
 
-    @Override
     protected void onDestroy() {
         super.onDestroy();
         disposables.clear();

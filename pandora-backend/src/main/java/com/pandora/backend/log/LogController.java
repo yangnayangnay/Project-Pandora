@@ -54,23 +54,34 @@ public class LogController {
         Object timeCostObj = request.get("timeCost");
         String logDate = (String) request.getOrDefault("logDate", new java.sql.Date(System.currentTimeMillis()).toString());
 
-        Integer existingCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM work_logs WHERE user_id = ? AND log_date = ? AND deleted = 0",
-                Integer.class, userId, logDate);
-        if (existingCount != null && existingCount > 0) {
-            throw new BusinessException(ErrorCode.LOG_DATE_CONFLICT);
-        }
+        List<Map<String, Object>> existingLogs = jdbcTemplate.queryForList(
+                "SELECT id, deleted FROM work_logs WHERE user_id = ? AND log_date = ? ORDER BY deleted ASC",
+                userId, logDate);
 
-        try {
+        Long logId;
+        if (!existingLogs.isEmpty()) {
+            Map<String, Object> existing = existingLogs.get(0);
+            Object deletedObj = existing.get("DELETED");
+            int deleted = deletedObj != null ? ((Number) deletedObj).intValue() : 0;
+            if (deleted == 0) {
+                throw new BusinessException(ErrorCode.LOG_DATE_CONFLICT);
+            }
+            logId = ((Number) existing.get("ID")).longValue();
             jdbcTemplate.update(
-                    "INSERT INTO work_logs (user_id, work_item, completion_status, time_cost, log_date) VALUES (?, ?, ?, ?, ?)",
-                    userId, workItem, completionStatus, timeCostObj, logDate
+                    "UPDATE work_logs SET work_item = ?, completion_status = ?, time_cost = ?, deleted = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    workItem, completionStatus, timeCostObj, logId
             );
-        } catch (DuplicateKeyException e) {
-            throw new BusinessException(ErrorCode.LOG_DATE_CONFLICT);
+        } else {
+            try {
+                jdbcTemplate.update(
+                        "INSERT INTO work_logs (user_id, work_item, completion_status, time_cost, log_date) VALUES (?, ?, ?, ?, ?)",
+                        userId, workItem, completionStatus, timeCostObj, logDate
+                );
+            } catch (DuplicateKeyException e) {
+                throw new BusinessException(ErrorCode.LOG_DATE_CONFLICT);
+            }
+            logId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         }
-
-        Long logId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         Map<String, Object> result = new HashMap<>();
         result.put("id", logId);
 

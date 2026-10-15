@@ -71,11 +71,6 @@ public class MineFragment extends Fragment {
             binding.btnHierarchyManage.setOnClickListener(v ->
                     startActivity(new Intent(requireContext(), HierarchyManageActivity.class)));
         }
-        if ("ADMIN".equals(role) || "FOUNDER".equals(role)) {
-            binding.btnAuditLog.setVisibility(View.VISIBLE);
-            binding.btnAuditLog.setOnClickListener(v ->
-                    startActivity(new Intent(requireContext(), AuditLogActivity.class)));
-        }
 
         binding.btnSettings.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), SettingsActivity.class)));
