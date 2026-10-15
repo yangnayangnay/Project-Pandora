@@ -8,6 +8,16 @@ const request = axios.create({
   timeout: 30000
 })
 
+function lowercaseKeys(obj) {
+  if (obj === null || typeof obj !== 'object') return obj
+  if (Array.isArray(obj)) return obj.map(lowercaseKeys)
+  const result = {}
+  for (const key in obj) {
+    result[key.toLowerCase()] = lowercaseKeys(obj[key])
+  }
+  return result
+}
+
 request.interceptors.request.use(
   (config) => {
     const token = getToken()
@@ -21,9 +31,12 @@ request.interceptors.request.use(
 
 request.interceptors.response.use(
   (response) => {
+    if (response.config.responseType === 'blob') {
+      return response
+    }
     const res = response.data
     if (res.code === 200) {
-      return res
+      return lowercaseKeys(res)
     } else {
       ElMessage.error(res.message || `请求失败（错误码: ${res.code || '未知'}）`)
       return Promise.reject(new Error(res.message || '请求失败'))
