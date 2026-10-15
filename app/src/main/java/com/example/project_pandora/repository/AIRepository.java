@@ -70,14 +70,4 @@ public class AIRepository {
                 });
     }
 
-    public Observable<Map<String, Object>> getDivination() {
-        return aiApi.getDivination()
-                .subscribeOn(Schedulers.io())
-                .map(response -> {
-                    if (response.isSuccess() && response.getData() != null) {
-                        return response.getData();
-                    }
-                    throw new RuntimeException(response.getMessage());
-                });
-    }
 }

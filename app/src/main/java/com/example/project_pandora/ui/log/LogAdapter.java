@@ -8,7 +8,10 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.RequestOptions;
 import com.example.project_pandora.R;
+import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.databinding.ItemLogBinding;
 
 import java.util.ArrayList;
@@ -67,33 +70,22 @@ public class LogAdapter extends RecyclerView.Adapter<LogAdapter.LogViewHolder> {
             Object workItem = log.get("work_item");
             binding.textWorkItem.setText(workItem != null ? workItem.toString() : "");
 
-            Object status = log.get("completion_status");
-            String statusText = "进行中";
-            int statusColor = 0xFFFF9800;
-            if (status != null) {
-                switch (status.toString()) {
-                    case "COMPLETED":
-                        statusText = "已完成";
-                        statusColor = 0xFF4CAF50;
-                        break;
-                    case "NOT_STARTED":
-                        statusText = "未开始";
-                        statusColor = 0xFF9E9E9E;
-                        break;
-                }
-            }
-            binding.textStatus.setText(statusText);
-            binding.textStatus.setBackgroundColor(statusColor);
-            binding.textStatus.setTextColor(0xFFFFFFFF);
-
             Object date = log.get("log_date");
             binding.textDate.setText(date != null ? date.toString() : "");
 
-            Object timeCost = log.get("time_cost");
-            if (timeCost != null) {
-                binding.textTimeCost.setText(timeCost + "h");
+            Object avatar = log.get("avatar");
+            if (avatar != null && !avatar.toString().isEmpty()) {
+                String baseUrl = NetworkClient.getBaseUrl();
+                if (baseUrl.endsWith("/")) baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+                String fullUrl = baseUrl + avatar;
+                Glide.with(binding.imageAvatar.getContext())
+                        .load(fullUrl)
+                        .apply(RequestOptions.circleCropTransform())
+                        .placeholder(R.mipmap.ic_launcher)
+                        .error(R.mipmap.ic_launcher)
+                        .into(binding.imageAvatar);
             } else {
-                binding.textTimeCost.setText("");
+                binding.imageAvatar.setImageResource(R.mipmap.ic_launcher);
             }
 
             itemView.setOnClickListener(v -> listener.onLogClick(log));

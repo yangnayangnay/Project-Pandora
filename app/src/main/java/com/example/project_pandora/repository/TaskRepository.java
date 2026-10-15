@@ -6,6 +6,7 @@ import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.data.remote.TaskApi;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -47,6 +48,37 @@ public class TaskRepository {
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
                     if (response.isSuccess() && response.getData() != null) {
+                        List<Map<String, Object>> list = response.getData();
+                        for (int i = 0; i < list.size(); i++) {
+                            list.set(i, normalizeKeys(list.get(i)));
+                        }
+                        return list;
+                    }
+                    throw new RuntimeException(response.getMessage());
+                });
+    }
+
+    public Observable<List<Map<String, Object>>> listTasksExtended(String status, Long assigneeId,
+                                                                     Long dispatcherId, Boolean showCompleted) {
+        return taskApi.listTasksExtended(status, assigneeId, dispatcherId, showCompleted)
+                .subscribeOn(Schedulers.io())
+                .map(response -> {
+                    if (response.isSuccess() && response.getData() != null) {
+                        List<Map<String, Object>> list = response.getData();
+                        for (int i = 0; i < list.size(); i++) {
+                            list.set(i, normalizeKeys(list.get(i)));
+                        }
+                        return list;
+                    }
+                    throw new RuntimeException(response.getMessage());
+                });
+    }
+
+    public Observable<Map<String, Object>> updateTask(Long taskId, Map<String, Object> request) {
+        return taskApi.updateTask(taskId, request)
+                .subscribeOn(Schedulers.io())
+                .map(response -> {
+                    if (response.isSuccess() && response.getData() != null) {
                         return response.getData();
                     }
                     throw new RuntimeException(response.getMessage());
@@ -58,7 +90,7 @@ public class TaskRepository {
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
                     if (response.isSuccess() && response.getData() != null) {
-                        return response.getData();
+                        return normalizeKeys(response.getData());
                     }
                     throw new RuntimeException(response.getMessage());
                 });
@@ -77,12 +109,29 @@ public class TaskRepository {
                 });
     }
 
+    @SuppressWarnings("unchecked")
     public Observable<Map<String, Object>> getQuadrantTasks() {
         return taskApi.getQuadrantTasks()
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
                     if (response.isSuccess() && response.getData() != null) {
-                        return response.getData();
+                        Map<String, Object> data = response.getData();
+                        Map<String, Object> result = new LinkedHashMap<>();
+                        for (Map.Entry<String, Object> entry : data.entrySet()) {
+                            Object value = entry.getValue();
+                            if (value instanceof List) {
+                                List<Object> list = (List<Object>) value;
+                                for (int i = 0; i < list.size(); i++) {
+                                    if (list.get(i) instanceof Map) {
+                                        list.set(i, normalizeKeys((Map<String, Object>) list.get(i)));
+                                    }
+                                }
+                                result.put(entry.getKey(), list);
+                            } else {
+                                result.put(entry.getKey(), value);
+                            }
+                        }
+                        return result;
                     }
                     throw new RuntimeException(response.getMessage());
                 });
@@ -98,5 +147,64 @@ public class TaskRepository {
                     if (response.isSuccess()) return null;
                     throw new RuntimeException(response.getMessage());
                 });
+    }
+
+    public Observable<List<Map<String, Object>>> getSubordinateTasks() {
+        return taskApi.getSubordinateTasks()
+                .subscribeOn(Schedulers.io())
+                .map(response -> {
+                    if (response.isSuccess() && response.getData() != null) {
+                        List<Map<String, Object>> list = response.getData();
+                        for (int i = 0; i < list.size(); i++) {
+                            list.set(i, normalizeKeys(list.get(i)));
+                        }
+                        return list;
+                    }
+                    throw new RuntimeException(response.getMessage());
+                });
+    }
+
+    public Observable<List<Map<String, Object>>> getSubordinateUsers() {
+        return taskApi.getSubordinateUsers()
+                .subscribeOn(Schedulers.io())
+                .map(response -> {
+                    if (response.isSuccess() && response.getData() != null) {
+                        List<Map<String, Object>> list = response.getData();
+                        for (int i = 0; i < list.size(); i++) {
+                            list.set(i, normalizeKeys(list.get(i)));
+                        }
+                        return list;
+                    }
+                    throw new RuntimeException(response.getMessage());
+                });
+    }
+
+    public Observable<Void> deleteTask(Long taskId) {
+        return taskApi.deleteTask(taskId)
+                .subscribeOn(Schedulers.io())
+                .map(response -> {
+                    if (response.isSuccess()) return null;
+                    throw new RuntimeException(response.getMessage());
+                });
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> normalizeKeys(Map<String, Object> map) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            Object value = entry.getValue();
+            if (value instanceof Map) {
+                value = normalizeKeys((Map<String, Object>) value);
+            } else if (value instanceof List) {
+                List<Object> list = (List<Object>) value;
+                for (int i = 0; i < list.size(); i++) {
+                    if (list.get(i) instanceof Map) {
+                        list.set(i, normalizeKeys((Map<String, Object>) list.get(i)));
+                    }
+                }
+            }
+            result.put(entry.getKey().toLowerCase(), value);
+        }
+        return result;
     }
 }

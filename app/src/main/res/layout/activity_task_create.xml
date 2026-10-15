@@ -12,7 +12,17 @@
         android:background="?attr/colorPrimary"
         app:title="@string/task_create"
         app:titleTextColor="@android:color/white"
-        app:navigationIcon="?attr/homeAsUpIndicator" />
+        app:navigationIcon="@drawable/ic_back" />
+
+    <TextView
+        android:id="@+id/textAutoSaveStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="4dp"
+        android:textAlignment="center"
+        android:textSize="12sp"
+        android:textColor="#888888"
+        android:visibility="gone" />
 
     <ScrollView
         android:layout_width="match_parent"
@@ -34,47 +44,72 @@
                     android:id="@+id/edit_task_name"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="任务名称" />
+                    android:hint="@string/hint_task_name" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="优先级"
+                android:text="紧急程度"
                 android:layout_marginBottom="8dp" />
 
-            <Spinner
-                android:id="@+id/spinner_priority"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp" />
-
-            <LinearLayout
+            <RadioGroup
+                android:id="@+id/rg_urgency"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:layout_marginBottom="16dp">
 
-                <CheckBox
-                    android:id="@+id/check_important"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="重要" />
-
-                <CheckBox
-                    android:id="@+id/check_urgent"
+                <RadioButton
+                    android:id="@+id/rb_urgent"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="紧急" />
-            </LinearLayout>
+
+                <RadioButton
+                    android:id="@+id/rb_not_urgent"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="不紧急"
+                    android:checked="true" />
+            </RadioGroup>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="截止日期"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/text_end_time"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="点击选择日期"
+                android:padding="12dp"
+                android:background="@android:color/white"
+                android:layout_marginBottom="16dp"
+                android:clickable="true"
+                android:focusable="true" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="分配对象"
+                android:layout_marginBottom="8dp" />
+
+            <Spinner
+                android:id="@+id/spinner_assignee"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_create_task"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="创建任务" />
+                android:text="@string/btn_create_task" />
 
         </LinearLayout>
     </ScrollView>

@@ -12,6 +12,7 @@ public class TokenManager {
     private static final String KEY_TOKEN = "auth_token";
     private static final String KEY_USER_ID = "user_id";
     private static final String KEY_ROLE = "user_role";
+    private static final String KEY_LAST_USERNAME = "last_username";
 
     private static TokenManager instance;
     private final SharedPreferences prefs;
@@ -63,11 +64,19 @@ public class TokenManager {
         return prefs.getString(KEY_ROLE, null);
     }
 
+    public void saveLastUsername(String username) {
+        prefs.edit().putString(KEY_LAST_USERNAME, username).apply();
+    }
+
+    public String getLastUsername() {
+        return prefs.getString(KEY_LAST_USERNAME, null);
+    }
+
     public boolean isLoggedIn() {
         return getToken() != null;
     }
 
     public void clear() {
-        prefs.edit().clear().apply();
+        prefs.edit().remove(KEY_TOKEN).remove(KEY_USER_ID).remove(KEY_ROLE).apply();
     }
 }

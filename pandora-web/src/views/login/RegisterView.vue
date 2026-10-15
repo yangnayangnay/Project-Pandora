@@ -12,6 +12,18 @@
         <el-form-item prop="username">
           <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" size="large" />
         </el-form-item>
+        <el-form-item prop="email">
+          <el-input v-model="form.email" placeholder="邮箱" prefix-icon="Message" size="large" />
+        </el-form-item>
+        <el-form-item prop="realName">
+          <el-input v-model="form.realName" placeholder="真实姓名" prefix-icon="Postcard" size="large" />
+        </el-form-item>
+        <el-form-item prop="idCard">
+          <el-input v-model="form.idCard" placeholder="身份证号" prefix-icon="Document" size="large" />
+        </el-form-item>
+        <el-form-item prop="phone">
+          <el-input v-model="form.phone" placeholder="手机号" prefix-icon="Phone" size="large" />
+        </el-form-item>
         <el-form-item prop="password">
           <el-input v-model="form.password" type="password" placeholder="密码（至少6位）" prefix-icon="Lock" size="large" show-password />
         </el-form-item>
@@ -51,6 +63,10 @@ const loading = ref(false)
 
 const form = reactive({
   username: '',
+  email: '',
+  realName: '',
+  idCard: '',
+  phone: '',
   password: '',
   confirmPassword: '',
   role: 'EMPLOYEE'
@@ -66,6 +82,10 @@ const validateConfirmPassword = (rule, value, callback) => {
 
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+  email: [{ required: true, message: '请输入邮箱', trigger: 'blur' }],
+  realName: [{ required: true, message: '请输入真实姓名', trigger: 'blur' }],
+  idCard: [{ required: true, message: '请输入身份证号', trigger: 'blur' }],
+  phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
@@ -84,11 +104,20 @@ const handleRegister = async () => {
     const res = await request.post('/auth/register', {
       username: form.username,
       password: form.password,
-      role: form.role
+      role: form.role,
+      email: form.email,
+      realName: form.realName,
+      idCard: form.idCard,
+      phone: form.phone
     })
-    userStore.setLoginData(res.data)
-    ElMessage.success('注册成功')
-    router.push('/')
+    if (res.data && res.data.user && res.data.user.approvalStatus === 'PENDING') {
+      ElMessage.success('注册成功，请等待管理员审批')
+      router.push('/login')
+    } else {
+      userStore.setLoginData(res.data)
+      ElMessage.success('注册成功')
+      router.push('/')
+    }
   } catch (error) {
     console.error('Register failed:', error)
   } finally {

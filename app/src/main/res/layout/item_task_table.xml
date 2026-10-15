@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingHorizontal="6dp"
+    android:paddingVertical="8dp"
+    android:background="?android:attr/selectableItemBackground">
+
+    <TextView
+        android:id="@+id/textColName"
+        android:layout_width="120dp"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="#212529"
+        android:maxLines="2"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/textColDeadline"
+        android:layout_width="80dp"
+        android:layout_height="wrap_content"
+        android:textSize="11sp"
+        android:textColor="#6c757d"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/textColUrgency"
+        android:layout_width="70dp"
+        android:layout_height="wrap_content"
+        android:textSize="11sp"
+        android:gravity="center"
+        android:textColor="@android:color/white"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="2dp" />
+
+    <TextView
+        android:id="@+id/textColCompletion"
+        android:layout_width="70dp"
+        android:layout_height="wrap_content"
+        android:textSize="11sp"
+        android:gravity="center"
+        android:textColor="@android:color/white"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="2dp" />
+
+    <TextView
+        android:id="@+id/textColProgress"
+        android:layout_width="80dp"
+        android:layout_height="wrap_content"
+        android:textSize="11sp"
+        android:textColor="#6c757d"
+        android:maxLines="2"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/textColAssignee"
+        android:layout_width="70dp"
+        android:layout_height="wrap_content"
+        android:textSize="10sp"
+        android:textColor="#6c757d"
+        android:gravity="center"
+        android:maxLines="2"
+        android:ellipsize="end" />
+
+</LinearLayout>

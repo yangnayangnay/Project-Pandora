@@ -36,7 +36,7 @@ public class ViewViewModel extends BaseViewModel {
     public void loadMonthView(String month) {
         showLoading();
         compositeDisposable.add(
-                repository.getMonthView(month)
+                repository.getMonthView(month, true)
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 data -> {
@@ -54,7 +54,7 @@ public class ViewViewModel extends BaseViewModel {
     public void loadWeekView() {
         showLoading();
         compositeDisposable.add(
-                repository.getWeekView()
+                repository.getWeekView(true)
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 data -> {
@@ -72,7 +72,7 @@ public class ViewViewModel extends BaseViewModel {
     public void loadDayView(String date) {
         showLoading();
         compositeDisposable.add(
-                repository.getDayView(date)
+                repository.getDayView(date, true)
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 data -> {

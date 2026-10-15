@@ -13,6 +13,7 @@ import com.example.project_pandora.databinding.ActivityBirthdayWishBinding;
 
 import java.util.Calendar;
 import java.util.Locale;
+import com.example.project_pandora.core.util.BackToolbarHelper;
 
 public class BirthdayWishActivity extends AppCompatActivity {
 
@@ -32,7 +33,7 @@ public class BirthdayWishActivity extends AppCompatActivity {
 
         prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
 
-        binding.toolbar.setNavigationOnClickListener(v -> finish());
+        BackToolbarHelper.setupBack(binding.toolbar, this::finish);
 
         setupSpinners();
         loadSavedBirthday();

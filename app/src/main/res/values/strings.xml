@@ -4,13 +4,51 @@
 
     <!-- 注册登录 -->
     <string name="register_title">用户注册</string>
+    <string name="login_title">潘多拉 - 智能掌上工作系统</string>
+    <string name="server_checking">服务器检测中...</string>
     <string name="hint_username">用户名</string>
+    <string name="hint_username_or_email">用户名或邮箱</string>
     <string name="hint_password">密码</string>
     <string name="hint_confirm_password">确认密码</string>
+    <string name="hint_email">邮箱</string>
+    <string name="hint_real_name">真实姓名</string>
+    <string name="hint_id_card">身份证号</string>
+    <string name="hint_phone">手机号</string>
     <string name="hint_role">选择角色</string>
+    <string name="btn_login">登 录</string>
     <string name="btn_register">注 册</string>
     <string name="btn_go_login">已有账号？去登录</string>
     <string name="btn_go_register">没有账号？去注册</string>
+    <string name="btn_forgot_password">忘记密码？</string>
+    <string name="forgot_password_title">忘记密码</string>
+    <string name="forgot_password_hint">请输入您的用户名或邮箱</string>
+    <string name="forgot_password_reason_hint">申请原因（可选）</string>
+    <string name="forgot_password_submit">提交重置申请</string>
+    <string name="reset_requests_title">密码重置申请</string>
+    <string name="reset_request_approve">批准重置</string>
+    <string name="reset_request_reject">拒绝</string>
+    <string name="reset_request_custom_pwd">新密码（留空则重置为 pandora123）</string>
+    <string name="register_real_name_hint">填写真实姓名和身份证号可自动匹配预登记员工，免审批直接登录</string>
+    <string name="register_empty_input">用户名和密码不能为空</string>
+    <string name="password_too_short">密码长度不能少于6位</string>
+    <string name="register_password_mismatch">两次输入的密码不一致</string>
+    <string name="register_loading">提交中...</string>
+    <string name="register_pending">注册申请已提交，等待管理员审批</string>
+    <string name="register_approved">注册成功，已自动登录</string>
+    <string name="register_failed">注册失败: %1$s</string>
+    <string name="login_empty_input">用户名和密码不能为空</string>
+    <string name="login_failed">登录失败: %1$s</string>
+    <string name="login_loading">登录中...</string>
+    <string name="server_connected">服务器已连接 ✓</string>
+    <string name="server_disconnected">服务器未连接</string>
+    <string name="server_retrying">服务器未连接，正在重试(%1$d/%2$d)...</string>
+    <string name="server_retry_failed">服务器未连接（已重试3次），请检查后手动刷新</string>
+    <string name="btn_refresh_server">重新检测服务器</string>
+    <string name="notification_channel_name">审批结果通知</string>
+    <string name="notification_server_status_title">服务器状态</string>
+    <string name="notification_server_disconnected">服务器连接已断开</string>
+    <string name="notification_approval_title">审批结果通知</string>
+    <string name="no_data">暂无数据</string>
 
     <!-- 底部导航 -->
     <string name="nav_home">首页</string>
@@ -51,6 +89,15 @@
     <string name="task_quadrant_important_not_urgent">重要不紧急</string>
     <string name="task_quadrant_not_important_urgent">紧急不重要</string>
     <string name="task_quadrant_not_important_not_urgent">不重要不紧急</string>
+    <string name="btn_create_task">创建任务</string>
+    <string name="hint_task_name">请输入任务名称</string>
+    <string name="label_priority">优先级</string>
+    <string name="label_important">重要</string>
+    <string name="label_urgent">紧急</string>
+    <string name="quadrant_important_urgent">重要且紧急</string>
+    <string name="quadrant_important_not_urgent">重要不紧急</string>
+    <string name="quadrant_not_important_urgent">紧急不重要</string>
+    <string name="quadrant_not_important_not_urgent">不重要不紧急</string>
 
     <!-- 日志管理 -->
     <string name="log_create">添加日志</string>
@@ -76,17 +123,13 @@
     <!-- 日程页 -->
     <string name="schedule_view_logs">查看日志</string>
 
-    <!-- 主题 -->
-    <string name="theme_auto">跟随月相</string>
-    <string name="theme_manual">手动选择</string>
-    <string name="moon_new">新月</string>
-    <string name="moon_waxing_crescent">蛾眉月</string>
-    <string name="moon_first_quarter">上弦月</string>
-    <string name="moon_waxing_gibbous">盈凸月</string>
-    <string name="moon_full">满月</string>
-    <string name="moon_waning_gibbous">亏凸月</string>
-    <string name="moon_last_quarter">下弦月</string>
-    <string name="moon_waning_crescent">残月</string>
+
+    <string name="home_title">潘多拉 - 智能掌上工作系统</string>
+    <string name="data_map_title">数据地图</string>
+    <string name="section_company_important">公司10大重要工作</string>
+    <string name="section_company_dispatch">公司10大派发任务</string>
+    <string name="section_personal_important">个人10大重要工作</string>
+    <string name="section_personal_log">个人日志</string>
 
     <!-- 生日祝福 -->
     <string name="birthday_title">生日祝福</string>
@@ -94,7 +137,7 @@
     <string name="birthday_month">月</string>
     <string name="birthday_day">日</string>
     <string name="birthday_save">保存</string>
-    <string name="birthday_today">🎂 生日快乐！\n\n愿你在新的一岁里：\n工作顺心如意，前程似锦\n生活幸福美满，健康平安\n每一个梦想都能实现\n每一天都充满阳光\n\n🎉 Happy Birthday！</string>
+    <string name="birthday_today">&#x1F382; 生日快乐！\n\n愿你在新的一岁里：\n工作顺心如意，前程似锦\n生活幸福美满，健康平安\n每一个梦想都能实现\n每一天都充满阳光\n\n&#x1F389; Happy Birthday！</string>
     <string name="birthday_not_set">还未设置生日，请先设置\n点击上方保存你的生日日期</string>
     <string name="birthday_days_left">距离生日还有 %1$d 天</string>
     <string name="birthday_passed">生日已过，明年再见！\n距离下次生日还有 %1$d 天</string>

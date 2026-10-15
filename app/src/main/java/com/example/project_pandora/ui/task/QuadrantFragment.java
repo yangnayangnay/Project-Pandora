@@ -1,6 +1,8 @@
 package com.example.project_pandora.ui.task;
 
 import android.os.Bundle;
+import android.app.AlertDialog;
+import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.example.project_pandora.R;
 import com.example.project_pandora.databinding.FragmentQuadrantBinding;
 import com.example.project_pandora.repository.TaskRepository;
 
@@ -42,6 +45,19 @@ public class QuadrantFragment extends Fragment {
 
         taskRepository = new TaskRepository(requireContext());
 
+        binding.toolbar.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.action_dispatch_task) {
+                startActivity(new Intent(requireContext(), TaskDispatchActivity.class));
+                return true;
+            }
+            if (id == R.id.action_subordinate_tasks) {
+                loadSubordinateTasks();
+                return true;
+            }
+            return false;
+        });
+
         binding.recyclerQ1.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerQ2.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerQ3.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -57,12 +73,44 @@ public class QuadrantFragment extends Fragment {
                 .subscribe(
                         data -> {
                             binding.swipeRefresh.setRefreshing(false);
-                            binding.recyclerQ1.setAdapter(new SimpleTaskAdapter(getList(data, "importantNotUrgent")));
-                            binding.recyclerQ2.setAdapter(new SimpleTaskAdapter(getList(data, "importantUrgent")));
+                            binding.recyclerQ1.setAdapter(new SimpleTaskAdapter(getList(data, "importantUrgent")));
+                            binding.recyclerQ2.setAdapter(new SimpleTaskAdapter(getList(data, "importantNotUrgent")));
                             binding.recyclerQ3.setAdapter(new SimpleTaskAdapter(getList(data, "notImportantUrgent")));
                             binding.recyclerQ4.setAdapter(new SimpleTaskAdapter(getList(data, "notImportantNotUrgent")));
                         },
                         error -> binding.swipeRefresh.setRefreshing(false)
+                ));
+    }
+
+    private void loadSubordinateTasks() {
+        disposables.add(taskRepository.getSubordinateTasks()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        tasks -> {
+                            if (tasks.isEmpty()) {
+                                new AlertDialog.Builder(requireContext())
+                                        .setTitle("下属任务").setMessage("暂无下属任务")
+                                        .setPositiveButton("确定", null).show();
+                                return;
+                            }
+                            StringBuilder sb = new StringBuilder();
+                            for (Map<String, Object> task : tasks) {
+                                Object name = task.get("name");
+                                Object assignee = task.get("assignee_real_name");
+                                if (assignee == null) assignee = task.get("assignee_name");
+                                Object status = task.get("status");
+                                sb.append("• ").append(name != null ? name : "未命名")
+                                  .append(" — ").append(assignee != null ? assignee : "未知")
+                                  .append(" [").append(status != null ? status : "").append("]\n\n");
+                            }
+                            new AlertDialog.Builder(requireContext())
+                                    .setTitle("下属任务 (" + tasks.size() + "条)")
+                                    .setMessage(sb.toString())
+                                    .setPositiveButton("确定", null).show();
+                        },
+                        error -> new AlertDialog.Builder(requireContext())
+                                .setTitle("下属任务").setMessage("加载失败: " + error.getMessage())
+                                .setPositiveButton("确定", null).show()
                 ));
     }
 
@@ -100,8 +148,17 @@ public class QuadrantFragment extends Fragment {
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-            Object name = tasks.get(position).get("name");
+            Map<String, Object> task = tasks.get(position);
+            Object name = task.get("name");
             ((TextView) holder.itemView).setText(name != null ? name.toString() : "");
+            holder.itemView.setOnClickListener(v -> {
+                Object idObj = task.get("id");
+                if (idObj instanceof Number) {
+                    Intent intent = new Intent(v.getContext(), TaskDetailActivity.class);
+                    intent.putExtra("taskId", ((Number) idObj).longValue());
+                    v.getContext().startActivity(intent);
+                }
+            });
         }
 
         @Override

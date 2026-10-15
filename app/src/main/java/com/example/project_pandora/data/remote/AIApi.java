@@ -9,11 +9,15 @@ import io.reactivex.rxjava3.core.Observable;
 import retrofit2.http.Body;
 import retrofit2.http.GET;
 import retrofit2.http.POST;
+import retrofit2.http.Path;
 
 public interface AIApi {
 
     @POST("ai/mbti/submit")
     Observable<ApiResponse<Map<String, Object>>> submitMbti(@Body Map<String, Object> request);
+
+    @POST("ai/mbti/report/generate")
+    Observable<ApiResponse<Map<String, Object>>> generateMbtiReport(@Body Map<String, Object> request);
 
     @GET("ai/mbti/report")
     Observable<ApiResponse<Map<String, Object>>> getMbtiReport();
@@ -24,6 +28,5 @@ public interface AIApi {
     @GET("ai/suggestion")
     Observable<ApiResponse<Map<String, Object>>> getSuggestion();
 
-    @GET("ai/divination")
-    Observable<ApiResponse<Map<String, Object>>> getDivination();
+
 }

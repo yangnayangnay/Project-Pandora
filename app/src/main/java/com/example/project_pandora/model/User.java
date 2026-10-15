@@ -50,14 +50,6 @@ public class User implements Serializable {
     public void setManualTheme(String manualTheme) { this.manualTheme = manualTheme; }
 
     public String getRoleDisplayName() {
-        if (role == null) return "员工";
-        switch (role) {
-            case "ADMIN": return "管理员";
-            case "FOUNDER": return "创始人";
-            case "DEPT_HEAD": return "部门老总";
-            case "TEAM_LEADER": return "团队长";
-            case "EMPLOYEE": return "员工";
-            default: return role;
-        }
+        return com.example.project_pandora.core.util.RoleDisplayUtil.toChinese(role);
     }
 }

@@ -1,42 +1,54 @@
 package com.example.project_pandora.ui.task;
 
+import android.app.AlertDialog;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.RadioButton;
 import android.widget.Toast;
 
+import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.example.project_pandora.R;
 import com.example.project_pandora.core.network.TokenManager;
+import com.example.project_pandora.core.sync.SyncRouteResult;
 import com.example.project_pandora.databinding.ActivityTaskDetailBinding;
+import com.example.project_pandora.repository.SyncRoutingRepository;
 import com.example.project_pandora.repository.TaskRepository;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Locale;
+
 import java.util.Map;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import com.example.project_pandora.core.util.BackToolbarHelper;
 
 public class TaskDetailActivity extends AppCompatActivity {
 
     private ActivityTaskDetailBinding binding;
     private TaskRepository taskRepository;
+    private SyncRoutingRepository syncRoutingRepository;
     private Long taskId;
     private Map<String, Object> currentTask;
     private android.content.SharedPreferences urgencyPrefs;
-    private final SimpleDateFormat urgencyDateFmt = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
         binding = ActivityTaskDetailBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        ViewCompat.setOnApplyWindowInsetsListener(binding.toolbar, (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.statusBars());
+            v.setPadding(0, systemBars.top, 0, 0);
+            return insets;
+        });
+
         taskRepository = new TaskRepository(this);
+        syncRoutingRepository = new SyncRoutingRepository(this);
         taskId = getIntent().getLongExtra("taskId", -1);
         urgencyPrefs = getSharedPreferences("task_urgency", MODE_PRIVATE);
 
@@ -45,7 +57,7 @@ public class TaskDetailActivity extends AppCompatActivity {
             return;
         }
 
-        binding.toolbar.setNavigationOnClickListener(v -> finish());
+        BackToolbarHelper.setupBack(binding.toolbar, this::finish);
         setupButtons();
         loadTaskDetail();
     }
@@ -72,113 +84,87 @@ public class TaskDetailActivity extends AppCompatActivity {
     private void displayTask(Map<String, Object> task) {
         binding.textTaskName.setText((String) task.get("name"));
 
-        String status = (String) task.get("status");
-        binding.textStatus.setText(getStatusDisplayName(status));
+        Object endTime = task.get("end_time");
+        binding.textSummaryDeadline.setText(formatDateTime(endTime));
 
         String priority = (String) task.get("priority");
+        boolean isUrgent = "URGENT".equals(priority) || "HIGH".equals(priority);
+        binding.textSummaryUrgency.setText(isUrgent ? "紧急" : "不紧急");
+        binding.textSummaryUrgency.setBackgroundColor(isUrgent ? 0xFFF44336 : 0xFF4CAF50);
+
+        String status = (String) task.get("status");
+        boolean isCompleted = "COMPLETED".equals(status) || "CONFIRMED".equals(status);
+        binding.textSummaryCompletion.setText(isCompleted ? "已完成" : "未完成");
+        binding.textSummaryCompletion.setBackgroundColor(isCompleted ? 0xFF2196F3 : 0xFFFFEB3B);
+        binding.textSummaryCompletion.setTextColor(isCompleted ? 0xFFFFFFFF : 0xFF333333);
+
+        Object progressNote = task.get("progress_note");
+        binding.textSummaryProgress.setText(progressNote != null ? progressNote.toString() : "-");
+
+        Object assigneeName = task.get("assignee_name");
+        if (assigneeName == null) assigneeName = task.get("assigneeName");
+        binding.textSummaryAssignee.setText(assigneeName != null ? assigneeName.toString() : "-");
+
+        binding.textStatus.setText(getStatusDisplayName(status));
+
         binding.textPriority.setText(getPriorityDisplayName(priority));
 
         Object isImportantObj = task.get("is_important");
         Object isUrgentObj = task.get("is_urgent");
-        boolean isImportant = isImportantObj != null && (Boolean) isImportantObj;
-        boolean isUrgent = isUrgentObj != null && (Boolean) isUrgentObj;
+        boolean isImportant = toBool(isImportantObj);
+        boolean urgentFlag = toBool(isUrgentObj);
         String quadrant;
-        if (isImportant && isUrgent) quadrant = "重要且紧急";
+        if (isImportant && urgentFlag) quadrant = "重要且紧急";
         else if (isImportant) quadrant = "重要不紧急";
-        else if (isUrgent) quadrant = "紧急不重要";
+        else if (urgentFlag) quadrant = "紧急不重要";
         else quadrant = "不重要不紧急";
         binding.textQuadrant.setText(quadrant);
 
         Object startTime = task.get("start_time");
-        binding.textStartTime.setText("开始: " + (startTime != null ? startTime.toString() : "未设置"));
-        Object endTime = task.get("end_time");
-        binding.textEndTime.setText("截止: " + (endTime != null ? endTime.toString() : "未设置"));
+        binding.textStartTime.setText("开始: " + formatDateTime(startTime));
+        binding.textEndTime.setText("截止: " + formatDateTime(endTime));
 
         setupUrgencyAdjustment(task);
 
-        Object progressNote = task.get("progress_note");
         binding.textProgressNote.setText(progressNote != null ? progressNote.toString() : "暂无进度备注");
 
         updateButtonVisibility(status);
     }
 
     private void setupUrgencyAdjustment(Map<String, Object> task) {
-        int defaultUrgency = calculateDeadlineUrgency(task);
-        int savedOverride = urgencyPrefs.getInt("task_" + taskId, 0);
-        int currentUrgency = savedOverride > 0 ? savedOverride : defaultUrgency;
+        Object isUrgentObj = task.get("is_urgent");
+        boolean defaultUrgent = toBool(isUrgentObj);
 
-        String[] labels = {"", "最高（深红色）", "高（淡红色）", "中（黄色）", "低（绿色）"};
-        String[] hints = {
-            "",
-            "当天交付或已逾期",
-            "3天内交付",
-            "10天内交付",
-            "10天以上交付"
-        };
+        boolean savedOverride = urgencyPrefs.getBoolean("task_" + taskId, defaultUrgent);
+        boolean hasOverride = urgencyPrefs.contains("task_" + taskId);
 
-        if (savedOverride > 0) {
-            binding.textUrgencyHint.setText("默认紧急程度：" + labels[defaultUrgency] + "（" + hints[defaultUrgency] + "），已手动调整");
+        if (hasOverride) {
+            binding.textUrgencyHint.setText("已手动设置紧急程度，可随时调整");
         } else {
-            binding.textUrgencyHint.setText("默认紧急程度：" + labels[defaultUrgency] + "（" + hints[defaultUrgency] + "），可手动调整");
+            binding.textUrgencyHint.setText("请设置紧急程度（红色为紧急，绿色为不紧急）");
         }
 
-        RadioButton[] radios = {
-            binding.radioUrgencyCritical,
-            binding.radioUrgencyHigh,
-            binding.radioUrgencyMedium,
-            binding.radioUrgencyLow
-        };
-        for (int i = 0; i < 4; i++) {
-            radios[i].setChecked(currentUrgency == i + 1);
-        }
+        binding.radioUrgencyUrgent.setChecked(savedOverride);
+        binding.radioUrgencyNotUrgent.setChecked(!savedOverride);
 
         binding.radioGroupUrgency.setOnCheckedChangeListener((group, checkedId) -> {
-            int newLevel = 0;
-            if (checkedId == R.id.radioUrgencyCritical) newLevel = 1;
-            else if (checkedId == R.id.radioUrgencyHigh) newLevel = 2;
-            else if (checkedId == R.id.radioUrgencyMedium) newLevel = 3;
-            else if (checkedId == R.id.radioUrgencyLow) newLevel = 4;
-
-            if (newLevel > 0) {
-                urgencyPrefs.edit().putInt("task_" + taskId, newLevel).apply();
-                binding.textUrgencyHint.setText("默认紧急程度：" + labels[defaultUrgency] + "（" + hints[defaultUrgency] + "），已手动调整");
-                Toast.makeText(this, "紧急程度已调整为：" + labels[newLevel], Toast.LENGTH_SHORT).show();
-            }
+            boolean isUrgentNow = checkedId == R.id.radioUrgencyUrgent;
+            urgencyPrefs.edit().putBoolean("task_" + taskId, isUrgentNow).apply();
+            binding.textUrgencyHint.setText("已手动设置紧急程度，可随时调整");
+            Toast.makeText(this, "紧急程度已调整为：" + (isUrgentNow ? "紧急" : "不紧急"), Toast.LENGTH_SHORT).show();
         });
     }
 
-    private int calculateDeadlineUrgency(Map<String, Object> task) {
-        Object endTime = task.get("end_time");
-        if (endTime == null) return 4;
-
-        String dateStr = endTime.toString();
-        if (dateStr.length() >= 10) dateStr = dateStr.substring(0, 10);
-        Date deadline;
-        try {
-            deadline = urgencyDateFmt.parse(dateStr);
-        } catch (ParseException e) {
-            return 4;
+    private String formatDateTime(Object dateTime) {
+        if (dateTime == null) return "未设置";
+        String raw = dateTime.toString();
+        if (raw.length() >= 16) {
+            return raw.substring(0, 10) + " " + raw.substring(11, 16);
         }
-
-        Calendar today = Calendar.getInstance();
-        today.set(Calendar.HOUR_OF_DAY, 0);
-        today.set(Calendar.MINUTE, 0);
-        today.set(Calendar.SECOND, 0);
-        today.set(Calendar.MILLISECOND, 0);
-
-        Calendar dl = Calendar.getInstance();
-        dl.setTime(deadline);
-        dl.set(Calendar.HOUR_OF_DAY, 0);
-        dl.set(Calendar.MINUTE, 0);
-        dl.set(Calendar.SECOND, 0);
-        dl.set(Calendar.MILLISECOND, 0);
-
-        long diffDays = (dl.getTimeInMillis() - today.getTimeInMillis()) / (1000 * 60 * 60 * 24);
-
-        if (diffDays <= 0) return 1;
-        if (diffDays < 3) return 2;
-        if (diffDays <= 10) return 3;
-        return 4;
+        if (raw.length() >= 10) {
+            return raw.substring(0, 10);
+        }
+        return raw;
     }
 
     private void updateButtonVisibility(String status) {
@@ -195,6 +181,10 @@ public class TaskDetailActivity extends AppCompatActivity {
         binding.btnComplete.setVisibility(isAssignee && "IN_PROGRESS".equals(status) ? View.VISIBLE : View.GONE);
         binding.btnConfirm.setVisibility(isDispatcher && "COMPLETED".equals(status) ? View.VISIBLE : View.GONE);
         binding.btnReject.setVisibility(isDispatcher && "COMPLETED".equals(status) ? View.VISIBLE : View.GONE);
+
+        String role = TokenManager.getInstance(this).getRole();
+        boolean canDelete = isDispatcher || "ADMIN".equals(role);
+        binding.btnDelete.setVisibility(canDelete ? View.VISIBLE : View.GONE);
     }
 
     private void setupButtons() {
@@ -205,16 +195,41 @@ public class TaskDetailActivity extends AppCompatActivity {
         });
         binding.btnConfirm.setOnClickListener(v -> transitionStatus("CONFIRMED"));
         binding.btnReject.setOnClickListener(v -> transitionStatus("REJECTED"));
+        binding.btnDelete.setOnClickListener(v -> {
+            new AlertDialog.Builder(this)
+                    .setTitle("确认删除")
+                    .setMessage("确定要删除此任务吗？此操作不可撤销。")
+                    .setPositiveButton("删除", (d, w) -> confirmDeleteTask())
+                    .setNegativeButton("取消", null)
+                    .show();
+        });
     }
 
-    private void transitionStatus(String targetStatus) {
+    private void confirmDeleteTask() {
         binding.progressBar.setVisibility(View.VISIBLE);
-        taskRepository.transitionStatus(taskId, targetStatus)
+        taskRepository.deleteTask(taskId)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         ignored -> {
                             binding.progressBar.setVisibility(View.GONE);
-                            Toast.makeText(this, "操作成功", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, "任务已删除", Toast.LENGTH_SHORT).show();
+                            finish();
+                        },
+                        error -> {
+                            binding.progressBar.setVisibility(View.GONE);
+                            Toast.makeText(this, error.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                );
+    }
+
+    private void transitionStatus(String targetStatus) {
+        binding.progressBar.setVisibility(View.VISIBLE);
+        syncRoutingRepository.transitionTaskStatus(taskId, targetStatus)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        result -> {
+                            binding.progressBar.setVisibility(View.GONE);
+                            Toast.makeText(this, result.getMessage(), Toast.LENGTH_SHORT).show();
                             loadTaskDetail();
                         },
                         error -> {
@@ -226,12 +241,12 @@ public class TaskDetailActivity extends AppCompatActivity {
 
     private void updateProgress(String progressNote, String status) {
         binding.progressBar.setVisibility(View.VISIBLE);
-        taskRepository.updateProgress(taskId, progressNote, status)
+        syncRoutingRepository.updateTaskProgress(taskId, progressNote, status)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
-                        ignored -> {
+                        result -> {
                             binding.progressBar.setVisibility(View.GONE);
-                            Toast.makeText(this, "操作成功", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, result.getMessage(), Toast.LENGTH_SHORT).show();
                             loadTaskDetail();
                         },
                         error -> {
@@ -262,5 +277,12 @@ public class TaskDetailActivity extends AppCompatActivity {
             case "URGENT": return "紧急";
             default: return priority;
         }
+    }
+
+    private static boolean toBool(Object obj) {
+        if (obj == null) return false;
+        if (obj instanceof Boolean) return (Boolean) obj;
+        if (obj instanceof Number) return ((Number) obj).intValue() != 0;
+        return false;
     }
 }

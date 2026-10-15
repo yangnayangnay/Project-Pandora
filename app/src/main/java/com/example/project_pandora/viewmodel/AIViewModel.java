@@ -20,7 +20,6 @@ public class AIViewModel extends BaseViewModel {
     private final MutableLiveData<Map<String, Object>> mbtiReport = new MutableLiveData<>();
     private final MutableLiveData<List<Map<String, Object>>> keywords = new MutableLiveData<>();
     private final MutableLiveData<Map<String, Object>> suggestion = new MutableLiveData<>();
-    private final MutableLiveData<Map<String, Object>> divination = new MutableLiveData<>();
 
     public AIViewModel(@NonNull Application application) {
         super();
@@ -30,7 +29,6 @@ public class AIViewModel extends BaseViewModel {
     public LiveData<Map<String, Object>> getMbtiReport() { return mbtiReport; }
     public LiveData<List<Map<String, Object>>> getKeywords() { return keywords; }
     public LiveData<Map<String, Object>> getSuggestion() { return suggestion; }
-    public LiveData<Map<String, Object>> getDivination() { return divination; }
 
     public void submitMbti(List<Integer> answers) {
         showLoading();
@@ -104,21 +102,4 @@ public class AIViewModel extends BaseViewModel {
         );
     }
 
-    public void loadDivination() {
-        showLoading();
-        compositeDisposable.add(
-                repository.getDivination()
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(
-                                d -> {
-                                    hideLoading();
-                                    divination.setValue(d);
-                                },
-                                error -> {
-                                    hideLoading();
-                                    showError(error.getMessage());
-                                }
-                        )
-        );
-    }
 }

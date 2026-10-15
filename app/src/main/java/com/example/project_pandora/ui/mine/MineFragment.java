@@ -5,19 +5,39 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 
-import com.example.project_pandora.core.moon.MoonPhaseCalculator;
-import com.example.project_pandora.core.theme.ThemeManager;
+import com.bumptech.glide.Glide;
+import com.example.project_pandora.MainActivity;
+import com.example.project_pandora.R;
+import com.example.project_pandora.core.network.NetworkClient;
+import com.example.project_pandora.core.network.TokenManager;
+import com.example.project_pandora.core.sync.SyncManager;
+import com.example.project_pandora.core.sync.SyncState;
+import com.example.project_pandora.core.sync.SyncStatus;
+import com.example.project_pandora.data.remote.UserApi;
 import com.example.project_pandora.databinding.FragmentMineBinding;
+import com.example.project_pandora.repository.SyncRepository;
+import com.example.project_pandora.ui.ai.BirthdayWishActivity;
 import com.example.project_pandora.ui.focus.FocusActivity;
+import com.example.project_pandora.ui.login.LoginActivity;
+
+import java.util.Map;
+
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.core.Single;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class MineFragment extends Fragment {
 
     private FragmentMineBinding binding;
+    private final CompositeDisposable disposables = new CompositeDisposable();
 
     @Nullable
     @Override
@@ -30,27 +50,168 @@ public class MineFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        MoonPhaseCalculator calculator = new MoonPhaseCalculator();
-        MoonPhaseCalculator.MoonPhase currentPhase = calculator.calculateCurrentMoonPhase();
-        binding.textMoonPhase.setText("当前月相: " + currentPhase.getDisplayName());
-
-        ThemeManager themeManager = new ThemeManager(requireContext());
-        ThemeManager.ThemeMode mode = themeManager.getThemeMode();
-        binding.textThemeMode.setText("主题模式: " + (mode == ThemeManager.ThemeMode.AUTO ? "跟随月相" : "手动"));
+        binding.imageAvatar.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), ProfileActivity.class)));
 
         binding.btnUserProfile.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), ProfileActivity.class)));
 
-        binding.btnSettings.setOnClickListener(v ->
-                startActivity(new Intent(requireContext(), ThemeSettingActivity.class)));
-
         binding.btnFocus.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), FocusActivity.class)));
+
+        binding.btnBirthdayWish.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), BirthdayWishActivity.class)));
+
+        String role = TokenManager.getInstance(requireContext()).getRole();
+        if ("ADMIN".equals(role)) {
+            binding.btnResetRequests.setVisibility(View.VISIBLE);
+            binding.btnResetRequests.setOnClickListener(v ->
+                    startActivity(new Intent(requireContext(), ResetRequestsActivity.class)));
+            binding.btnHierarchyManage.setVisibility(View.VISIBLE);
+            binding.btnHierarchyManage.setOnClickListener(v ->
+                    startActivity(new Intent(requireContext(), HierarchyManageActivity.class)));
+        }
+        if ("ADMIN".equals(role) || "FOUNDER".equals(role)) {
+            binding.btnAuditLog.setVisibility(View.VISIBLE);
+            binding.btnAuditLog.setOnClickListener(v ->
+                    startActivity(new Intent(requireContext(), AuditLogActivity.class)));
+        }
+
+        binding.btnSettings.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), SettingsActivity.class)));
+
+        TokenManager tm = TokenManager.getInstance(requireContext());
+        if (tm.isLoggedIn()) {
+            binding.btnUploadData.setVisibility(View.VISIBLE);
+            binding.btnLogout.setVisibility(View.VISIBLE);
+            refreshUnsyncedCount();
+
+            disposables.add(SyncManager.getInstance().statusStream()
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                            state -> {
+                                if (state == SyncState.SYNCED || state == SyncState.PARTIAL_FAILED) {
+                                    refreshUnsyncedCount();
+                                }
+                            },
+                            error -> {}
+                    ));
+        }
+
+        binding.btnUploadData.setOnClickListener(v -> {
+            SyncManager sm = SyncManager.getInstance();
+            disposables.add(sm.manualResync()
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                            progress -> {},
+                            error -> Toast.makeText(requireContext(), "上传失败: " + error.getMessage(), Toast.LENGTH_SHORT).show(),
+                            () -> refreshUnsyncedCount()
+                    ));
+        });
+
+        binding.btnLogout.setOnClickListener(v -> handleLogout());
+
+        String relationRole = tm.getRole();
+        if (relationRole != null && !"ADMIN".equals(relationRole)) {
+            binding.btnUserRelation.setVisibility(View.VISIBLE);
+            binding.btnUserRelation.setOnClickListener(v ->
+                    startActivity(new Intent(requireContext(), UserRelationActivity.class)));
+        }
+
+        loadUserInfo();
+    }
+
+    private void refreshUnsyncedCount() {
+        SyncRepository repo = new SyncRepository(requireContext());
+        disposables.add(Single.zip(
+                repo.countByStatus(SyncStatus.PENDING),
+                repo.countByStatus(SyncStatus.SYNC_FAILED),
+                (pending, failed) -> pending + failed
+        ).subscribeOn(Schedulers.io())
+         .observeOn(AndroidSchedulers.mainThread())
+         .subscribe(
+                 count -> {
+                     if (binding != null) {
+                         binding.textUploadData.setText("上传数据（" + count + "条）");
+                     }
+                 },
+                 error -> {}
+         ));
+    }
+
+    private void handleLogout() {
+        SyncRepository repo = new SyncRepository(requireContext());
+        disposables.add(repo.hasUnsyncedData()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        hasUnsynced -> {
+                            if (hasUnsynced) {
+                                new AlertDialog.Builder(requireContext())
+                                        .setTitle("退出登录")
+                                        .setMessage("有未同步数据，退出后数据将保留在本地，下次登录后可继续同步")
+                                        .setPositiveButton("确认退出", (d, w) -> doLogout())
+                                        .setNegativeButton("取消", null)
+                                        .show();
+                            } else {
+                                new AlertDialog.Builder(requireContext())
+                                        .setTitle("退出登录")
+                                        .setMessage("确认退出登录?")
+                                        .setPositiveButton("确认", (d, w) -> doLogout())
+                                        .setNegativeButton("取消", null)
+                                        .show();
+                            }
+                        },
+                        error -> doLogout()
+                ));
+    }
+
+    private void doLogout() {
+        SyncManager.getInstance().destroy();
+        TokenManager.getInstance(requireContext()).clear();
+        startActivity(new Intent(requireContext(), LoginActivity.class));
+        requireActivity().finishAffinity();
+    }
+
+    private void loadUserInfo() {
+        UserApi userApi = NetworkClient.getInstance(requireContext()).createService(UserApi.class);
+        disposables.add(userApi.getCurrentUser()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        response -> {
+                            if (response.isSuccess() && response.getData() != null) {
+                                Map<String, Object> data = response.getData();
+                                String realName = getStr(data, "realName");
+                                String username = getStr(data, "username");
+                                String displayName = (!realName.isEmpty()) ? realName : (!username.isEmpty() ? username : "未知用户");
+                                binding.textUsername.setText(displayName);
+                                binding.textRole.setText(com.example.project_pandora.core.util.RoleDisplayUtil.toChinese(getStr(data, "role")));
+
+                                String avatar = getStr(data, "avatar");
+                                if (!avatar.isEmpty()) {
+                                    String baseUrl = NetworkClient.getBaseUrl();
+                                    if (baseUrl.endsWith("/")) baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+                                    String fullUrl = baseUrl + avatar;
+                                    Glide.with(this).load(fullUrl)
+                                            .placeholder(R.mipmap.ic_launcher)
+                                            .error(R.mipmap.ic_launcher)
+                                            .into(binding.imageAvatar);
+                                }
+                            }
+                        },
+                        error -> binding.textUsername.setText("加载失败")
+                ));
+    }
+
+    private String getStr(Map<String, Object> map, String key) {
+        Object val = map.get(key);
+        return val != null ? val.toString() : "";
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        disposables.clear();
         binding = null;
     }
 }

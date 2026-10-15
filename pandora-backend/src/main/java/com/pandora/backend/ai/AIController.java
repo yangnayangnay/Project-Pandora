@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import com.pandora.backend.audit.Auditable;
 
 import java.util.*;
 
@@ -20,10 +21,14 @@ public class AIController {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private AIGatewayService aiGatewayService;
+
     @Value("${deepseek.api-url:}")
     private String deepseekApiUrl;
 
     @PostMapping("/mbti/submit")
+    @Auditable(operationType = "AI_MBTI_SUBMIT", targetType = "AI_ANALYSIS")
     public ResponseEntity<ApiResponse<Map<String, Object>>> submitMbti(@RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
         List<Integer> answers = (List<Integer>) request.get("answers");
@@ -32,7 +37,24 @@ public class AIController {
         }
 
         String personalityType = calculateMbtiType(answers);
-        String reportContent = generateMbtiReport(personalityType);
+        String reportContent;
+        String aiSource;
+
+        try {
+            Map<String, Object> aiResult = aiGatewayService.invoke(
+                    "请为MBTI性格类型 " + personalityType + " 生成一份详细的性格分析报告，包括性格特点、优势劣势和适合的职业方向。",
+                    "MBTI_REPORT");
+            if ("EXTERNAL".equals(aiResult.get("source"))) {
+                reportContent = (String) aiResult.get("result");
+                aiSource = "EXTERNAL";
+            } else {
+                reportContent = generateMbtiReportLocal(personalityType);
+                aiSource = "LOCAL";
+            }
+        } catch (Exception e) {
+            reportContent = generateMbtiReportLocal(personalityType);
+            aiSource = "LOCAL";
+        }
 
         jdbcTemplate.update(
                 "INSERT INTO mbti_reports (user_id, personality_type, answer_data, report_content) VALUES (?, ?, ?, ?)",
@@ -45,6 +67,7 @@ public class AIController {
         result.put("reportId", reportId);
         result.put("personalityType", personalityType);
         result.put("reportContent", reportContent);
+        result.put("source", aiSource);
 
         return ResponseEntity.ok(ApiResponse.success(result));
     }
@@ -61,60 +84,299 @@ public class AIController {
         }
     }
 
+    @PostMapping("/mbti/report/generate")
+    @Auditable(operationType = "AI_MBTI_REPORT_GENERATE", targetType = "AI_ANALYSIS")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> generateMbtiReport(@RequestBody Map<String, Object> request) {
+        Long userId = getCurrentUserId();
+        String personalityType = request.get("personalityType") != null ? request.get("personalityType").toString() : null;
+        if (personalityType == null || !personalityType.matches("^[EI][SN][TF][JP]$")) {
+            throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "性格类型不合法，须为^[EI][SN][TF][JP]$格式");
+        }
+
+        Object answersObj = request.get("answers");
+        String answersStr = answersObj != null ? answersObj.toString() : null;
+
+        String reportContent;
+        String aiSource;
+
+        try {
+            Map<String, Object> aiResult = aiGatewayService.invoke(
+                    "请为MBTI性格类型 " + personalityType + " 生成一份详细的性格分析报告，包括性格特点、优势劣势和适合的职业方向。",
+                    "MBTI_REPORT");
+            if ("EXTERNAL".equals(aiResult.get("source"))) {
+                reportContent = (String) aiResult.get("result");
+                aiSource = "EXTERNAL";
+            } else {
+                reportContent = generateMbtiReportLocal(personalityType);
+                aiSource = "LOCAL";
+            }
+        } catch (Exception e) {
+            reportContent = generateMbtiReportLocal(personalityType);
+            aiSource = "LOCAL";
+        }
+
+        jdbcTemplate.update(
+                "INSERT INTO mbti_reports (user_id, personality_type, answer_data, report_content) VALUES (?, ?, ?, ?)",
+                userId, personalityType, answersStr, reportContent
+        );
+
+        Long reportId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("reportId", reportId);
+        result.put("personalityType", personalityType);
+        result.put("reportContent", reportContent);
+        result.put("source", aiSource);
+
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+
     @PostMapping("/keyword")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> keywordAnalysis(@RequestBody Map<String, Object> request) {
+    @Auditable(operationType = "AI_KEYWORD_ANALYSIS", targetType = "AI_ANALYSIS")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> keywordAnalysis(@RequestBody Map<String, Object> request) {
         String text = (String) request.get("text");
         if (text == null || text.trim().isEmpty()) {
             throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "分析文本不能为空");
         }
 
-        List<Map<String, Object>> keywords = extractKeywords(text);
-        return ResponseEntity.ok(ApiResponse.success(keywords));
+        List<Map<String, Object>> keywords;
+        String aiSource;
+
+        try {
+            Map<String, Object> aiResult = aiGatewayService.invoke(
+                    "分析以下文本的10个关键词及其出现次数，以JSON数组格式返回：\n" + text,
+                    "KEYWORD_ANALYSIS");
+            if ("EXTERNAL".equals(aiResult.get("source"))) {
+                keywords = parseExternalKeywords((String) aiResult.get("result"));
+                aiSource = "EXTERNAL";
+            } else {
+                keywords = extractKeywords(text);
+                aiSource = "LOCAL";
+            }
+        } catch (Exception e) {
+            keywords = extractKeywords(text);
+            aiSource = "LOCAL";
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("keywords", keywords);
+        response.put("source", aiSource);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/suggestion")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getSuggestion() {
         Long userId = getCurrentUserId();
+
         Map<String, Object> suggestion = new HashMap<>();
-        suggestion.put("workAdvice", "建议保持每日日志记录习惯，有助于提升工作效率");
-        suggestion.put("careerAdvice", "根据您的工作模式，建议加强团队协作和沟通能力");
-        suggestion.put("developmentPlan", "短期目标：提升任务完成率；中期目标：承担更多核心任务；长期目标：向管理方向发展");
+
+        Map<String, Object> userInfo = new HashMap<>();
+        String role = "";
+        String username = "";
+        try {
+            Map<String, Object> user = jdbcTemplate.queryForMap(
+                    "SELECT username, role, real_name, department_id, team_id FROM users WHERE id = ? AND deleted = 0", userId);
+            username = (String) user.get("USERNAME");
+            role = (String) user.get("ROLE");
+            userInfo.put("username", username);
+            userInfo.put("role", role);
+            userInfo.put("realName", user.get("REAL_NAME"));
+            userInfo.put("departmentId", user.get("DEPARTMENT_ID"));
+            userInfo.put("teamId", user.get("TEAM_ID"));
+        } catch (Exception e) {
+            userInfo.put("username", "未知");
+            userInfo.put("role", "未知");
+        }
+        suggestion.put("userInfo", userInfo);
+
+        Map<String, Object> taskStats = new HashMap<>();
+        int totalTasks = 0, completedTasks = 0, inProgressTasks = 0, pendingTasks = 0, overdueTasks = 0;
+        try {
+            totalTasks = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND deleted = 0", Integer.class, userId);
+            completedTasks = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND deleted = 0 AND status IN ('COMPLETED','CONFIRMED')", Integer.class, userId);
+            inProgressTasks = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND deleted = 0 AND status = 'IN_PROGRESS'", Integer.class, userId);
+            pendingTasks = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND deleted = 0 AND status = 'PENDING'", Integer.class, userId);
+            overdueTasks = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND deleted = 0 AND end_time IS NOT NULL AND end_time < CURRENT_TIMESTAMP AND status NOT IN ('COMPLETED','CONFIRMED')", Integer.class, userId);
+        } catch (Exception ignored) {}
+        double completionRate = totalTasks > 0 ? (completedTasks * 100.0 / totalTasks) : 0.0;
+        taskStats.put("totalTasks", totalTasks);
+        taskStats.put("completedTasks", completedTasks);
+        taskStats.put("inProgressTasks", inProgressTasks);
+        taskStats.put("pendingTasks", pendingTasks);
+        taskStats.put("overdueTasks", overdueTasks);
+        taskStats.put("completionRate", Math.round(completionRate * 100) / 100.0);
+        suggestion.put("taskStats", taskStats);
+
+        Map<String, Object> logStats = new HashMap<>();
+        int logCount = 0;
+        try {
+            logCount = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM work_logs WHERE user_id = ? AND deleted = 0", Integer.class, userId);
+        } catch (Exception ignored) {}
+        logStats.put("logCount", logCount);
+        suggestion.put("logStats", logStats);
+
+        String roleDisplay = getRoleDisplay(role);
+        String workAdvice = generateWorkAdvice(role, totalTasks, completedTasks, inProgressTasks, pendingTasks, overdueTasks, logCount);
+        String careerAdvice = generateCareerAdvice(role, completionRate, totalTasks, logCount);
+        String developmentPlan = generateDevelopmentPlan(role, completionRate, totalTasks, overdueTasks);
+        String aiSource = "LOCAL";
+
+        try {
+            final String fRoleDisplay = roleDisplay;
+            final int fTotalTasks = totalTasks, fCompletedTasks = completedTasks, fInProgressTasks = inProgressTasks, fOverdueTasks = overdueTasks, fLogCount = logCount;
+            java.util.concurrent.CompletableFuture<Map<String, Object>> aiFuture =
+                    java.util.concurrent.CompletableFuture.supplyAsync(() ->
+                            aiGatewayService.invoke(
+                                    "用户角色：" + fRoleDisplay + "，任务总数：" + fTotalTasks + "，已完成：" + fCompletedTasks +
+                                    "，进行中：" + fInProgressTasks + "，逾期：" + fOverdueTasks + "，日志数：" + fLogCount +
+                                    "。请生成工作建议、职业发展建议和发展计划。",
+                                    "SUGGESTION"));
+            Map<String, Object> aiResult = aiFuture.get(5, java.util.concurrent.TimeUnit.SECONDS);
+            if ("EXTERNAL".equals(aiResult.get("source"))) {
+                workAdvice = (String) aiResult.get("result");
+                aiSource = "EXTERNAL";
+            }
+        } catch (Exception ignored) {}
+
+        suggestion.put("workAdvice", workAdvice);
+        suggestion.put("careerAdvice", careerAdvice);
+        suggestion.put("developmentPlan", developmentPlan);
+        suggestion.put("source", aiSource);
+
         return ResponseEntity.ok(ApiResponse.success(suggestion));
     }
 
-    @GetMapping("/divination")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getDivination() {
-        Calendar cal = Calendar.getInstance();
-        int year = cal.get(Calendar.YEAR);
-        int month = cal.get(Calendar.MONTH) + 1;
-        int day = cal.get(Calendar.DAY_OF_MONTH);
-        int hour = cal.get(Calendar.HOUR_OF_DAY);
-
-        int yearZhi = (year - 4) % 12;
-        if (yearZhi < 0) yearZhi += 12;
-        int hourZhi = hour / 2 % 12;
-
-        int upperSum = yearZhi + month + day;
-        int lowerSum = upperSum + hourZhi;
-        int movingLine = (upperSum + lowerSum) % 6;
-        if (movingLine == 0) movingLine = 6;
-
-        String[] hexagramNames = {"乾", "坤", "屯", "蒙", "需", "讼", "师", "比"};
-        int upperHexagram = upperSum % 8;
-        if (upperHexagram == 0) upperHexagram = 8;
-        int lowerHexagram = lowerSum % 8;
-        if (lowerHexagram == 0) lowerHexagram = 8;
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("originalHexagram", hexagramNames[upperHexagram - 1]);
-        result.put("changedHexagram", hexagramNames[(upperHexagram % 8)]);
-        result.put("suitable", "规划、沟通、执行");
-        result.put("avoid", "冲动决策");
-        result.put("fortuneLevel", "★★★★ 吉");
-        result.put("description", "今日得「" + hexagramNames[upperHexagram - 1] + "」卦，顺应天时，事半功倍！");
-
-        return ResponseEntity.ok(ApiResponse.success(result));
+    private String getRoleDisplay(String role) {
+        switch (role) {
+            case "ADMIN": return "管理员";
+            case "FOUNDER": return "创始人";
+            case "DEPT_HEAD": return "部门老总";
+            case "TEAM_LEADER": return "团队长";
+            case "EMPLOYEE": return "员工";
+            default: return role;
+        }
     }
+
+    private String generateWorkAdvice(String role, int total, int completed, int inProgress, int pending, int overdue, int logs) {
+        StringBuilder sb = new StringBuilder();
+        switch (role) {
+            case "EMPLOYEE":
+                sb.append("您当前共有 ").append(total).append(" 个任务");
+                if (pending > 0) sb.append("，其中 ").append(pending).append(" 个待处理，建议尽快开始执行");
+                if (inProgress > 0) sb.append("，").append(inProgress).append(" 个进行中，请保持进度");
+                if (overdue > 0) sb.append("。注意：有 ").append(overdue).append(" 个任务已逾期，请优先处理");
+                if (logs == 0) sb.append("。建议开始记录工作日志，有助于总结经验");
+                else sb.append("。已记录 ").append(logs).append(" 条工作日志，保持良好习惯");
+                break;
+            case "TEAM_LEADER":
+                sb.append("作为团队长，您负责 ").append(total).append(" 个任务");
+                if (completionRateOf(completed, total) < 50) sb.append("，团队完成率偏低，建议加强任务跟进和进度督导");
+                else sb.append("，团队完成率良好，继续保持");
+                if (overdue > 0) sb.append("。有 ").append(overdue).append(" 个逾期任务，建议协调资源优先解决");
+                sb.append("。建议定期查看下属工作日志，及时给予指导");
+                break;
+            case "DEPT_HEAD":
+                sb.append("作为部门老总，关注部门整体进展。当前任务完成率 ");
+                sb.append(completionRateOf(completed, total)).append("%");
+                if (overdue > 0) sb.append("，有 ").append(overdue).append(" 个逾期任务需关注");
+                sb.append("。建议关注团队长的工作分配合理性，优化资源配置");
+                break;
+            case "FOUNDER":
+                sb.append("作为创始人，统筹全局。当前共 ").append(total).append(" 个任务，完成 ");
+                sb.append(completed).append(" 个（").append(completionRateOf(completed, total)).append("%）");
+                sb.append("。建议关注各部门关键指标，把控战略方向");
+                break;
+            case "ADMIN":
+                sb.append("作为管理员，负责系统运维。当前系统共有 ").append(total).append(" 个任务");
+                sb.append("。建议关注待审批账号和系统运行状态");
+                break;
+            default:
+                sb.append("建议保持每日日志记录习惯，有助于提升工作效率");
+        }
+        return sb.toString();
+    }
+
+    private String generateCareerAdvice(String role, double completionRate, int totalTasks, int logs) {
+        StringBuilder sb = new StringBuilder();
+        double roundedRate = Math.round(completionRate * 100) / 100.0;
+        switch (role) {
+            case "EMPLOYEE":
+                if (completionRate >= 80) sb.append("任务完成率优秀（").append(roundedRate).append("%），表现突出，可考虑承担更有挑战性的任务");
+                else if (completionRate >= 50) sb.append("任务完成率良好（").append(roundedRate).append("%），建议提升时间管理能力，优先处理重要紧急任务");
+                else sb.append("任务完成率待提升（").append(roundedRate).append("%），建议聚焦核心任务，减少分散精力");
+                if (logs < 5) sb.append("。建议增加工作日志记录频率，积累经验便于复盘");
+                break;
+            case "TEAM_LEADER":
+                sb.append("作为团队长，建议提升团队管理能力，关注成员成长");
+                if (completionRate < 60) sb.append("。团队完成率偏低，建议优化任务分配和进度管理");
+                sb.append("。可学习敏捷管理方法，提高团队协作效率");
+                break;
+            case "DEPT_HEAD":
+                sb.append("作为部门老总，建议加强战略规划和资源统筹能力");
+                sb.append("。关注部门间协作，推动跨部门项目顺利落地");
+                break;
+            case "FOUNDER":
+                sb.append("作为创始人，建议聚焦公司战略方向和核心业务");
+                sb.append("。关注团队建设和人才培养，为长期发展奠定基础");
+                break;
+            case "ADMIN":
+                sb.append("作为管理员，建议熟悉系统各模块功能，提升运维效率");
+                sb.append("。关注用户反馈，持续优化系统体验");
+                break;
+            default:
+                sb.append("根据您的工作模式，建议加强团队协作和沟通能力");
+        }
+        return sb.toString();
+    }
+
+    private String generateDevelopmentPlan(String role, double completionRate, int totalTasks, int overdue) {
+        StringBuilder sb = new StringBuilder();
+        switch (role) {
+            case "EMPLOYEE":
+                sb.append("短期目标：提升任务完成率至 80% 以上");
+                sb.append("；中期目标：掌握核心业务技能，承担更多重要任务");
+                sb.append("；长期目标：向团队长或专业方向 发展");
+                break;
+            case "TEAM_LEADER":
+                sb.append("短期目标：提升团队整体完成率，减少逾期任务");
+                sb.append("；中期目标：优化团队工作流程，建立高效协作机制");
+                sb.append("；长期目标：向部门管理方向发展，提升领导力");
+                break;
+            case "DEPT_HEAD":
+                sb.append("短期目标：确保部门关键指标达标");
+                sb.append("；中期目标：优化部门资源配置，提升整体效率");
+                sb.append("；长期目标：参与公司战略决策，推动业务创新");
+                break;
+            case "FOUNDER":
+                sb.append("短期目标：把控核心项目进度，确保关键节点交付");
+                sb.append("；中期目标：完善组织架构，培养核心管理团队");
+                sb.append("；长期目标：推动公司业务增长，实现战略目标");
+                break;
+            case "ADMIN":
+                sb.append("短期目标：确保系统稳定运行，及时处理审批");
+                sb.append("；中期目标：优化系统配置，提升用户体验");
+                sb.append("；长期目标：完善系统功能，支撑业务发展");
+                break;
+            default:
+                sb.append("短期目标：提升任务完成率；中期目标：承担更多核心任务；长期目标：向管理方向发展");
+        }
+        if (overdue > 0) {
+            sb.append("。当前有 ").append(overdue).append(" 个逾期任务，建议优先处理");
+        }
+        return sb.toString();
+    }
+
+    private int completionRateOf(int completed, int total) {
+        return total > 0 ? (int)(completed * 100.0 / total) : 0;
+    }
+
 
     @GetMapping("/project-analysis")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getProjectAnalysis() {
@@ -377,7 +639,7 @@ public class AIController {
         return (e > i ? "E" : "I") + (s > n ? "S" : "N") + (t > f ? "T" : "F") + (j > p ? "J" : "P");
     }
 
-    private String generateMbtiReport(String type) {
+    private String generateMbtiReportLocal(String type) {
         Map<String, String> descriptions = new HashMap<>();
         descriptions.put("INTJ", "建筑师：富有想象力但决策果断，雄心壮志但深谋远虑。适合战略规划、系统架构等岗位。");
         descriptions.put("INTP", "逻辑学家：具有创造力的思考者，对知识有强烈的渴望。适合研究、分析、开发等岗位。");
@@ -424,8 +686,79 @@ public class AIController {
         return keywords;
     }
 
+    private List<Map<String, Object>> parseExternalKeywords(String aiResponse) {
+        List<Map<String, Object>> keywords = new ArrayList<>();
+        if (aiResponse == null || aiResponse.trim().isEmpty()) {
+            return keywords;
+        }
+        String[] lines = aiResponse.split("\n");
+        for (String line : lines) {
+            line = line.trim().replaceAll("^\\d+[.、)]\\s*", "");
+            if (!line.isEmpty()) {
+                Map<String, Object> keyword = new HashMap<>();
+                keyword.put("word", line);
+                keyword.put("count", 1);
+                keywords.add(keyword);
+            }
+            if (keywords.size() >= 10) break;
+        }
+        return keywords;
+    }
+
     private Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return (Long) auth.getPrincipal();
+    }
+
+    @GetMapping("/auto-analysis/latest")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getLatestAutoAnalysis() {
+        Long userId = getCurrentUserId();
+        try {
+            Map<String, Object> row = jdbcTemplate.queryForMap(
+                    "SELECT * FROM ai_analyses WHERE user_id = ? AND analysis_type = 'LOG_AUTO_ANALYSIS' AND deleted = 0 ORDER BY generated_at DESC LIMIT 1", userId);
+            return ResponseEntity.ok(ApiResponse.success(formatAutoAnalysis(row)));
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "暂无自动分析结果");
+        }
+    }
+
+    @GetMapping("/auto-analysis/history")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAutoAnalysisHistory(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        Long userId = getCurrentUserId();
+        StringBuilder sql = new StringBuilder(
+                "SELECT * FROM ai_analyses WHERE user_id = ? AND analysis_type = 'LOG_AUTO_ANALYSIS' AND deleted = 0");
+        List<Object> params = new ArrayList<>();
+        params.add(userId);
+        if (startDate != null) {
+            sql.append(" AND generated_at >= ?");
+            params.add(startDate);
+        }
+        if (endDate != null) {
+            sql.append(" AND generated_at <= ?");
+            params.add(endDate + " 23:59:59");
+        }
+        sql.append(" ORDER BY generated_at DESC");
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), params.toArray());
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            result.add(formatAutoAnalysis(row));
+        }
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    private Map<String, Object> formatAutoAnalysis(Map<String, Object> row) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", row.get("id") != null ? row.get("id") : row.get("ID"));
+        result.put("triggerLogId", row.get("trigger_log_id") != null ? row.get("trigger_log_id") : row.get("TRIGGER_LOG_ID"));
+        result.put("analysisContent", row.get("result") != null ? row.get("result") : row.get("RESULT"));
+        result.put("mbtiType", row.get("mbti_type") != null ? row.get("mbti_type") : row.get("MBTI_TYPE"));
+        result.put("source", row.get("source") != null ? row.get("source") : row.get("SOURCE"));
+        result.put("generatedAt", row.get("generated_at") != null ? row.get("generated_at") : row.get("GENERATED_AT"));
+        Object keywordsRaw = row.get("keywords");
+        if (keywordsRaw == null) keywordsRaw = row.get("KEYWORDS");
+        result.put("keywords", keywordsRaw != null ? keywordsRaw.toString() : "[]");
+        return result;
     }
 }

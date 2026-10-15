@@ -7,6 +7,7 @@ import androidx.fragment.app.FragmentTransaction;
 
 import com.example.project_pandora.R;
 import com.example.project_pandora.databinding.ActivityFocusBinding;
+import com.example.project_pandora.core.util.BackToolbarHelper;
 
 public class FocusActivity extends AppCompatActivity {
 
@@ -18,7 +19,7 @@ public class FocusActivity extends AppCompatActivity {
         binding = ActivityFocusBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        binding.toolbar.setNavigationOnClickListener(v -> finish());
+        BackToolbarHelper.setupBack(binding.toolbar, this::finish);
 
         if (savedInstanceState == null) {
             FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();

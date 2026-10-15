@@ -28,12 +28,10 @@ public class RoleAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        filterChain.doFilter(request, response);
-
-        /* ── 登录验证已注释（调试模式） ──
         String path = request.getRequestURI();
         if (path.contains("/auth/login") || path.contains("/auth/register")
-                || path.contains("/auth/refresh") || path.contains("/actuator")
+                || path.contains("/auth/refresh") || path.contains("/auth/forgot-password")
+                || path.contains("/actuator")
                 || path.contains("/h2-console")) {
             filterChain.doFilter(request, response);
             return;
@@ -72,6 +70,5 @@ public class RoleAuthFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         filterChain.doFilter(request, response);
-        ── 登录验证已注释结束 ── */
     }
 }

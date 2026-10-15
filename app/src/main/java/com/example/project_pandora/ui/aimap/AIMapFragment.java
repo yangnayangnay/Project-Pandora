@@ -11,11 +11,6 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.example.project_pandora.databinding.FragmentAimapBinding;
-import com.example.project_pandora.ui.ai.BirthdayWishActivity;
-import com.example.project_pandora.ui.ai.DivinationActivity;
-import com.example.project_pandora.ui.ai.KeywordAnalysisActivity;
-import com.example.project_pandora.ui.ai.MBTITestActivity;
-import com.example.project_pandora.ui.ai.SuggestionActivity;
 
 public class AIMapFragment extends Fragment {
 
@@ -32,22 +27,14 @@ public class AIMapFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        binding.toolbar.setNavigationOnClickListener(null);
+        binding.btnDataCollect.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), DataCollectActivity.class)));
 
-        binding.btnKeywordAnalysis.setOnClickListener(v ->
-                startActivity(new Intent(requireContext(), KeywordAnalysisActivity.class)));
+        binding.btnTaskShow.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), TaskShowActivity.class)));
 
-        binding.btnSuggestion.setOnClickListener(v ->
-                startActivity(new Intent(requireContext(), SuggestionActivity.class)));
-
-        binding.btnMbtiTest.setOnClickListener(v ->
-                startActivity(new Intent(requireContext(), MBTITestActivity.class)));
-
-        binding.btnDivination.setOnClickListener(v ->
-                startActivity(new Intent(requireContext(), DivinationActivity.class)));
-
-        binding.btnBirthdayWish.setOnClickListener(v ->
-                startActivity(new Intent(requireContext(), BirthdayWishActivity.class)));
+        binding.btnAiAnalysis.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), AIAnalysisActivity.class)));
     }
 
     @Override

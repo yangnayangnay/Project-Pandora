@@ -9,27 +9,20 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@android:color/white">
+        android:background="#FFF8F0">
 
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tabLayout"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="@android:color/white"
             android:contentDescription="@string/a11y_tab_view_mode"
             app:tabMode="fixed"
             app:tabGravity="fill"
+            app:tabIndicatorColor="#E53935"
+            app:tabSelectedTextColor="#E53935"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/btnViewLogs" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnViewLogs"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/schedule_view_logs"
-            style="@style/Widget.Material3.Button.TextButton"
-            app:layout_constraintTop_toTopOf="@id/tabLayout"
-            app:layout_constraintBottom_toBottomOf="@id/tabLayout"
             app:layout_constraintEnd_toEndOf="parent" />
 
         <FrameLayout
@@ -42,7 +35,8 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:background="#FFF8F0">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -55,7 +49,8 @@
                         android:id="@+id/btnPreviousMonth"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="上月"
+                        android:text="‹"
+                        android:textSize="20sp"
                         style="@style/Widget.Material3.Button.TextButton" />
 
                     <TextView
@@ -65,13 +60,15 @@
                         android:layout_weight="1"
                         android:gravity="center"
                         android:textSize="18sp"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:textColor="#4E342E" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnNextMonth"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="下月"
+                        android:text="›"
+                        android:textSize="20sp"
                         style="@style/Widget.Material3.Button.TextButton" />
 
                 </LinearLayout>
@@ -80,7 +77,26 @@
                     android:id="@+id/calendarView"
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
-                    android:layout_weight="1" />
+                    android:layout_weight="1"
+                    android:layout_margin="8dp" />
+
+                <TextView
+                    android:id="@+id/textSelectedDateLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:padding="4dp"
+                    android:textSize="13sp"
+                    android:textColor="#8D6E63"
+                    android:visibility="gone" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerMonthDayTasks"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:padding="4dp"
+                    android:visibility="gone" />
 
             </LinearLayout>
 
@@ -97,7 +113,8 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:background="#FFF8F0">
 
                 <TextView
                     android:id="@+id/textWeekLabel"
@@ -106,13 +123,32 @@
                     android:gravity="center"
                     android:padding="12dp"
                     android:textSize="18sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:textColor="#4E342E" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/recyclerWeekTasks"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:padding="8dp" />
+                    android:padding="8dp"
+                    android:clipToPadding="false" />
+
+                <LinearLayout
+                    android:id="@+id/weekEmptyState"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="本周暂无任务"
+                        android:textSize="16sp"
+                        android:textColor="#BCAAA4" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
@@ -129,50 +165,89 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:background="#FFF8F0">
+
+                <HorizontalScrollView
+                    android:id="@+id/weekCalendarScroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/white"
+                    android:scrollbars="none">
+
+                    <LinearLayout
+                        android:id="@+id/weekCalendarContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="4dp" />
+
+                </HorizontalScrollView>
 
                 <TextView
                     android:id="@+id/textDayLabel"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
-                    android:padding="12dp"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
                     android:padding="8dp"
-                    android:text="任务"
+                    android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textSize="16sp" />
+                    android:textColor="#4E342E" />
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recyclerDayTasks"
+                <FrameLayout
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
-                    android:layout_weight="1"
-                    android:padding="8dp" />
+                    android:layout_weight="1">
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:padding="8dp"
-                    android:text="日志"
-                    android:textStyle="bold"
-                    android:textSize="16sp" />
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerDayTasks"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:padding="8dp"
+                        android:clipToPadding="false" />
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recyclerDayLogs"
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="1"
-                    android:padding="8dp" />
+                    <LinearLayout
+                        android:id="@+id/dayEmptyState"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="今日暂无任务"
+                            android:textSize="16sp"
+                            android:textColor="#BCAAA4" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="点击右下角 + 添加"
+                            android:textSize="13sp"
+                            android:textColor="#D7CCC8" />
+
+                    </LinearLayout>
+
+                </FrameLayout>
 
             </LinearLayout>
 
         </FrameLayout>
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fabAddTask"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            android:contentDescription="添加任务"
+            android:src="@android:drawable/ic_input_add"
+            app:backgroundTint="#E53935"
+            app:tint="@android:color/white"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <ProgressBar
             android:id="@+id/progressBar"

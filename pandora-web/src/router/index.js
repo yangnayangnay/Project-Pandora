@@ -38,10 +38,28 @@ const routes = [
         meta: { title: '四象限看板' }
       },
       {
+        path: 'task/all',
+        name: 'AllTasks',
+        component: () => import('@/views/task/AllTasksView.vue'),
+        meta: { title: '全量任务' }
+      },
+      {
+        path: 'log/all',
+        name: 'AllLogs',
+        component: () => import('@/views/log/AllLogsView.vue'),
+        meta: { title: '全量日志' }
+      },
+      {
         path: 'user',
         name: 'User',
         component: () => import('@/views/user/UserManageView.vue'),
         meta: { title: '人员管理' }
+      },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('@/views/user/ProfileView.vue'),
+        meta: { title: '个人中心' }
       },
       {
         path: 'user/dept-team',
@@ -52,8 +70,8 @@ const routes = [
       {
         path: 'ai',
         name: 'AI',
-        component: () => import('@/views/ai/MBTIReportView.vue'),
-        meta: { title: 'AI分析' }
+        component: () => import('@/views/ai/TaskCompletionView.vue'),
+        meta: { title: '任务完成分析' }
       },
       {
         path: 'ai/keyword',
@@ -68,6 +86,18 @@ const routes = [
         meta: { title: 'AI信息地图' }
       },
       {
+        path: 'ai/mbti-report',
+        name: 'MBTIReport',
+        component: () => import('@/views/ai/MBTIReportView.vue'),
+        meta: { title: 'MBTI报告' }
+      },
+      {
+        path: 'permission/approval',
+        name: 'Approval',
+        component: () => import('@/views/permission/ApprovalView.vue'),
+        meta: { title: '账号审批' }
+      },
+      {
         path: 'permission/audit-rule',
         name: 'AuditRule',
         component: () => import('@/views/permission/AuditRuleView.vue'),
@@ -80,16 +110,40 @@ const routes = [
         meta: { title: '邀约请示' }
       },
       {
-        path: 'config',
-        name: 'Config',
-        component: () => import('@/views/config/ThemeConfigView.vue'),
-        meta: { title: '系统配置' }
-      },
-      {
         path: 'config/audit-log',
         name: 'AuditLog',
         component: () => import('@/views/config/AuditLogView.vue'),
-        meta: { title: '审计日志' }
+        meta: { title: '系统日志' }
+      },
+      {
+        path: 'config/system-config',
+        name: 'SystemConfig',
+        component: () => import('@/views/config/SystemConfigView.vue'),
+        meta: { title: '系统配置' }
+      },
+      {
+        path: 'top10/company-important',
+        name: 'CompanyImportant',
+        component: () => import('@/views/top10/CompanyImportantView.vue'),
+        meta: { title: '公司十大事项' }
+      },
+      {
+        path: 'permission/function',
+        name: 'FunctionPermission',
+        component: () => import('@/views/permission/FunctionPermissionView.vue'),
+        meta: { title: '功能权限' }
+      },
+      {
+        path: 'config/ai',
+        name: 'AiConfig',
+        component: () => import('@/views/config/AiConfigView.vue'),
+        meta: { title: 'AI配置' }
+      },
+      {
+        path: 'template',
+        name: 'TemplateManage',
+        component: () => import('@/views/template/TemplateManageView.vue'),
+        meta: { title: '模板管理' }
       }
     ]
   }
@@ -101,9 +155,6 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-  // ── 登录验证已注释（调试模式） ──
-  next()
-  /* 
   const token = getToken()
   if (to.meta.requiresAuth !== false && !token) {
     next('/login')
@@ -112,7 +163,6 @@ router.beforeEach((to, from, next) => {
   } else {
     next()
   }
-  ── 登录验证已注释结束 ── */
 })
 
 export default router

@@ -32,6 +32,11 @@ spring:
     init:
       mode: always
       schema-locations: classpath:db/h2_schema.sql
+      data-locations: classpath:db/h2_data.sql
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB
 
 jwt:
   secret: pandora-secret-key-2026-please-change-in-production-environment
@@ -43,6 +48,21 @@ deepseek:
   api-key: ${DEEPSEEK_API_KEY:dummy-key}
   timeout-mbti: 30000
   timeout-keyword: 10000
+
+pandora:
+  admin-email: ${ADMIN_EMAIL:admin@pandora.local}
+  permission:
+    fallback-enabled: true
+    auto-init: true
+  personal:
+    log-range-days: 30
+  ai:
+    quota-threshold: 100
+    monitor-interval-ms: 300000
+    external:
+      timeout-ms: 30000
+    fallback:
+      url: http://localhost:8081
 
 logging:
   level:
@@ -56,3 +76,10 @@ management:
     web:
       exposure:
         include: health,info,metrics
+hierarchy:
+  max-depth: 10
+  cycle-detect: true
+
+mbti:
+  ai:
+    timeout-ms: 30000

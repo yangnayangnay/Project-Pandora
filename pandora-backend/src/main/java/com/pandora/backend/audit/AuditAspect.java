@@ -1,9 +1,9 @@
 package com.pandora.backend.audit;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +11,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.Arrays;
 
 @Aspect
@@ -22,9 +24,6 @@ public class AuditAspect {
     @Autowired
     private AuditService auditService;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
     @Around("@within(org.springframework.web.bind.annotation.RestController) && " +
             "(@annotation(org.springframework.web.bind.annotation.PostMapping) || " +
             "@annotation(org.springframework.web.bind.annotation.PutMapping) || " +
@@ -34,20 +33,61 @@ public class AuditAspect {
         Object result = joinPoint.proceed();
 
         try {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.getPrincipal() instanceof Long) {
-                Long operatorId = (Long) auth.getPrincipal();
-                String methodName = joinPoint.getSignature().getName();
-                String args = Arrays.toString(joinPoint.getArgs());
-                if (args.length() > 500) {
-                    args = args.substring(0, 500) + "...";
-                }
-                auditService.record(operatorId, methodName, "UNKNOWN", null, args);
-            }
+            recordAuditLog(joinPoint);
         } catch (Exception e) {
-            log.warn("Failed to record audit log: {}", e.getMessage());
+            log.error("审计日志写入失败: {}", e.getMessage());
         }
 
         return result;
+    }
+
+    private void recordAuditLog(ProceedingJoinPoint joinPoint) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof Long)) return;
+
+        Long operatorId = (Long) auth.getPrincipal();
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        Method method = signature.getMethod();
+        String methodName = method.getName();
+
+        Auditable auditable = method.getAnnotation(Auditable.class);
+        String operationType = null;
+        String targetType = "UNKNOWN";
+
+        if (auditable != null) {
+            operationType = auditable.operationType();
+            targetType = auditable.targetType();
+        }
+
+        Long targetId = extractTargetId(method, joinPoint.getArgs());
+        String operationContent = buildOperationContent(joinPoint.getArgs());
+        String detail = Arrays.toString(joinPoint.getArgs());
+        if (detail.length() > 500) detail = detail.substring(0, 500) + "...";
+
+        auditService.record(operatorId, methodName, targetType, targetId, detail, operationType, operationContent);
+    }
+
+    private Long extractTargetId(Method method, Object[] args) {
+        Parameter[] params = method.getParameters();
+        for (int i = 0; i < params.length && i < args.length; i++) {
+            Object arg = args[i];
+            if (arg == null) continue;
+            if (arg instanceof Long) return (Long) arg;
+            if (arg instanceof Number) return ((Number) arg).longValue();
+        }
+        return null;
+    }
+
+    private String buildOperationContent(Object[] args) {
+        if (args == null || args.length == 0) return null;
+        StringBuilder sb = new StringBuilder();
+        for (Object arg : args) {
+            if (arg == null) continue;
+            if (sb.length() > 0) sb.append(", ");
+            String str = arg.toString();
+            if (str.length() > 200) str = str.substring(0, 200) + "...";
+            sb.append(str);
+        }
+        return sb.length() == 0 ? null : sb.toString();
     }
 }

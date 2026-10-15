@@ -4,7 +4,7 @@
   "description": "Project Pandora Web Management",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/start-dev.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },

@@ -1,0 +1,139 @@
+@startuml 活动图_ActivityDiagram
+title Project Pandora - 活动图(泳道图): 任务全生命周期
+
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Microsoft YaHei
+skinparam shadowing false
+
+|用户(派发者)|
+start
+:打开任务创建页;
+
+|Android客户端|
+:加载下级用户列表\nGET /api/task/subordinate/users;
+:显示创建表单\n(名称/紧急/截止日期/分配人);
+
+|用户(派发者)|
+:填写任务信息;
+:选择紧急/不紧急;
+:选择截止日期;
+:选择分配人;
+:点击提交;
+
+|Android客户端|
+:收集表单数据;
+:POST /api/task\n{name, isUrgent, endTime, assigneeId};
+
+|Spring Boot后端|
+:接收请求;
+:JWT Token验证;
+:提取userId和role;
+
+if (Token有效?) then (是)
+    :查询assigneeId用户信息;
+    
+    if (assigneeId是自己或下级?) then (是)
+        :INSERT INTO tasks\n(assignee_id, dispatcher_id, ...);
+        
+        |H2数据库|
+        :写入任务记录;
+        
+        |Spring Boot后端|
+        :detectNewTask(taskId, assigneeId);
+        :INSERT INTO notifications\n(type='NEW_TASK');
+        
+        |H2数据库|
+        :写入通知记录;
+        
+        |Spring Boot后端|
+        :返回200 OK {taskId};
+        
+        |Android客户端|
+        :显示"任务创建成功";
+        :跳转回任务列表;
+        
+        |用户(派发者)|
+        :查看任务列表;
+        
+        note right
+            任务已创建
+            等待执行者处理
+        end note
+        
+        |用户(执行者)|
+        :收到息屏通知;
+        :打开应用查看任务;
+        
+        |Android客户端|
+        :GET /api/task/list?assigneeId=me;
+        
+        |Spring Boot后端|
+        :SELECT * FROM tasks WHERE assignee_id=?;
+        
+        |H2数据库|
+        :返回任务列表;
+        
+        |Android客户端|
+        :渲染任务列表表格\n(名称||截止||紧急||完成||进度||负责人);
+        
+        |用户(执行者)|
+        :点击任务进行操作;
+        
+        |Android客户端|
+        :PATCH /api/task/{taskId}\n{status/progressNote};
+        
+        |Spring Boot后端|
+        :UPDATE tasks SET status=?, progress_note=?;
+        :detectStatusChange(oldStatus, newStatus);
+        
+        if (状态变为COMPLETED?) then (是)
+            :INSERT INTO notifications\n(type='STATUS_CHANGE');
+            
+            |H2数据库|
+            :更新任务+写入通知;
+            
+            |Spring Boot后端|
+            :返回200 OK;
+            
+            |Android客户端|
+            :刷新任务列表;
+            :任务显示为"已完成"(蓝色);
+            
+            |用户(执行者)|
+            :任务完成;
+        else (否)
+            |H2数据库|
+            :更新任务;
+            
+            |Spring Boot后端|
+            :返回200 OK;
+            
+            |Android客户端|
+            :刷新任务列表;
+        end if
+        
+    else (否)
+        |Spring Boot后端|
+        :返回403 Forbidden\n"只能分配给自己或下级";
+        
+        |Android客户端|
+        :显示错误提示;
+        
+        |用户(派发者)|
+        :修改分配人重试;
+    end if
+    
+else (否)
+    |Spring Boot后端|
+    :返回401 Unauthorized;
+    
+    |Android客户端|
+    :跳转登录页;
+    
+    |用户(派发者)|
+    :重新登录;
+end if
+
+stop
+
+@enduml

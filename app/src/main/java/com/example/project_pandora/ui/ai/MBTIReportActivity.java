@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import com.example.project_pandora.core.util.BackToolbarHelper;
 
 public class MBTIReportActivity extends AppCompatActivity {
 
@@ -40,7 +41,7 @@ public class MBTIReportActivity extends AppCompatActivity {
         binding = ActivityMbtiReportBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        binding.toolbar.setNavigationOnClickListener(v -> finish());
+        BackToolbarHelper.setupBack(binding.toolbar, this::finish);
 
         adapter = new HistoryAdapter();
         binding.recyclerHistory.setLayoutManager(new LinearLayoutManager(this));

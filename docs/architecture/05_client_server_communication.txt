@@ -1,0 +1,481 @@
+================================================================================
+  Project Pandora - 客户端与服务端消息传递说明
+  生成日期: 2026-10-09
+  架构: Android客户端 ←→ Spring Boot后端 ←→ H2数据库
+  通信协议: HTTP/REST + JSON
+  认证方式: JWT Bearer Token
+================================================================================
+
+【一、通信基础信息】
+--------------------------------------------------------------------------------
+  基础URL:     http://10.0.2.2:8080/api/  (模拟器访问宿主机)
+  请求格式:    Content-Type: application/json
+  认证头:      Authorization: Bearer <JWT Token>
+  响应格式:    { "code": 200, "message": "success", "data": {...}, "traceId": null }
+  错误格式:    { "code": <errorCode>, "message": "<errorMsg>", "data": null }
+  
+  客户端技术栈: Retrofit2 + OkHttp3 + RxJava3
+  服务端技术栈: Spring Boot 3 + JdbcTemplate + JWT(HMAC-SHA384)
+  
+  5种角色: ADMIN(管理员) / FOUNDER(创始人) / DEPT_HEAD(部门主管) 
+           / TEAM_LEADER(团队领导) / EMPLOYEE(普通员工)
+
+
+================================================================================
+【二、认证模块 (AuthApi ←→ AuthController)】
+================================================================================
+
+1. 用户登录
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    POST /api/auth/login
+    Body: { "username": "yjl_founder", "password": "123465" }
+    
+  服务端 → 客户端:
+    200 OK
+    Body: {
+      "code": 200,
+      "data": {
+        "user": { "id": 100, "username": "yjl_founder", "role": "FOUNDER",
+                  "departmentId": 3, "teamId": 4 },
+        "token": "eyJhbGciOiJIUzM4NCJ9...",
+        "refreshToken": "eyJhbGciOiJIUzM4NCJ9..."
+      }
+    }
+    
+  说明: 登录成功后客户端保存token到TokenManager，后续请求自动添加Authorization头。
+
+2. 用户注册
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    POST /api/auth/register
+    Body: { "username": "...", "password": "...", "realName": "...",
+            "idCard": "...", "email": "...", "phone": "..." }
+    
+  服务端 → 客户端:
+    200 OK / 400 Bad Request(已存在) / 403(预登记未找到)
+    
+  说明: 注册时自动匹配employee_records表中的预登记信息。
+
+3. 忘记密码
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    POST /api/auth/forgot-password
+    Body: { "username": "...", "reason": "..." }
+    
+  服务端 → 客户端:
+    200 OK (申请已提交，等待管理员审批)
+
+4. 刷新Token
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    POST /api/auth/refresh
+    Body: { "refreshToken": "..." }
+    
+  服务端 → 客户端:
+    200 OK
+    Body: { "data": { "token": "新token", "refreshToken": "新refreshToken" } }
+
+5. 登出
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    POST /api/auth/logout
+    Header: Authorization: Bearer <token>
+    
+  服务端 → 客户端:
+    200 OK
+
+
+================================================================================
+【三、任务管理模块 (TaskApi ←→ TaskController)】
+================================================================================
+
+6. 创建任务
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    POST /api/task
+    Header: Authorization: Bearer <token>
+    Body: { "name": "任务名称", "isUrgent": true, "endTime": "2026-10-15",
+            "assigneeId": 101, "isImportant": true }
+    
+  服务端处理:
+    1. JWT验证 → 提取dispatcherId
+    2. 校验assigneeId是否为当前用户或其下级
+    3. INSERT INTO tasks (name, is_urgent, end_time, assignee_id, dispatcher_id, ...)
+    4. NotificationService.detectNewTask(taskId, assigneeId)
+    5. INSERT INTO notifications (target_user_id, type='NEW_TASK', content='...')
+    
+  服务端 → 客户端:
+    200 OK
+    Body: { "data": { "id": taskId, "name": "...", "status": "PENDING", ... } }
+
+7. 查询任务列表
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    GET /api/task/list?status=PENDING&assigneeId=100&dispatcherId=null&showCompleted=false
+    Header: Authorization: Bearer <token>
+    
+  服务端 → 客户端:
+    200 OK
+    Body: { "data": [ { "id": 1, "name": "...", "status": "PENDING",
+                        "isUrgent": true, "endTime": "...", "assigneeId": 100, ... }, ... ] }
+
+8. 更新任务状态
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    PATCH /api/task/{taskId}
+    Body: { "status": "COMPLETED", "progressNote": "已完成开发" }
+    
+  服务端处理:
+    1. 查询旧任务状态
+    2. UPDATE tasks SET status='COMPLETED', progress_note='...'
+    3. NotificationService.detectStatusChange(oldStatus, newStatus)
+    4. 若状态变化则 INSERT INTO notifications
+    
+  服务端 → 客户端:
+    200 OK / 404(任务不存在) / 403(无权限)
+
+9. 获取四象限任务
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    GET /api/task/quadrant
+    
+  服务端 → 客户端:
+    200 OK
+    Body: { "data": { "importantUrgent": [...], "importantNotUrgent": [...],
+                      "notImportantUrgent": [...], "notImportantNotUrgent": [...] } }
+
+10. 获取下级用户列表
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    GET /api/task/subordinate/users
+    
+  服务端 → 客户端:
+    200 OK
+    Body: { "data": [ { "id": 101, "username": "...", "realName": "..." }, ... ] }
+
+
+================================================================================
+【四、工作日志模块 (LogApi ←→ LogController)】
+================================================================================
+
+11. 创建工作日志
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    POST /api/log
+    Body: { "workItem": "完成需求分析", "completionStatus": "COMPLETED",
+            "timeCost": 2.5, "logDate": "2026-10-09" }
+    
+  说明: completionStatus为二元状态: PENDING(未完成) / COMPLETED(完成)
+  
+  服务端 → 客户端:
+    200 OK / 400(参数错误)
+
+12. 查询日志列表
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    GET /api/log/list
+    
+  服务端 → 客户端:
+    200 OK
+    Body: { "data": [ { "id": 1, "workItem": "...", "completionStatus": "COMPLETED",
+                        "timeCost": 2.5, "logDate": "2026-10-09" }, ... ] }
+
+13. 编辑/删除日志
+--------------------------------------------------------------------------------
+  编辑: PUT /api/log/{logId}  Body: { "workItem": "...", "completionStatus": "..." }
+  删除: DELETE /api/log/{logId}
+
+14. Top10工作项管理
+--------------------------------------------------------------------------------
+  更新: PUT /api/log/top10  Body: [ { "workType": "COMPANY_IMPORTANT", "rankOrder": 1, "content": "..." }, ... ]
+  查询: GET /api/log/top10?workType=COMPANY_IMPORTANT
+
+15. 自动生成日志
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    POST /api/log/auto-generate
+    
+  服务端处理: 根据用户当天任务自动生成工作日志草稿
+    
+  服务端 → 客户端:
+    200 OK / Body: { "data": { "generatedCount": 5 } }
+
+
+================================================================================
+【五、视图模块 (ViewApi ←→ ViewController)】
+================================================================================
+
+16. 月视图(含今日覆盖)
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    GET /api/view/month?month=2026-10&todayCoverage=true
+    
+  服务端处理:
+    1. 查询用户在指定月份的任务和日志
+    2. 若todayCoverage=true，额外查询 end_time >= CURRENT_DATE 的任务
+    3. 按日期聚合数据
+    
+  服务端 → 客户端:
+    200 OK
+    Body: { "data": { "2026-10-09": { "tasks": [...], "logs": [...] },
+                      "2026-10-10": { ... }, "stats": { ... } } }
+
+17. 周视图
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    GET /api/view/week?todayCoverage=true
+    
+  服务端 → 客户端:
+    200 OK / Body: { "data": { "days": [...], "stats": {...} } }
+
+18. 日视图
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    GET /api/view/day?date=2026-10-09&todayCoverage=true
+    
+  服务端 → 客户端:
+    200 OK / Body: { "data": { "tasks": [...], "logs": [...], "stats": {...} } }
+
+19. 导图四象限矩阵
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    GET /api/view/mindmap
+    
+  服务端处理:
+    1. 查询 companyImportant:   assignee_id=用户 AND is_important=1 AND is_urgent=1
+    2. 查询 companyDispatch:    dispatcher_id=用户 (公司任务派发)
+    3. 查询 personalImportant:  assignee_id=用户 AND is_important=1 AND is_urgent=0
+    4. 查询 personalLog:        work_logs WHERE user_id=用户
+    
+  服务端 → 客户端:
+    200 OK
+    Body: { "data": {
+      "companyImportant": [ {任务对象}, ... ],
+      "companyDispatch": [ {任务对象}, ... ],
+      "personalImportant": [ {任务对象}, ... ],
+      "personalLog": [ {日志对象}, ... ]
+    } }
+    
+  客户端渲染:
+    左上(红色#E74C3C):   重要且紧急 → companyImportant
+    右上(棕色#D35400):   重要不紧急 → companyDispatch
+    左下(绿色#27AE60):   紧急不重要 → personalImportant
+    右下(蓝色#2980B9):   不重要不紧急 → personalLog
+
+
+================================================================================
+【六、用户与设置模块 (UserApi ←→ UserController)】
+================================================================================
+
+20. 获取当前用户信息
+--------------------------------------------------------------------------------
+  GET /api/user/me
+  → 200 OK / Body: { "data": { "id": 100, "username": "...", "role": "...", ... } }
+
+21. 修改个人资料
+--------------------------------------------------------------------------------
+  PUT /api/user/me
+  Body: { "avatar": "...", "themeMode": "DARK", "realName": "..." }
+
+22. 获取用户设置
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    GET /api/user/settings
+    
+  服务端 → 客户端:
+    200 OK
+    Body: { "data": { "showCompletedTasks": 1, "birthday": "2000-01-01",
+                      "lastBirthdayChange": "2026-01-01 00:00:00" } }
+
+23. 更新用户设置
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    PUT /api/user/settings
+    Body: { "showCompletedTasks": 0 }
+    
+  说明: 控制任务列表是否显示已完成任务
+
+24. 修改生日(365天冷却期)
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    PUT /api/user/birthday
+    Body: { "birthday": "2000-01-01" }
+    
+  服务端处理:
+    1. 查询 last_birthday_change
+    2. 若 last_birthday_change != null 且 now - last_birthday_change < 365天 → 拒绝
+    3. 否则 UPDATE users SET birthday=?, last_birthday_change=NOW()
+    
+  服务端 → 客户端:
+    200 OK (修改成功) / 400 (冷却期内，返回剩余天数)
+
+
+================================================================================
+【七、AI分析模块 (AIApi ←→ AIController)】
+================================================================================
+
+25. MBTI命理分析 - 提交请求
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    POST /api/ai/mbti/analyze
+    Body: { "name": "张三", "gender": "男", "timeType": "公历",
+            "birthTime": "2000-01-01 12:00", "birthPlace": "北京", 
+            "currentResidence": "上海" }
+    
+  服务端处理:
+    1. INSERT INTO mbti_analysis_requests (status='PENDING')
+    2. generateMbtiResult(): 计算天干地支四柱 + 生成深度洞察
+    3. INSERT INTO mbti_analysis_results (year_pillar, month_pillar, ...)
+    4. UPDATE mbti_analysis_requests SET status='COMPLETED'
+    
+  服务端 → 客户端:
+    200 OK / Body: { "data": { "requestId": 1 } }
+
+26. MBTI命理分析 - 轮询结果
+--------------------------------------------------------------------------------
+  客户端 → 服务端 (每5秒):
+    GET /api/ai/mbti/analyze/{requestId}
+    
+  服务端 → 客户端:
+    200 OK
+    Body: { "data": {
+      "status": "COMPLETED",
+      "fourPillars": { "yearPillar": "庚子", "monthPillar": "丁亥",
+                       "dayPillar": "甲午", "hourPillar": "丙寅" },
+      "insights": [ { "index": 1, "content": "根据命理四柱分析..." },
+                    { "index": 2, "content": "年柱庚子代表..." }, ... ]
+    } }
+    
+  说明: 客户端在加载屏轮询，收到COMPLETED后切换到结果屏。
+
+27. AI个性化建议
+--------------------------------------------------------------------------------
+  GET /api/ai/suggestion
+  → 200 OK / Body: { "data": { "suggestion": "...", "careerAdvice": "..." } }
+
+28. 关键词分析
+--------------------------------------------------------------------------------
+  POST /api/ai/keyword
+  Body: { "text": "需要分析的文本内容" }
+  → 200 OK / Body: { "data": [ { "keyword": "...", "weight": 0.8 }, ... ] }
+
+29. 每日占卜
+--------------------------------------------------------------------------------
+  GET /api/ai/divination
+  → 200 OK / Body: { "data": { "hexagram": "...", "interpretation": "..." } }
+  
+  说明: 占卜每日限一次，基于梅花易数本地计算。
+
+
+================================================================================
+【八、通知模块 (NotificationApi ←→ NotificationController)】
+================================================================================
+
+30. 查询通知列表
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    GET /api/notification/list?unreadOnly=true
+    
+  服务端 → 客户端:
+    200 OK
+    Body: { "data": [ { "id": 1, "type": "NEW_TASK", "content": "新任务: ...",
+                        "taskId": 5, "isRead": 0, "createdAt": "..." }, ... ] }
+
+31. 轮询通知 (WorkManager每15分钟)
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    GET /api/notification/poll?lastId=100
+    
+  服务端处理:
+    SELECT * FROM notifications WHERE target_user_id=? AND id>? AND is_read=0
+    
+  服务端 → 客户端:
+    200 OK / Body: { "data": [ {通知对象}, ... ] }
+    
+  客户端处理:
+    遍历通知列表 → TaskNotificationService.showNotification()
+    → 系统通知栏显示息屏通知
+    
+  说明: NotificationPollWorker继承Worker，通过WorkManager周期性执行(15分钟)。
+
+32. 标记通知已读
+--------------------------------------------------------------------------------
+  客户端 → 服务端:
+    PUT /api/notification/{id}/read
+    
+  服务端处理:
+    UPDATE notifications SET is_read=1 WHERE id=?
+    
+  服务端 → 客户端:
+    200 OK
+
+
+================================================================================
+【九、审计日志模块 (AuditApi ←→ AuditController)】
+================================================================================
+
+33. 查询今日操作日志
+--------------------------------------------------------------------------------
+  GET /api/audit/my-today
+  → 200 OK / Body: { "data": [ { "action": "...", "operationType": "...", ... } ] }
+
+34. 查询审计日志列表
+--------------------------------------------------------------------------------
+  GET /api/audit/list?page=0&size=20&operatorId=&startTime=&endTime=&operationType=&keyword=
+  → 200 OK / Body: { "data": { "list": [...], "total": 100, "page": 0 } }
+
+
+================================================================================
+【十、通知触发机制说明】
+================================================================================
+
+  通知触发时机:
+    1. 创建任务时 → NotificationService.detectNewTask()
+       → 写入 notifications 表 (type='NEW_TASK', target=assigneeId)
+       
+    2. 更新任务状态时 → NotificationService.detectStatusChange()
+       → 状态从PENDING→COMPLETED时写入通知 (type='STATUS_CHANGE', target=dispatcherId)
+  
+  通知投递链路:
+    后端写入notifications表
+        ↓ (15分钟间隔)
+    WorkManager触发NotificationPollWorker
+        ↓
+    GET /api/notification/poll
+        ↓
+    TaskNotificationService.showNotification()
+        ↓
+    Android系统通知栏(息屏通知)
+  
+  通知渠道:
+    NotificationChannel ID: "task_notifications"
+    重要性: IMPORTANCE_DEFAULT
+    说明: 仅使用应用内消息+系统通知，不使用短信或邮件通知。
+
+
+================================================================================
+【十一、数据流总结】
+================================================================================
+
+  客户端到服务端的数据流:
+    用户操作 → Activity/Fragment → ViewModel → Repository → Retrofit API
+    → HTTP请求(带JWT) → Spring Boot Controller → Service → JdbcTemplate → H2数据库
+
+  服务端到客户端的数据流:
+    H2数据库 → JdbcTemplate查询结果 → Service业务处理 → Controller封装ApiResponse
+    → HTTP响应(JSON) → Retrofit解析 → Repository → ViewModel(LiveData) → UI渲染
+
+  本地缓存:
+    Room数据库用于离线缓存部分数据
+    TokenManager使用EncryptedSharedPreferences存储JWT Token
+    
+  关键设计:
+    - 所有API请求自动附加Authorization头(OkHttp Interceptor)
+    - Token过期时自动使用refreshToken刷新(OkHttp Authenticator)
+    - 后端使用@Auditable注解自动记录审计日志
+    - 角色权限通过JWT中的role字段在Controller层校验
+
+================================================================================
+  文件结束
+================================================================================

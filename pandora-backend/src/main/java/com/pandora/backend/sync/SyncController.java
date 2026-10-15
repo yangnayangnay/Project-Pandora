@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import com.pandora.backend.audit.Auditable;
 
 import java.util.*;
 
@@ -18,6 +19,7 @@ public class SyncController {
     private JdbcTemplate jdbcTemplate;
 
     @PostMapping
+    @Auditable(operationType = "DATA_SYNC", targetType = "SYNC")
     public ResponseEntity<ApiResponse<Map<String, Object>>> sync(@RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
         List<Map<String, Object>> items = (List<Map<String, Object>>) request.get("items");

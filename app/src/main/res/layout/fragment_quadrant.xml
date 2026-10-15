@@ -18,6 +18,7 @@
             android:background="?attr/colorPrimary"
             app:title="@string/nav_mindmap"
             app:titleTextColor="@android:color/white"
+            app:menu="@menu/menu_quadrant"
             app:layout_constraintTop_toTopOf="parent" />
 
         <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -57,10 +58,10 @@
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="重要不紧急"
+                                android:text="重要且紧急"
                                 android:textSize="14sp"
                                 android:textStyle="bold"
-                                android:textColor="#4CAF50"
+                                android:textColor="#F44336"
                                 android:paddingBottom="4dp" />
 
                             <androidx.recyclerview.widget.RecyclerView
@@ -89,10 +90,10 @@
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="重要且紧急"
+                                android:text="重要不紧急"
                                 android:textSize="14sp"
                                 android:textStyle="bold"
-                                android:textColor="#F44336"
+                                android:textColor="#4CAF50"
                                 android:paddingBottom="4dp" />
 
                             <androidx.recyclerview.widget.RecyclerView

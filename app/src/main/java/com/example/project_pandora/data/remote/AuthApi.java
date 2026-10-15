@@ -15,11 +15,14 @@ public interface AuthApi {
     Observable<ApiResponse<Map<String, Object>>> login(@Body Map<String, String> request);
 
     @POST("auth/register")
-    Observable<ApiResponse<Map<String, Object>>> register(@Body Map<String, String> request);
+    Observable<ApiResponse<Map<String, Object>>> register(@Body Map<String, Object> request);
 
     @POST("auth/logout")
     Observable<ApiResponse<Void>> logout();
 
     @POST("auth/refresh")
     Observable<ApiResponse<Map<String, String>>> refresh(@Body Map<String, String> request);
+
+    @POST("auth/forgot-password")
+    Observable<ApiResponse<Map<String, Object>>> forgotPassword(@Body Map<String, String> request);
 }

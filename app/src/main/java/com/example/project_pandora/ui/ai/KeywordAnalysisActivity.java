@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import com.example.project_pandora.core.util.BackToolbarHelper;
 
 public class KeywordAnalysisActivity extends AppCompatActivity {
 
@@ -55,7 +56,7 @@ public class KeywordAnalysisActivity extends AppCompatActivity {
 
         adapter = new KeywordAdapter();
 
-        binding.toolbar.setNavigationOnClickListener(v -> finish());
+        BackToolbarHelper.setupBack(binding.toolbar, this::finish);
         binding.recyclerKeywords.setLayoutManager(new LinearLayoutManager(this));
         binding.recyclerKeywords.setAdapter(adapter);
 

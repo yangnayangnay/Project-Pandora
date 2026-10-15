@@ -61,7 +61,7 @@ public class TaskListFragment extends Fragment {
     }
 
     private void setupTabs() {
-        String[] tabs = {"全部", "待接收", "进行中", "已完成", "已确认"};
+        String[] tabs = {"全部", "待接收", "进行中", "已完成", "已确认", "已退回"};
         for (String tab : tabs) {
             binding.tabLayout.addTab(binding.tabLayout.newTab().setText(tab));
         }
@@ -75,6 +75,7 @@ public class TaskListFragment extends Fragment {
                     case 2: currentStatus = "IN_PROGRESS"; break;
                     case 3: currentStatus = "COMPLETED"; break;
                     case 4: currentStatus = "CONFIRMED"; break;
+                    case 5: currentStatus = "REJECTED"; break;
                 }
                 loadTasks();
             }

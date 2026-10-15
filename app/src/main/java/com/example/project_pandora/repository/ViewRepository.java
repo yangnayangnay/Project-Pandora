@@ -18,8 +18,8 @@ public class ViewRepository {
         viewApi = NetworkClient.getInstance(context).createService(ViewApi.class);
     }
 
-    public Observable<Map<String, Object>> getMonthView(String month) {
-        return viewApi.getMonthView(month)
+    public Observable<Map<String, Object>> getMonthView(String month, Boolean todayCoverage) {
+        return viewApi.getMonthView(month, todayCoverage)
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
                     if (response.isSuccess() && response.getData() != null) {
@@ -29,8 +29,8 @@ public class ViewRepository {
                 });
     }
 
-    public Observable<Map<String, Object>> getWeekView() {
-        return viewApi.getWeekView()
+    public Observable<Map<String, Object>> getWeekView(Boolean todayCoverage) {
+        return viewApi.getWeekView(todayCoverage)
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
                     if (response.isSuccess() && response.getData() != null) {
@@ -40,8 +40,8 @@ public class ViewRepository {
                 });
     }
 
-    public Observable<Map<String, Object>> getDayView(String date) {
-        return viewApi.getDayView(date)
+    public Observable<Map<String, Object>> getDayView(String date, Boolean todayCoverage) {
+        return viewApi.getDayView(date, todayCoverage)
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
                     if (response.isSuccess() && response.getData() != null) {
@@ -68,6 +68,28 @@ public class ViewRepository {
                 .map(response -> {
                     if (response.isSuccess() && response.getData() != null) {
                         return response.getData();
+                    }
+                    throw new RuntimeException(response.getMessage());
+                });
+    }
+
+    public Observable<Map<String, Object>> injectPersonalTop10(Map<String, Object> request) {
+        return viewApi.injectPersonalTop10(request)
+                .subscribeOn(Schedulers.io())
+                .map(response -> {
+                    if (response.isSuccess() && response.getData() != null) {
+                        return response.getData();
+                    }
+                    throw new RuntimeException(response.getMessage());
+                });
+    }
+
+    public Observable<Void> deletePersonalTop10(Long id) {
+        return viewApi.deletePersonalTop10(id)
+                .subscribeOn(Schedulers.io())
+                .map(response -> {
+                    if (response.isSuccess()) {
+                        return null;
                     }
                     throw new RuntimeException(response.getMessage());
                 });

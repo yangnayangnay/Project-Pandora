@@ -1,26 +1,48 @@
 package com.example.project_pandora.ui.task;
 
+import android.app.DatePickerDialog;
 import android.os.Bundle;
-import android.widget.CheckBox;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.project_pandora.R;
+import com.example.project_pandora.core.autosave.AutoSaveManager;
+import com.example.project_pandora.core.autosave.DraftRestoreDialog;
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.core.network.TokenManager;
+import com.example.project_pandora.core.util.BackToolbarHelper;
 import com.example.project_pandora.data.remote.TaskApi;
 import com.example.project_pandora.databinding.ActivityTaskCreateBinding;
+import com.example.project_pandora.repository.DraftRepository;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class TaskCreateActivity extends AppCompatActivity {
 
     private ActivityTaskCreateBinding binding;
     private TaskApi taskApi;
+    private DraftRepository draftRepository;
+    private AutoSaveManager autoSaveManager;
+    private String selectedEndTime = null;
+    private final List<Long> assigneeIds = new ArrayList<>();
+    private final List<String> assigneeNames = new ArrayList<>();
+    private final CompositeDisposable disposables = new CompositeDisposable();
+    private boolean isRestoringDraft = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,17 +51,164 @@ public class TaskCreateActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         taskApi = NetworkClient.getInstance(this).createService(TaskApi.class);
+        draftRepository = new DraftRepository(this);
 
-        binding.toolbar.setNavigationOnClickListener(v -> finish());
-        setupPrioritySpinner();
+        BackToolbarHelper.setupBack(binding.toolbar, this::finish);
+
+        loadAssigneeOptions();
+
+        binding.textEndTime.setOnClickListener(v -> {
+            showDatePicker();
+            onContentChanged();
+        });
+
         binding.btnCreateTask.setOnClickListener(v -> handleCreateTask());
+
+        setupAutoSave();
+        checkDraftRestore();
     }
 
-    private void setupPrioritySpinner() {
-        String[] priorities = {"LOW - 低", "MEDIUM - 中", "HIGH - 高", "URGENT - 紧急"};
-        android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_dropdown_item, priorities);
-        binding.spinnerPriority.setAdapter(adapter);
+    private void setupAutoSave() {
+        autoSaveManager = new AutoSaveManager(this, "TASK",
+                () -> {
+                    Map<String, Object> content = new HashMap<>();
+                    content.put("name", binding.editTaskName.getText().toString());
+                    content.put("endTime", selectedEndTime);
+                    boolean isUrgent = binding.rgUrgency.getCheckedRadioButtonId() == R.id.rb_urgent;
+                    content.put("isUrgent", isUrgent);
+                    int pos = binding.spinnerAssignee.getSelectedItemPosition();
+                    if (pos >= 0 && pos < assigneeIds.size()) {
+                        content.put("assigneeId", assigneeIds.get(pos));
+                    }
+                    return content;
+                },
+                status -> {
+                    switch (status) {
+                        case SAVING:
+                            binding.textAutoSaveStatus.setVisibility(android.view.View.VISIBLE);
+                            binding.textAutoSaveStatus.setText("保存中...");
+                            break;
+                        case SAVED:
+                            binding.textAutoSaveStatus.setVisibility(android.view.View.VISIBLE);
+                            String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
+                            binding.textAutoSaveStatus.setText("已保存 " + time);
+                            break;
+                        case SAVE_FAILED:
+                            binding.textAutoSaveStatus.setVisibility(android.view.View.VISIBLE);
+                            binding.textAutoSaveStatus.setText("保存失败");
+                            break;
+                        default:
+                            break;
+                    }
+                });
+
+        binding.editTaskName.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (!isRestoringDraft) onContentChanged();
+            }
+        });
+    }
+
+    public void onContentChanged() {
+        if (autoSaveManager != null) {
+            autoSaveManager.onContentChanged();
+        }
+    }
+
+    private void checkDraftRestore() {
+        disposables.add(draftRepository.getDraft("TASK")
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        draftData -> {
+                            if (draftData != null && draftData.get("content") != null) {
+                                DraftRestoreDialog.show(this, draftData,
+                                        content -> {
+                                            isRestoringDraft = true;
+                                            restoreDraft(content);
+                                            isRestoringDraft = false;
+                                        },
+                                        () -> disposables.add(draftRepository.deleteDraft("TASK")
+                                                .subscribe(r -> {}, Throwable::printStackTrace)));
+                            }
+                        },
+                        error -> {}
+                ));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void restoreDraft(Map<String, Object> content) {
+        if (content == null) return;
+        Object name = content.get("name");
+        if (name != null) binding.editTaskName.setText(name.toString());
+        Object endTime = content.get("endTime");
+        if (endTime != null) {
+            selectedEndTime = endTime.toString();
+            binding.textEndTime.setText(selectedEndTime);
+        }
+        Object isUrgent = content.get("isUrgent");
+        if (isUrgent instanceof Boolean) {
+            if ((Boolean) isUrgent) {
+                binding.rgUrgency.check(R.id.rb_urgent);
+            } else {
+                binding.rgUrgency.check(R.id.rb_not_urgent);
+            }
+        }
+        Object assigneeIdObj = content.get("assigneeId");
+        if (assigneeIdObj != null) {
+            Long assigneeId = Long.parseLong(assigneeIdObj.toString());
+            int idx = assigneeIds.indexOf(assigneeId);
+            if (idx >= 0) binding.spinnerAssignee.setSelection(idx);
+        }
+    }
+
+    private void loadAssigneeOptions() {
+        Long currentUserId = TokenManager.getInstance(this).getUserId();
+        String currentUserName = "自己";
+
+        assigneeIds.clear();
+        assigneeNames.clear();
+        assigneeIds.add(currentUserId);
+        assigneeNames.add(currentUserName);
+
+        disposables.add(taskApi.getSubordinateUsers()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        response -> {
+                            if (response.isSuccess() && response.getData() != null) {
+                                for (Map<String, Object> user : response.getData()) {
+                                    Object id = user.get("id");
+                                    Object name = user.get("real_name");
+                                    if (name == null || name.toString().isEmpty()) name = user.get("username");
+                                    if (id != null) {
+                                        assigneeIds.add(Long.parseLong(id.toString()));
+                                        assigneeNames.add(name != null ? name.toString() : "用户" + id);
+                                    }
+                                }
+                            }
+                            setupAssigneeSpinner();
+                        },
+                        error -> setupAssigneeSpinner()
+                ));
+    }
+
+    private void setupAssigneeSpinner() {
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                this, android.R.layout.simple_spinner_dropdown_item, assigneeNames);
+        binding.spinnerAssignee.setAdapter(adapter);
+    }
+
+    private void showDatePicker() {
+        Calendar cal = Calendar.getInstance();
+        new DatePickerDialog(this, (view, year, month, day) -> {
+            selectedEndTime = String.format("%04d-%02d-%02d", year, month + 1, day);
+            binding.textEndTime.setText(selectedEndTime);
+        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
     }
 
     private void handleCreateTask() {
@@ -48,32 +217,27 @@ public class TaskCreateActivity extends AppCompatActivity {
             Toast.makeText(this, "请输入任务名称", Toast.LENGTH_SHORT).show();
             return;
         }
-
-        String priority = "MEDIUM";
-        int priorityPos = binding.spinnerPriority.getSelectedItemPosition();
-        switch (priorityPos) {
-            case 0: priority = "LOW"; break;
-            case 1: priority = "MEDIUM"; break;
-            case 2: priority = "HIGH"; break;
-            case 3: priority = "URGENT"; break;
+        if (selectedEndTime == null) {
+            Toast.makeText(this, "请选择截止日期", Toast.LENGTH_SHORT).show();
+            return;
         }
 
-        boolean isImportant = binding.checkImportant.isChecked();
-        boolean isUrgent = binding.checkUrgent.isChecked();
-
-        Long assigneeId = TokenManager.getInstance(this).getUserId();
+        boolean isUrgent = binding.rgUrgency.getCheckedRadioButtonId() == R.id.rb_urgent;
+        int assigneePos = binding.spinnerAssignee.getSelectedItemPosition();
+        Long assigneeId = assigneeIds.get(assigneePos);
 
         Map<String, Object> request = new HashMap<>();
         request.put("name", name);
-        request.put("priority", priority);
+        request.put("priority", isUrgent ? "URGENT" : "MEDIUM");
         request.put("assigneeId", assigneeId);
-        request.put("isImportant", isImportant);
+        request.put("isImportant", false);
         request.put("isUrgent", isUrgent);
+        request.put("endTime", selectedEndTime);
 
         binding.btnCreateTask.setEnabled(false);
         binding.btnCreateTask.setText("创建中...");
 
-        taskApi.createTask(request)
+        disposables.add(taskApi.createTask(request)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
@@ -92,6 +256,23 @@ public class TaskCreateActivity extends AppCompatActivity {
                             binding.btnCreateTask.setEnabled(true);
                             binding.btnCreateTask.setText("创建任务");
                         }
-                );
+                ));
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (autoSaveManager != null) {
+            autoSaveManager.triggerImmediateSave();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (autoSaveManager != null) {
+            autoSaveManager.stop();
+        }
+        disposables.clear();
     }
 }

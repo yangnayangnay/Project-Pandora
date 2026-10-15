@@ -1,6 +1,7 @@
 package com.example.project_pandora.core.network;
 
 import android.content.Context;
+import android.os.Build;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -15,11 +16,29 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class NetworkClient {
 
-    private static final String BASE_URL = "http://10.0.2.2:8080/api/";
+    private static final String EMULATOR_BASE_URL = "http://10.0.2.2:8080/api/";
+    private static final String DEVICE_BASE_URL = "http://192.168.215.115:8080/api/";
     private static NetworkClient instance;
     private final Retrofit retrofit;
 
+    private static boolean isEmulator() {
+        return "google_sdk".equals(Build.PRODUCT)
+                || Build.FINGERPRINT.startsWith("generic")
+                || Build.FINGERPRINT.startsWith("unknown")
+                || Build.MODEL.contains("google_sdk")
+                || Build.MODEL.contains("Emulator")
+                || Build.MODEL.contains("Android SDK built for x86")
+                || Build.MODEL.contains("sdk_gphone")
+                || Build.PRODUCT.contains("sdk_gphone")
+                || Build.FINGERPRINT.contains("sdk_gphone");
+    }
+
+    public static String getBaseUrl() {
+        return isEmulator() ? EMULATOR_BASE_URL : DEVICE_BASE_URL;
+    }
+
     private NetworkClient(Context context) {
+        String baseUrl = getBaseUrl();
         Gson gson = new GsonBuilder()
                 .setDateFormat("yyyy-MM-dd HH:mm:ss")
                 .create();
@@ -31,12 +50,12 @@ public class NetworkClient {
                 .addInterceptor(new TokenInterceptor(context))
                 .addInterceptor(loggingInterceptor)
                 .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(120, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
                 .build();
 
         retrofit = new Retrofit.Builder()
-                .baseUrl(BASE_URL)
+                .baseUrl(baseUrl)
                 .client(okHttpClient)
                 .addConverterFactory(GsonConverterFactory.create(gson))
                 .addCallAdapterFactory(RxJava3CallAdapterFactory.create())

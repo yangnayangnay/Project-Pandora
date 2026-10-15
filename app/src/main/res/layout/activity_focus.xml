@@ -12,7 +12,7 @@
         android:background="?attr/colorPrimary"
         app:title="@string/nav_focus"
         app:titleTextColor="@android:color/white"
-        app:navigationIcon="?attr/homeAsUpIndicator" />
+        app:navigationIcon="@drawable/ic_back" />
 
     <FrameLayout
         android:id="@+id/focusContainer"

@@ -1,0 +1,237 @@
+@startuml 时序图_SequenceDiagram
+title Project Pandora - 核心业务时序图 (客户端-服务端交互)
+
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Microsoft YaHei
+skinparam maxMessageSize 150
+skinparam shadowing false
+
+' ============ 1. 登录认证时序图 ============
+== 1. 用户登录认证 ==
+
+participant "用户" as User
+participant "LoginActivity\n(客户端)" as Client
+participant "AuthApi\n(Retrofit)" as Api
+participant "AuthController\n(服务端)" as Server
+participant "JwtUtil" as Jwt
+database "users表" as DB
+
+User -> Client : 输入用户名+密码
+Client -> Api : login(username, password)
+Api -> Server : POST /api/auth/login\n{"username":"yjl_founder","password":"123465"}
+Server -> DB : SELECT * FROM users\nWHERE username = ?
+DB --> Server : 用户记录(password_hash)
+Server -> Server : BCrypt.matches(password, hash)
+Server -> Jwt : 生成Token(userId, role)
+Jwt --> Server : accessToken + refreshToken
+Server --> Api : 200 OK\n{user, token, refreshToken}
+Api --> Client : ApiResponse(data)
+Client -> Client : TokenManager.saveToken()
+Client --> User : 跳转主页(MainActivity)
+
+' ============ 2. 任务创建时序图 ============
+== 2. 任务创建与通知 ==
+
+participant "派发者" as User2
+participant "TaskCreateActivity" as TC
+participant "TaskApi" as TApi
+participant "TaskController" as TSrv
+database "tasks表" as TaskDB
+participant "NotificationService" as NotifSvc
+database "notifications表" as NotifDB
+participant "执行者\n(WorkManager)" as Worker
+participant "NotificationApi" as NApi
+participant "NotificationController" as NSrv
+
+User2 -> TC : 填写任务信息\n(名称/紧急/截止/分配人)
+TC -> TApi : createTask(taskMap)
+TApi -> TSrv : POST /api/task\n{name, isUrgent, endTime, assigneeId}
+TSrv -> TSrv : 校验assigneeId是否为下级
+TSrv -> TaskDB : INSERT INTO tasks
+TaskDB --> TSrv : taskId
+TSrv -> NotifSvc : detectNewTask(taskId, assigneeId)
+NotifSvc -> NotifDB : INSERT INTO notifications\n(target_user_id, type='NEW_TASK')
+NotifDB --> NotifSvc : success
+NotifSvc --> TSrv : 通知已记录
+TSrv --> TApi : 200 OK {taskId, ...}
+TApi --> TC : ApiResponse(data)
+TC --> User2 : "任务创建成功"
+
+note over Worker : WorkManager每15分钟轮询
+Worker -> NApi : pollNotifications(lastId)
+NApi -> NSrv : GET /api/notification/poll?lastId=?
+NSrv -> NotifDB : SELECT * FROM notifications\nWHERE target_user_id=? AND id>?
+NotifDB --> NSrv : 未读通知列表
+NSrv --> NApi : 200 OK [notifications]
+NApi --> Worker : 通知数据
+Worker -> Worker : TaskNotificationService\n.showNotification()
+Worker --> User2 : 息屏通知弹窗
+
+' ============ 3. 导图四象限数据加载时序图 ============
+== 3. 导图四象限矩阵数据加载 ==
+
+participant "用户" as U3
+participant "MindMapFragment" as MM
+participant "ViewApi" as VApi
+participant "ViewController" as VSrv
+database "tasks表" as TDB
+database "work_logs表" as LDB
+
+U3 -> MM : 切换到导图页
+MM -> MM : onViewCreated()
+MM -> VApi : getMindMap()
+VApi -> VSrv : GET /api/view/mindmap\n(Authorization: Bearer token)
+VSrv -> TDB : SELECT * FROM tasks\nWHERE assignee_id=? AND is_important=1 AND is_urgent=1
+TDB --> VSrv : companyImportant列表
+VSrv -> TDB : SELECT * FROM tasks\nWHERE dispatcher_id=? 
+TDB --> VSrv : companyDispatch列表
+VSrv -> TDB : SELECT * FROM tasks\nWHERE assignee_id=? AND is_important=1 AND is_urgent=0
+TDB --> VSrv : personalImportant列表
+VSrv -> LDB : SELECT * FROM work_logs\nWHERE user_id=?
+LDB --> VSrv : personalLog列表
+VSrv --> VApi : 200 OK\n{companyImportant, companyDispatch,\n personalImportant, personalLog}
+VApi --> MM : ApiResponse(data)
+MM -> MM : 填充四象限列表\n(左上红/右上棕/左下绿/右下蓝)
+MM --> U3 : 四象限矩阵渲染
+
+' ============ 4. 视图页今日覆盖时序图 ============
+== 4. 视图页月视图(今日覆盖) ==
+
+participant "用户" as U4
+participant "ViewFragment" as VF
+participant "ViewViewModel" as VVM
+participant "ViewApi" as VApi2
+participant "ViewController" as VSrv2
+database "tasks表" as TDB2
+database "work_logs表" as LDB2
+
+U4 -> VF : 选择月视图
+VF -> VVM : getMonthView("2026-10")
+VVM -> VApi2 : getMonthView("2026-10", todayCoverage=true)
+VApi2 -> VSrv2 : GET /api/view/month?month=2026-10&todayCoverage=true
+VSrv2 -> TDB2 : SELECT * FROM tasks\nWHERE assignee_id=? AND end_time >= CURRENT_DATE
+TDB2 --> VSrv2 : 任务列表(含今日及未来)
+VSrv2 -> LDB2 : SELECT * FROM work_logs\nWHERE user_id=? AND log_date BETWEEN ?
+LDB2 --> VSrv2 : 日志列表
+VSrv2 -> VSrv2 : 按日期聚合
+VSrv2 --> VApi2 : 200 OK {dateMap, stats}
+VApi2 --> VVM : ApiResponse(data)
+VVM --> VF : LiveData更新
+VF --> U4 : 日历视图渲染(含今日覆盖)
+
+' ============ 5. MBTI命理分析时序图 ============
+== 5. MBTI命理分析(三屏流程) ==
+
+participant "用户" as U5
+participant "MBTITestActivity" as MT
+participant "AIApi" as AApi
+participant "AIController" as ASrv
+database "mbti_analysis\n_requests" as ReqDB
+database "mbti_analysis\n_results" as ResDB
+
+== 5.1 输入屏 -> 加载屏 ==
+
+U5 -> MT : 填写个人信息\n(姓名/性别/出生时间/出生地/现居地)
+U5 -> MT : 点击"开始分析"
+MT -> AApi : startMbtiAnalysis(request)
+AApi -> ASrv : POST /api/ai/mbti/analyze\n{name, gender, timeType, birthTime,\n birthPlace, currentResidence}
+ASrv -> ReqDB : INSERT INTO mbti_analysis_requests\n(status='PENDING')
+ReqDB --> ASrv : requestId
+ASrv -> ASrv : generateMbtiResult()\n(天干地支四柱+深度洞察)
+ASrv -> ResDB : INSERT INTO mbti_analysis_results\n(year_pillar, month_pillar, ..., insights)
+ASrv -> ReqDB : UPDATE status='COMPLETED'
+ASrv --> AApi : 200 OK {requestId}
+AApi --> MT : ApiResponse(data)
+MT -> MT : showLoadingPage()\n"正在为你分析...预计80秒"
+
+== 5.2 加载屏 -> 结果屏 (轮询) ==
+
+loop 每5秒轮询
+    MT -> AApi : getMbtiAnalysisResult(requestId)
+    AApi -> ASrv : GET /api/ai/mbti/analyze/{requestId}
+    ASrv -> ReqDB : SELECT status FROM mbti_analysis_requests
+    ReqDB --> ASrv : status
+    
+    alt status == PENDING
+        ASrv --> AApi : 200 OK {status:'PENDING'}
+        AApi --> MT : 继续等待
+    else status == COMPLETED
+        ASrv -> ResDB : SELECT * FROM mbti_analysis_results
+        ResDB --> ASrv : {year_pillar, month_pillar, ..., insights}
+        ASrv --> AApi : 200 OK {status:'COMPLETED',\n fourPillars, insights}
+        AApi --> MT : 完整结果数据
+        MT -> MT : showResultPage()\n显示四柱+洞察列表
+        MT --> U5 : 命理分析报告
+    else status == FAILED
+        ASrv --> AApi : 200 OK {status:'FAILED'}
+        AApi --> MT : 分析失败
+        MT --> U5 : "分析失败，请重试"
+    end
+end
+
+' ============ 6. 设置页与生日修改时序图 ============
+== 6. 设置页 - 生日修改(365天冷却期) ==
+
+participant "用户" as U6
+participant "SettingsActivity" as SA
+participant "UserApi" as UApi
+participant "UserController" as USrv
+database "users表" as UDB
+
+== 6.1 加载设置 ==
+
+U6 -> SA : 进入设置页
+SA -> UApi : getUserSettings()
+UApi -> USrv : GET /api/user/settings
+USrv -> UDB : SELECT show_completed_tasks,\n birthday, last_birthday_change
+UDB --> USrv : 设置数据
+USrv --> UApi : 200 OK {showCompletedTasks, birthday, lastBirthdayChange}
+UApi --> SA : ApiResponse(data)
+SA -> SA : 渲染设置UI\n(开关/生日/冷却期信息)
+SA --> U6 : 显示设置页
+
+== 6.2 修改生日 ==
+
+U6 -> SA : 点击修改生日
+SA -> SA : 检查last_birthday_change\n是否超过365天
+
+alt 超过365天或首次设置
+    SA -> UApi : updateBirthday({birthday: "2000-01-01"})
+    UApi -> USrv : PUT /api/user/birthday\n{birthday: "2000-01-01"}
+    USrv -> USrv : 校验冷却期\n(now - last_birthday_change >= 365天)
+    USrv -> UDB : UPDATE users SET birthday=?,\n last_birthday_change=NOW()
+    UDB --> USrv : success
+    USrv --> UApi : 200 OK
+    UApi --> SA : success
+    SA --> U6 : "生日修改成功"
+else 未满365天
+    SA --> U6 : "生日每年仅可修改一次\n距上次修改还有X天"
+end
+
+' ============ 7. 通知轮询时序图 ============
+== 7. 通知轮询(WorkManager) ==
+
+participant "WorkManager\n(15分钟周期)" as WM
+participant "NotificationPollWorker" as NPW
+participant "NotificationApi" as NApi2
+participant "NotificationController" as NSrv2
+database "notifications表" as NDB
+participant "TaskNotification\nService" as TNS
+
+WM -> NPW : doWork()
+NPW -> NApi2 : pollNotifications(lastId)
+NApi2 -> NSrv2 : GET /api/notification/poll?lastId=?
+NSrv2 -> NDB : SELECT * FROM notifications\nWHERE target_user_id=? AND id>? AND is_read=0
+NDB --> NSrv2 : 未读通知列表
+NSrv2 --> NApi2 : 200 OK [notifications]
+NApi2 --> NPW : 通知数据
+
+loop 遍历每条通知
+    NPW -> TNS : showNotification(type, content)
+    TNS -> TNS : NotificationManager.notify()\n(息屏通知)
+end
+
+NPW -> NPW : 更新lastId
+NPW --> WM : Result.success()
+
+@enduml

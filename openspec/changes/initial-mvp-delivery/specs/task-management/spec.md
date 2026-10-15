@@ -16,7 +16,12 @@ WHEN they fill in all 6 core indicators and specify an assignee
 THEN the task is dispatched and the assignee receives it
 
 ### Requirement: Task Status Transition
-The system SHALL support task status flow: PENDING → IN_PROGRESS → COMPLETED → CONFIRMED / REJECTED.
+The system SHALL support task status flow with 5 states and role-based transitions:
+- PENDING → {IN_PROGRESS, REJECTED}
+- IN_PROGRESS → {COMPLETED, REJECTED}
+- COMPLETED → {CONFIRMED, REJECTED, IN_PROGRESS}
+- CONFIRMED → {} (terminal)
+- REJECTED → {PENDING, IN_PROGRESS}
 
 #### Scenario: Start task
 GIVEN the assignee has a PENDING task
@@ -32,6 +37,21 @@ THEN the status becomes COMPLETED and the dispatcher gets notified
 GIVEN the dispatcher has a COMPLETED task
 WHEN they confirm it
 THEN the status becomes CONFIRMED and the flow ends
+
+#### Scenario: Reject task
+GIVEN the dispatcher has a COMPLETED or PENDING or IN_PROGRESS task
+WHEN they reject (return) it
+THEN the status becomes REJECTED and the assignee gets notified
+
+#### Scenario: Resubmit rejected task
+GIVEN the assignee has a REJECTED task
+WHEN they resubmit it
+THEN the status becomes PENDING or IN_PROGRESS
+
+#### Scenario: REJECTED status display and filter
+GIVEN the task list is displayed
+WHEN a task has status REJECTED
+THEN it is displayed as "已退回" (TaskListAdapter.getStatusDisplayName) and can be filtered via the "已退回" tab (TaskListFragment.setupTabs)
 
 ### Requirement: Quadrant View
 The system SHALL display tasks in a four-quadrant view based on importance and urgency.

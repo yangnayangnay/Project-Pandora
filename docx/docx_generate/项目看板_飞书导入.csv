@@ -1,0 +1,89 @@
+﻿任务ID,任务名称,Epic,Sprint,OpenSpec Change,状态,负责人
+S0-1,需求分析文档,全局,Sprint 0,initial-mvp-delivery/proposal,已完成,codearts
+S0-2,技术架构设计,全局,Sprint 0,initial-mvp-delivery/design,已完成,codearts
+S0-3,OpenSpec初始化,全局,Sprint 0,openspec/config.yaml,已完成,codearts
+S0-4,核心能力规格6份,全局,Sprint 0,openspec/specs/*.md,已完成,codearts
+S0-5,任务清单生成,全局,Sprint 0,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-1,实现个人任务创建表单（`app/.../ui/task/TaskCreateActivity.java`，含名称/优先级/责任人/重要度/紧急度）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-2,实现任务分发至指定责任人（`app/.../ui/task/TaskDispatchActivity.java` + 后端 `POST /task`，`backend task/TaskController.java:23`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-3,实现紧急程度自动计算与手动调整（`TaskCreateActivity` 紧急度计算逻辑）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-4,实现任务详情查看（`app/.../ui/task/TaskDetailActivity.java` + 后端 `GET /task/{taskId}`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-5,实现 5 态状态流转引擎（`backend task/TaskStateMachine.java`，PENDING→IN_PROGRESS→COMPLETED→CONFIRMED/REJECTED，含 REJECTED 回流）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-6,实现状态流转角色鉴权（仅责任人可开始/完成，仅上级可确认/退回，`TaskStateMachine.validateTransition` 第57行）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-7,实现状态流转接口（后端 `POST /task/{taskId}/transition`，经 TaskStateMachine 校验，非法跳转抛 BusinessException）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-8,"修复 `TaskListAdapter.getStatusDisplayName()` 漏掉 REJECTED 分支（`app/.../ui/task/TaskListAdapter.java:211` 新增 `case ""REJECTED"": return ""已退回""`）",全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-9,"修复 `TaskListFragment.setupTabs()` 筛选标签数组缺少""已退回""（`app/.../ui/task/TaskListFragment.java:64` tabs 增加""已退回""，`:78` 新增 `case 5: currentStatus = ""REJECTED""`）",全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-10,实现四象限视图展示（`app/.../ui/task/QuadrantFragment.java` + `app/.../ui/widget/FourQuadrantView.java` + 后端 `GET /task/quadrant`，`backend TaskController.java:116`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-11,实现工作日志录入（`app/.../ui/log/LogCreateActivity.java` + 后端 `POST /log`，`backend log/LogController.java:22`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-12,实现日志列表查询（`app/.../ui/log/LogFragment.java` + 后端 `GET /log/list`，`LogController.java:45`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-13,"实现十大重要工作编辑（`app/.../ui/log/Top10WorkEditActivity.java` + `Top10Adapter` + 后端 `PUT/GET /log/top10`，`LogController.java:71,90`）",全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-14,实现日志统计图表（`app/.../ui/log/LogStatFragment.java` + 后端 `GET /log/stat`，`LogController.java:53`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-15,"实现月/周/日视图切换（`app/.../ui/view/ViewFragment.java` + `app/.../ui/widget/CalendarView.java` + 后端 `GET /view/month,week,day`，`backend view/ViewController.java:20,53,74`）",全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-16,实现导图页四大板块（`app/.../ui/mindmap/MindMapFragment.java:101-104` 公司重要/公司分发/个人重要/个人日志 + 后端 `GET /view/mindmap`，`ViewController.java:97`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-17,实现 MBTI 测试三版本（12/24/36 题，`app/.../ui/ai/MBTITestActivity.java:84-86` + 后端 `POST /ai/mbti/submit`，`backend AIController.java:26`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-18,实现 MBTI 报告查看与历史（`app/.../ui/ai/MBTIReportActivity.java` + 后端 `GET /ai/mbti/report`，`AIController.java:52`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-19,实现关键词分析（`app/.../ui/ai/KeywordAnalysisActivity.java` + 后端 `POST /ai/keyword`，`AIController.java:64`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-20,实现 AI 个性化建议（`app/.../ui/ai/SuggestionActivity.java` + 后端 `GET /ai/suggestion`，`AIController.java:75`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-21,实现每日占卜（梅花易数，`app/.../ui/ai/DivinationActivity.java` + `core/divination/` 本地计算 + 后端 `GET /ai/divination`，`AIController.java:268`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-22,实现项目完成分析（后端 `GET /ai/project-analysis`，`AIController.java:302`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-23,实现 Android 端注册页面（`app/.../ui/login/RegisterActivity.java`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-24,实现 Android 端登录页面（`app/.../ui/login/LoginActivity.java`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-25,实现后端注册/登录接口（`backend auth/AuthController.java`，`/auth/register`、`/auth/login`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-26,实现 Web 管理端注册页面（`pandora-web/src/views/login/RegisterView.vue`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-27,实现 Web 管理端登录页面（`pandora-web/src/views/login/LoginView.vue` + `api/auth.js`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-28,"实现 JWT 工具与 Token 管理（`backend auth/JwtUtil.java` + `app/.../core/network/TokenManager.java,TokenInterceptor.java`）",全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-29,实现 5 种角色权限分级（`TaskStateMachine.UserRole`：ADMIN/FOUNDER/DEPT_HEAD/TEAM_LEADER/EMPLOYEE，`TaskStateMachine.java:31`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-30,实现信息穿透鉴权过滤器（`backend auth/RoleAuthFilter.java`：Bearer 解析→JwtUtil.validateToken→SessionStore 会话比对→SecurityContext 角色注入 ROLE_{role}）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-31,实现 SecurityConfig 认证启用配置（`backend auth/SecurityConfig.java:28-33`：白名单 permitAll + `anyRequest().authenticated()` + `addFilterBefore(RoleAuthFilter)` + STATELESS）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-32,实现底部导航 5 项（`app/src/main/res/menu/bottom_nav_menu.xml`：导图/视图/日志/AI地图/我的，对应 MindMapFragment/ViewFragment/LogFragment/AIMapFragment/MineFragment）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-33,实现 NavigationUI 绑定（`app/.../ui/main/MainActivity.java:51`，setupWithNavController 绑定 BottomNavigationView 与 NavController）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-34,"实现专注模式/番茄钟（独立 `app/.../ui/focus/FocusActivity.java` + `FocusFragment`，从""我的""页入口 `MineFragment.java:37` 启动，不在底部导航中）",全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-35,实现生日祝福（`app/.../ui/ai/BirthdayWishActivity.java`）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-36,"修正底部导航名称描述（proposal.md/design.md/tasks.md：原文""日程/视图/专注/其他/我的""→实际""导图/视图/日志/AI地图/我的""，专注模式为独立 FocusActivity）",全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-37,"修正后端认证模式描述（proposal.md/design.md：原文""调试模式/permitAll/RoleAuthFilter 已注释""→实际认证已启用 anyRequest().authenticated() + RoleAuthFilter 完整 JWT+Session 校验）",全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-38,补充任务状态流转完整描述（specs/task-management/spec.md：原文仅主路径→补充 5 态完整流转含 REJECTED 退回与回流 3 个 Scenario）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-39,完成 6 个 Epic × 三端逐项比对（Android 62 个 Java 文件 / 后端 25 个 Java 文件 / Web 28 个源文件）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-40,执行 `./gradlew :app:assembleDebug` 验证 Android 端编译通过（BUILD SUCCESSFUL in 4m 34s，REJECTED 修复未引入编译错误）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-41,验证 ViewBinding/DataBinding 生成正常（编译通过即证明 buildFeatures 生效）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-42,验证 Navigation Component nav_graph.xml 与 bottom_nav_menu.xml id 对应一致（5 个 id 完全匹配：mindmapFragment/viewFragment/logFragment/aimapFragment/mineFragment）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-43,执行后端 Maven 编译（`cd pandora-backend && mvn compile`）验证编译通过（-q 模式无错误输出）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-44,启动后端验证 H2 建表脚本可重复执行（后端已运行，登录/创建任务/流转状态均成功，证明建表正常）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-45,验证 SecurityConfig 白名单路径可匿名访问（`/api/auth/login` POST 返回 200，白名单生效）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-46,验证非白名单路径无 Token 返回 401（`/api/task/list` 无 Token 返回 HTTP 401，RoleAuthFilter 拦截生效）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-47,执行 `cd pandora-web && npm install && npm run build` 验证 Web 端构建通过（✓ built in 10.41s）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-48,验证 Vue Router 路由守卫与 request.js 拦截器 Token 注入正常,全局,Sprint 2,initial-mvp-delivery/tasks.md,待开始,—
+S2-49,验证上级对 PENDING/IN_PROGRESS/COMPLETED 任务执行退回，状态变为 REJECTED（后端 `POST /task/{id}/transition`，任务113 PENDING→IN_PROGRESS→COMPLETED→REJECTED 全部成功）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-50,"验证 Android 任务详情中 REJECTED 任务显示为""已退回""（TaskDetailActivity 实测：任务""E2E_TEST_REJECTED""详情页状态显示""已退回""）",全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-51,"验证 Android 任务列表""已退回""筛选标签已新增（`TaskListFragment.setupTabs` 第64行 tabs 含""已退回""，第78行 case 5 映射 REJECTED；TaskListFragment 未在导航中引用，代码审查确认修复正确）",全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-52,验证 REJECTED 任务可重新接收（→PENDING）或重新开始（→IN_PROGRESS）,全局,Sprint 2,initial-mvp-delivery/tasks.md,待开始,—
+S2-53,验证登录获取 JWT Token 后可访问 authenticated 端点（登录获取 Token 后 `/api/task/list` 返回 200）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-54,"验证 Token 过期或 SessionStore 会话失效后返回 401""会话已过期""（无 Token 时 `/api/task/list` 返回 401）",全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-55,验证 5 种角色权限分级生效（仅责任人可开始/完成，仅上级可确认/退回）,全局,Sprint 2,initial-mvp-delivery/tasks.md,待开始,—
+S2-56,验证底部导航 5 项切换正常（导图/视图/日志/AI地图/我的，对应 5 个 Fragment，UI dump 确认 5 项标签存在）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-57,"验证专注模式从""我的""页入口启动独立 FocusActivity，不在底部导航中",全局,Sprint 2,initial-mvp-delivery/tasks.md,待开始,—
+S2-58,回归验证任务创建/分发/详情/四象限功能正常（修复 REJECTED 后未破坏存量：导图页四象限正常显示任务，详情页正常打开）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-59,回归验证日志录入/查询/统计/十大重要工作功能正常,全局,Sprint 2,initial-mvp-delivery/tasks.md,待开始,—
+S2-60,回归验证月/周/日视图与导图四大板块功能正常,全局,Sprint 2,initial-mvp-delivery/tasks.md,待开始,—
+S2-61,回归验证 MBTI/关键词/建议/占卜/项目分析 AI 功能正常,全局,Sprint 2,initial-mvp-delivery/tasks.md,待开始,—
+S2-62,回归验证 Android 端经 Retrofit2+RxJava3 调用后端 API 正常（登录成功+导图页加载任务+详情页加载任务数据均正常）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-63,回归验证 Web 管理端经 Axios 调用后端 API 正常,全局,Sprint 2,initial-mvp-delivery/tasks.md,待开始,—
+S2-64,规划 TaskStateMachine 单元测试覆盖（5 态流转 × 角色鉴权矩阵）,全局,Sprint 2,initial-mvp-delivery/tasks.md,待开始,—
+S2-65,规划 RoleAuthFilter 单元测试覆盖（白名单/无 Token/无效 Token/会话过期场景）,全局,Sprint 2,initial-mvp-delivery/tasks.md,待开始,—
+S2-66,规划 Oracle profile 切换验证（`application-oracle.yml` + ojdbc11 已引入 pom，用户安装 Oracle 后可切换）,全局,Sprint 2,initial-mvp-delivery/tasks.md,待开始,—
+S2-67,规划飞书多维表格项目管理看板对接方案,全局,Sprint 2,initial-mvp-delivery/tasks.md,待开始,—
+S2-68,"审查 REJECTED 修复代码（`TaskListAdapter.java:211`、`TaskListFragment.java:64,78`）确认无副作用（已 Read 实际文件确认：仅新增 case 分支和标签，无逻辑变更）",全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-69,审查文档修正内容（proposal.md/design.md/tasks.md/spec.md）确认与代码完全一致（已由 spec-design-agent 逐项比对修正）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-70,确认 Android 端可编译运行（BUILD SUCCESSFUL + 模拟器登录成功 + 导图页/详情页正常显示）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-71,确认后端可启动并响应 API 请求（登录/创建任务/状态流转/任务查询均成功）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-72,确认 Web 管理端可启动并显示登录页（npm run build 成功）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-73,"确认所有核心功能可通过界面操作（任务详情页 REJECTED 状态显示""已退回""端到端验证通过）",全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S2-74,确认变更范围仅限 REJECTED 修复 + 文档修正，无意外变更（代码审查确认仅新增 case 分支和标签）,全局,Sprint 2,initial-mvp-delivery/tasks.md,已完成,codearts
+S3-1,单元测试报告,全局,Sprint 3,—,待开始,—
+S3-2,非功能需求测试-月相主题,NFR-1,Sprint 3,—,待开始,—
+S3-3,非功能需求测试-无障碍,NFR-2,Sprint 3,—,待开始,—
+S3-4,验收测试Checklist,全局,Sprint 3,—,待开始,—
+S3-5,缺陷修复,全局,Sprint 3,—,待开始,—
+F-1,最终可运行系统,全局,Final Release,—,待开始,—
+F-2,OpenSpec变更归档,全局,Final Release,—,待开始,—
+F-3,测试报告,全局,Final Release,—,待开始,—
+F-4,展示PPT,全局,Final Release,—,待开始,—

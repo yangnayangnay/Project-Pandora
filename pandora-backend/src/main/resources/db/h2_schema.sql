@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS `work_logs` (
     PRIMARY KEY (`id`)
 );
 CREATE INDEX IF NOT EXISTS `idx_log_user_date` ON `work_logs` (`user_id`, `log_date`);
+CREATE UNIQUE INDEX IF NOT EXISTS `uk_log_user_date_active` ON `work_logs` (`user_id`, `log_date`);
 
 CREATE TABLE IF NOT EXISTS `top10_works` (
     `id`              BIGINT       NOT NULL AUTO_INCREMENT,
@@ -94,8 +95,7 @@ CREATE TABLE IF NOT EXISTS `top10_works` (
     `related_task_id` BIGINT       DEFAULT NULL,
     `updated_at`      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `deleted`         TINYINT      NOT NULL DEFAULT 0,
-    PRIMARY KEY (`id`),
-    CONSTRAINT `uk_user_type_rank` UNIQUE (`user_id`, `work_type`, `rank_order`)
+    PRIMARY KEY (`id`)
 );
 
 CREATE TABLE IF NOT EXISTS `mbti_reports` (
@@ -135,6 +135,10 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
     PRIMARY KEY (`id`)
 );
 CREATE INDEX IF NOT EXISTS `idx_audit_operator_time` ON `audit_logs` (`operator_id`, `operated_at`);
+ALTER TABLE `audit_logs` ADD COLUMN IF NOT EXISTS `operation_type` VARCHAR(32) DEFAULT NULL;
+ALTER TABLE `audit_logs` ADD COLUMN IF NOT EXISTS `operation_content` VARCHAR(500) DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS `idx_audit_type_time` ON `audit_logs` (`operation_type`, `operated_at`);
+
 
 CREATE TABLE IF NOT EXISTS `invitation_requests` (
     `id`         BIGINT       NOT NULL AUTO_INCREMENT,
@@ -171,7 +175,186 @@ CREATE INDEX IF NOT EXISTS `idx_approver_rule` ON `audit_rule_approvers` (`rule_
 CREATE INDEX IF NOT EXISTS `idx_approver_user` ON `audit_rule_approvers` (`approver_id`);
 
 -- =============================================================================
+-- 显式层级关系表 (替代隐式 department_id/team_id 推导, 支持跨层级递归查询)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `user_hierarchy` (
+    `id`             BIGINT    NOT NULL AUTO_INCREMENT,
+    `superior_id`    BIGINT    NOT NULL,
+    `subordinate_id` BIGINT    NOT NULL,
+    `created_at`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    CONSTRAINT `uk_hierarchy_pair` UNIQUE (`superior_id`, `subordinate_id`)
+);
+CREATE INDEX IF NOT EXISTS `idx_hierarchy_superior` ON `user_hierarchy` (`superior_id`);
+CREATE INDEX IF NOT EXISTS `idx_hierarchy_subordinate` ON `user_hierarchy` (`subordinate_id`);
+
+-- =============================================================================
+-- 组织归属独立表 (4NF分离: 从users表分离部门/团队归属信息)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `user_org_affiliation` (
+    `user_id`       BIGINT NOT NULL,
+    `department_id` BIGINT DEFAULT NULL,
+    `team_id`       BIGINT DEFAULT NULL,
+    PRIMARY KEY (`user_id`)
+);
+CREATE INDEX IF NOT EXISTS `idx_org_dept` ON `user_org_affiliation` (`department_id`);
+CREATE INDEX IF NOT EXISTS `idx_org_team` ON `user_org_affiliation` (`team_id`);
+
+-- =============================================================================
 -- 初始化数据：管理员账号 (密码: admin123, BCrypt加密)
 -- =============================================================================
 MERGE INTO `users` (`id`, `username`, `password_hash`, `role`) KEY(`id`) VALUES
 (1, 'admin', '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'ADMIN');
+-- =============================================================================
+-- 扩展字段：用户邮箱/实名认证/审批状态 (ALTER TABLE, 幂等)
+-- =============================================================================
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `email` VARCHAR(128) DEFAULT NULL;
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `real_name` VARCHAR(64) DEFAULT NULL;
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `id_card` VARCHAR(18) DEFAULT NULL;
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `approval_status` VARCHAR(20) NOT NULL DEFAULT 'APPROVED';
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `phone` VARCHAR(20) DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS `idx_users_email` ON `users` (`email`);
+CREATE INDEX IF NOT EXISTS `idx_users_id_card` ON `users` (`id_card`);
+CREATE INDEX IF NOT EXISTS `idx_users_approval` ON `users` (`approval_status`);
+
+-- =============================================================================
+-- 员工预登记表 (管理员预录入员工信息, 注册时自动匹配)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `employee_records` (
+    `id`              BIGINT       NOT NULL AUTO_INCREMENT,
+    `real_name`       VARCHAR(64)  NOT NULL,
+    `id_card`         VARCHAR(18)  NOT NULL,
+    `email`           VARCHAR(128) DEFAULT NULL,
+    `phone`           VARCHAR(20)  DEFAULT NULL,
+    `department_id`   BIGINT       DEFAULT NULL,
+    `team_id`         BIGINT       DEFAULT NULL,
+    `role`            VARCHAR(20)  NOT NULL DEFAULT 'EMPLOYEE',
+    `position`        VARCHAR(64)  DEFAULT NULL COMMENT '职位名称',
+    `status`          VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/REGISTERED/DISABLED',
+    `registered_user_id` BIGINT    DEFAULT NULL COMMENT '匹配到的用户ID',
+    `created_at`      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `deleted`         TINYINT      NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    CONSTRAINT `uk_emp_id_card` UNIQUE (`id_card`)
+);
+CREATE INDEX IF NOT EXISTS `idx_emp_status` ON `employee_records` (`status`);
+CREATE INDEX IF NOT EXISTS `idx_emp_dept` ON `employee_records` (`department_id`);
+-- =============================================================================
+-- 密码重置申请表 (用户忘记密码时申请, 管理员审批后重置)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `password_reset_requests` (
+    `id`              BIGINT       NOT NULL AUTO_INCREMENT,
+    `user_id`         BIGINT       DEFAULT NULL COMMENT '匹配到的用户ID, 未匹配则为NULL',
+    `username`        VARCHAR(64)  NOT NULL COMMENT '申请时填写的用户名或邮箱',
+    `status`          VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/APPROVED/REJECTED',
+    `request_reason`  VARCHAR(256) DEFAULT NULL COMMENT '申请原因',
+    `reject_reason`   VARCHAR(256) DEFAULT NULL COMMENT '拒绝原因',
+    `processed_by`    BIGINT       DEFAULT NULL COMMENT '审批管理员ID',
+    `processed_at`    TIMESTAMP    DEFAULT NULL,
+    `created_at`      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+);
+CREATE INDEX IF NOT EXISTS `idx_prr_status` ON `password_reset_requests` (`status`);
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `birthday` DATE DEFAULT NULL;
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `last_birthday_change` TIMESTAMP DEFAULT NULL;
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `show_completed_tasks` TINYINT NOT NULL DEFAULT 1;
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `show_yesterday_log` TINYINT NOT NULL DEFAULT 1;
+CREATE TABLE IF NOT EXISTS `notifications` (
+    `id`              BIGINT       NOT NULL AUTO_INCREMENT,
+    `target_user_id`  BIGINT       NOT NULL,
+    `type`            VARCHAR(20)  NOT NULL,
+    `task_id`         BIGINT       DEFAULT NULL,
+    `content`         VARCHAR(256) NOT NULL,
+    `is_read`         TINYINT      NOT NULL DEFAULT 0,
+    `created_at`      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+);
+CREATE INDEX IF NOT EXISTS `idx_notif_user_created` ON `notifications` (`target_user_id`, `created_at`);
+CREATE INDEX IF NOT EXISTS `idx_notif_user_unread` ON `notifications` (`target_user_id`, `is_read`);
+
+
+ALTER TABLE `top10_works` ADD COLUMN IF NOT EXISTS `is_auto_filled` TINYINT NOT NULL DEFAULT 0;
+ALTER TABLE `top10_works` ADD COLUMN IF NOT EXISTS `source_note` VARCHAR(256) DEFAULT NULL;
+ALTER TABLE `top10_works` ADD COLUMN IF NOT EXISTS `source_log_date` DATE DEFAULT NULL;
+ALTER TABLE `top10_works` ADD COLUMN IF NOT EXISTS `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS `function_permissions` (
+    `id`              BIGINT       NOT NULL AUTO_INCREMENT,
+    `function_code`   VARCHAR(50)  NOT NULL,
+    `subject_user_id` BIGINT       NOT NULL,
+    `configured_by`   BIGINT       DEFAULT NULL,
+    `configured_at`   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `deleted`         TINYINT      NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`)
+);
+CREATE INDEX IF NOT EXISTS `idx_func_perm_code` ON `function_permissions` (`function_code`, `deleted`);
+CREATE INDEX IF NOT EXISTS `idx_func_perm_subject` ON `function_permissions` (`subject_user_id`, `deleted`);
+
+CREATE TABLE IF NOT EXISTS `ai_config` (
+    `id`               BIGINT       NOT NULL AUTO_INCREMENT,
+    `api_name`         VARCHAR(100) NOT NULL,
+    `api_url`          VARCHAR(512) NOT NULL,
+    `api_key`          VARCHAR(256) NOT NULL,
+    `model`            VARCHAR(100) NOT NULL DEFAULT 'deepseek-chat',
+    `provider`         VARCHAR(30)  NOT NULL DEFAULT 'DEEPSEEK',
+    `quota_threshold`  INT          NOT NULL DEFAULT 100,
+    `timeout_ms`       INT          NOT NULL DEFAULT 30000,
+    `enabled`          TINYINT      NOT NULL DEFAULT 1,
+    `fallback_url`     VARCHAR(512) NOT NULL DEFAULT 'http://localhost:8081',
+    `fallback_enabled` TINYINT      NOT NULL DEFAULT 1,
+    `updated_at`       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+ );
+
+ALTER TABLE `ai_config` ADD COLUMN IF NOT EXISTS `model` VARCHAR(100) NOT NULL DEFAULT 'deepseek-chat';
+ALTER TABLE `ai_config` ADD COLUMN IF NOT EXISTS `provider` VARCHAR(30) NOT NULL DEFAULT 'DEEPSEEK';
+
+CREATE TABLE IF NOT EXISTS `ai_quota_events` (
+    `id`                BIGINT       NOT NULL AUTO_INCREMENT,
+    `event_time`        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `api_name`          VARCHAR(100) NOT NULL,
+    `remaining_quota`   BIGINT       DEFAULT NULL,
+    `trigger_threshold` INT          NOT NULL,
+    `action_taken`      VARCHAR(50)  NOT NULL,
+    `notify_status`     VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
+    `recorded_at`       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+);
+CREATE INDEX IF NOT EXISTS `idx_ai_quota_event_time` ON `ai_quota_events` (`event_time`);
+CREATE INDEX IF NOT EXISTS `idx_ai_quota_notify` ON `ai_quota_events` (`notify_status`);
+ALTER TABLE `ai_analyses` ADD COLUMN IF NOT EXISTS `trigger_log_id` BIGINT DEFAULT NULL;
+ALTER TABLE `ai_analyses` ADD COLUMN IF NOT EXISTS `keywords` CLOB DEFAULT NULL;
+ALTER TABLE `ai_analyses` ADD COLUMN IF NOT EXISTS `mbti_type` VARCHAR(4) DEFAULT NULL;
+ALTER TABLE `ai_analyses` ADD COLUMN IF NOT EXISTS `source` VARCHAR(10) DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS `idx_ai_trigger_log` ON `ai_analyses` (`trigger_log_id`);
+CREATE INDEX IF NOT EXISTS `idx_ai_user_generated` ON `ai_analyses` (`user_id`, `generated_at`);
+-- =============================================================================
+-- 编辑草稿表 (自动保存未提交的编辑内容, 跨设备恢复)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `drafts` (
+    `draft_id`   BIGINT      NOT NULL AUTO_INCREMENT,
+    `user_id`    BIGINT      NOT NULL,
+    `draft_type` VARCHAR(20) NOT NULL,
+    `content`    CLOB        DEFAULT NULL,
+    `created_at` TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`draft_id`),
+    CONSTRAINT `uk_draft_user_type` UNIQUE (`user_id`, `draft_type`)
+);
+
+-- =============================================================================
+-- 内容模板表 (日志/任务模板, 云端存储, 跨设备同步)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `templates` (
+    `template_id`   BIGINT       NOT NULL AUTO_INCREMENT,
+    `user_id`       BIGINT       NOT NULL,
+    `template_type` VARCHAR(20)  NOT NULL,
+    `name`          VARCHAR(200) NOT NULL,
+    `content`       CLOB         DEFAULT NULL,
+    `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `deleted`       TINYINT      NOT NULL DEFAULT 0,
+    PRIMARY KEY (`template_id`)
+);
+CREATE INDEX IF NOT EXISTS `idx_template_user_type` ON `templates` (`user_id`, `template_type`, `deleted`);

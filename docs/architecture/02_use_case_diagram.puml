@@ -1,0 +1,193 @@
+@startuml 用例图_UseCaseDiagram
+title Project Pandora - 用例图
+
+left to right direction
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Microsoft YaHei
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+' ============ 角色定义 ============
+actor "系统管理员\n(ADMIN)" as Admin
+actor "创始人\n(FOUNDER)" as Founder
+actor "部门主管\n(DEPT_HEAD)" as DeptHead
+actor "团队领导\n(TEAM_LEADER)" as TeamLeader
+actor "普通员工\n(EMPLOYEE)" as Employee
+
+' ============ 用例分组 ============
+
+package "认证与账户管理" {
+    usecase "用户登录" as UC_Login
+    usecase "用户注册" as UC_Register
+    usecase "忘记密码" as UC_ForgotPwd
+    usecase "修改个人资料" as UC_EditProfile
+    usecase "上传头像" as UC_UploadAvatar
+    usecase "修改主题" as UC_ChangeTheme
+    usecase "查看/修改设置" as UC_Settings
+    usecase "设置/修改生日" as UC_SetBirthday
+    usecase "登出" as UC_Logout
+}
+
+package "任务管理" {
+    usecase "创建任务" as UC_CreateTask
+    usecase "查看我的任务" as UC_ViewMyTask
+    usecase "查看我派发的任务" as UC_ViewDispatched
+    usecase "更新任务状态" as UC_UpdateTask
+    usecase "更新进度备注" as UC_UpdateProgress
+    usecase "任务状态流转" as UC_TransitionTask
+    usecase "查看下级任务" as UC_SubordinateTask
+    usecase "查看四象限任务" as UC_QuadrantTask
+    usecase "分配任务给下级" as UC_AssignTask
+}
+
+package "工作日志" {
+    usecase "创建工作日志" as UC_CreateLog
+    usecase "查看日志列表" as UC_ViewLogs
+    usecase "编辑日志" as UC_EditLog
+    usecase "删除日志" as UC_DeleteLog
+    usecase "查看日志统计" as UC_LogStats
+    usecase "管理Top10工作项" as UC_Top10
+    usecase "自动生成日志" as UC_AutoGenLog
+    usecase "查看下级日志" as UC_SubordinateLog
+}
+
+package "视图与导图" {
+    usecase "月视图" as UC_MonthView
+    usecase "周视图" as UC_WeekView
+    usecase "日视图" as UC_DayView
+    usecase "导图四象限矩阵" as UC_MindMap
+    usecase "信息地图" as UC_InfoMap
+}
+
+package "AI分析" {
+    usecase "AI个性化建议" as UC_Suggestion
+    usecase "MBTI命理分析" as UC_MbtiAnalyze
+    usecase "关键词分析" as UC_Keyword
+    usecase "每日占卜" as UC_Divination
+    usecase "查看MBTI报告" as UC_MbtiReport
+}
+
+package "通知管理" {
+    usecase "接收任务通知" as UC_ReceiveNotif
+    usecase "轮询通知" as UC_PollNotif
+    usecase "标记已读" as UC_MarkRead
+    usecase "查看通知列表" as UC_ViewNotif
+}
+
+package "审批与权限" {
+    usecase "员工预登记" as UC_EmpPreReg
+    usecase "审批注册申请" as UC_ApproveReg
+    usecase "审批密码重置" as UC_ApproveReset
+    usecase "查看审计日志" as UC_ViewAudit
+    usecase "管理审批规则" as UC_MngAuditRule
+}
+
+package "数据收集" {
+    usecase "数据收集总览" as UC_DataCollect
+    usecase "任务统计" as UC_TaskStats
+    usecase "日志统计概览" as UC_LogOverview
+    usecase "关键词分析入口" as UC_KeywordEntry
+}
+
+' ============ 关系连线 ============
+
+' 所有角色共享的用例
+Admin --> UC_Login
+Founder --> UC_Login
+DeptHead --> UC_Login
+TeamLeader --> UC_Login
+Employee --> UC_Login
+
+' ADMIN 特有用例
+Admin --> UC_EmpPreReg
+Admin --> UC_ApproveReg
+Admin --> UC_ApproveReset
+Admin --> UC_ViewAudit
+Admin --> UC_MngAuditRule
+
+' FOUNDER 特有用例
+Founder --> UC_ViewDispatched
+Founder --> UC_AssignTask
+Founder --> UC_SubordinateTask
+Founder --> UC_SubordinateLog
+Founder --> UC_ViewAudit
+
+' DEPT_HEAD 特有用例
+DeptHead --> UC_ViewDispatched
+DeptHead --> UC_AssignTask
+DeptHead --> UC_SubordinateTask
+DeptHead --> UC_SubordinateLog
+
+' TEAM_LEADER 特有用例
+TeamLeader --> UC_ViewDispatched
+TeamLeader --> UC_AssignTask
+TeamLeader --> UC_SubordinateTask
+TeamLeader --> UC_SubordinateLog
+
+' 所有用户共享用例
+Admin --> UC_Register
+Founder --> UC_Register
+DeptHead --> UC_Register
+TeamLeader --> UC_Register
+Employee --> UC_Register
+
+' 通用用例 - 所有角色
+Employee --> UC_EditProfile
+Employee --> UC_UploadAvatar
+Employee --> UC_ChangeTheme
+Employee --> UC_Settings
+Employee --> UC_SetBirthday
+Employee --> UC_Logout
+Employee --> UC_ForgotPwd
+
+Employee --> UC_CreateTask
+Employee --> UC_ViewMyTask
+Employee --> UC_UpdateTask
+Employee --> UC_UpdateProgress
+Employee --> UC_TransitionTask
+Employee --> UC_QuadrantTask
+
+Employee --> UC_CreateLog
+Employee --> UC_ViewLogs
+Employee --> UC_EditLog
+Employee --> UC_DeleteLog
+Employee --> UC_LogStats
+Employee --> UC_Top10
+Employee --> UC_AutoGenLog
+
+Employee --> UC_MonthView
+Employee --> UC_WeekView
+Employee --> UC_DayView
+Employee --> UC_MindMap
+Employee --> UC_InfoMap
+
+Employee --> UC_Suggestion
+Employee --> UC_MbtiAnalyze
+Employee --> UC_Keyword
+Employee --> UC_Divination
+Employee --> UC_MbtiReport
+
+Employee --> UC_ReceiveNotif
+Employee --> UC_PollNotif
+Employee --> UC_MarkRead
+Employee --> UC_ViewNotif
+
+Employee --> UC_DataCollect
+Employee --> UC_TaskStats
+Employee --> UC_LogOverview
+Employee --> UC_KeywordEntry
+
+' 继承关系 (角色权限层级)
+' FOUNDER 继承 DEPT_HEAD 所有权限
+' DEPT_HEAD 继承 TEAM_LEADER 所有权限
+' TEAM_LEADER 继承 EMPLOYEE 所有权限
+' ADMIN 独立管理角色
+
+' include 关系
+UC_CreateTask ..> UC_AssignTask : <<include>>
+UC_MbtiAnalyze ..> UC_MbtiReport : <<include>>
+UC_DataCollect ..> UC_TaskStats : <<include>>
+UC_DataCollect ..> UC_LogOverview : <<include>>
+UC_DataCollect ..> UC_KeywordEntry : <<include>>
+
+@enduml

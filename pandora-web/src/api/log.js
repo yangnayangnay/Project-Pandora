@@ -8,6 +8,18 @@ export function listLogs() {
   return request.get('/log/list')
 }
 
+export function listAllLogs(params) {
+  return request.get('/log/all', { params })
+}
+
+export function cleanupPreview() {
+  return request.get('/log/cleanup-preview')
+}
+
+export function cleanupExecute() {
+  return request.post('/log/cleanup-execute')
+}
+
 export function getLogStats() {
   return request.get('/log/stat')
 }

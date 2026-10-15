@@ -15,13 +15,23 @@ import androidx.navigation.ui.NavigationUI;
 
 import com.example.project_pandora.core.crash.CrashHandler;
 import com.example.project_pandora.core.logger.PandoraLogger;
-import com.example.project_pandora.core.theme.ThemeManager;
+import com.example.project_pandora.core.network.NetworkStateMonitor;
+import com.example.project_pandora.core.network.ServerConnectivityMonitor;
+import com.example.project_pandora.core.network.TokenManager;
+import com.example.project_pandora.core.sync.NetworkMode;
+import com.example.project_pandora.core.sync.SyncManager;
+import com.example.project_pandora.core.sync.SyncProgress;
+import com.example.project_pandora.core.sync.SyncState;
+import com.example.project_pandora.core.sync.SyncWorker;
 import com.example.project_pandora.databinding.ActivityMainBinding;
+
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
 
 public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
-    private ThemeManager themeManager;
+    private final CompositeDisposable disposables = new CompositeDisposable();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,6 +40,10 @@ public class MainActivity extends AppCompatActivity {
 
         PandoraLogger.init(this);
         CrashHandler.register(this);
+
+        if (TokenManager.getInstance(this).isLoggedIn()) {
+            SyncWorker.enqueueOneTime(this);
+        }
 
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -40,11 +54,72 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        themeManager = new ThemeManager(this);
-        themeManager.applyTheme();
-
         setupBottomNavigation();
         adjustBottomNavHeight();
+        initSyncStatusBar();
+    }
+
+    private void initSyncStatusBar() {
+        SyncManager syncManager = SyncManager.getInstance();
+
+        disposables.add(syncManager.statusStream()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(state -> updateSyncBar()));
+
+        disposables.add(syncManager.progressStream()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(progress -> updateSyncBar()));
+
+        disposables.add(NetworkStateMonitor.getInstance().modeStream()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(mode -> updateSyncBar()));
+    }
+
+    private void updateSyncBar() {
+        SyncManager syncManager = SyncManager.getInstance();
+        SyncState state = syncManager.getCurrentStatus();
+        SyncProgress progress = syncManager.getCurrentProgress();
+        NetworkMode mode = NetworkStateMonitor.getInstance().getCurrentMode();
+
+        if (mode == NetworkMode.OFFLINE) {
+            binding.syncStatusBar.setVisibility(View.VISIBLE);
+            binding.textSyncIndicator.setText("离线模式 - 数据将保存至本地");
+            binding.syncStatusBar.setBackgroundColor(0xFFFFF3E0);
+            binding.textSyncIndicator.setTextColor(0xFFE65100);
+            return;
+        }
+
+        switch (state) {
+            case SYNCING:
+                binding.syncStatusBar.setVisibility(View.VISIBLE);
+                if (progress != null && progress.getTotal() > 0) {
+                    binding.textSyncIndicator.setText("同步中: " + progress.displayText());
+                } else {
+                    binding.textSyncIndicator.setText("同步中...");
+                }
+                binding.syncStatusBar.setBackgroundColor(0xFFE3F2FD);
+                binding.textSyncIndicator.setTextColor(0xFF1565C0);
+                break;
+            case PARTIAL_FAILED:
+                binding.syncStatusBar.setVisibility(View.VISIBLE);
+                if (progress != null) {
+                    binding.textSyncIndicator.setText(progress.summaryText());
+                } else {
+                    binding.textSyncIndicator.setText("部分同步失败");
+                }
+                binding.syncStatusBar.setBackgroundColor(0xFFFFF3E0);
+                binding.textSyncIndicator.setTextColor(0xFFE65100);
+                break;
+            case TOKEN_EXPIRED:
+                binding.syncStatusBar.setVisibility(View.VISIBLE);
+                binding.textSyncIndicator.setText("登录已过期，请重新登录");
+                binding.syncStatusBar.setBackgroundColor(0xFFFFEBEE);
+                binding.textSyncIndicator.setTextColor(0xFFC62828);
+                break;
+            default:
+                binding.syncStatusBar.setVisibility(View.GONE);
+                break;
+        }
     }
 
     private void setupBottomNavigation() {
@@ -74,5 +149,23 @@ public class MainActivity extends AppCompatActivity {
                 binding.bottomNavigation.setLayoutParams(params);
             }
         });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        ServerConnectivityMonitor.getInstance().onAppForeground();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        ServerConnectivityMonitor.getInstance().onAppBackground();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        disposables.clear();
     }
 }

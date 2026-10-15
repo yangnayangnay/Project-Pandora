@@ -26,7 +26,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll()
+                        .requestMatchers("/auth/login", "/auth/register", "/auth/refresh", "/auth/forgot-password",
+                                "/actuator/**", "/h2-console/**", "/uploads/**").permitAll()
+                        .anyRequest().authenticated()
                 )
                 .addFilterBefore(roleAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .headers(headers -> headers.frameOptions(frame -> frame.disable()));

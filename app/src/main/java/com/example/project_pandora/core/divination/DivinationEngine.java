@@ -20,11 +20,15 @@ public class DivinationEngine {
         private final String[] mutualLines;
         private final String[] changedLines;
         private final int movingLine;
+        private final boolean[] originalLinePattern;
+        private final boolean[] mutualLinePattern;
+        private final boolean[] changedLinePattern;
 
         public DivinationResult(String originalName, String mutualName, String changedName,
-                                String originalJudgment, String mutualJudgment, String changedJudgment,
-                                String[] originalLines, String[] mutualLines, String[] changedLines,
-                                int movingLine) {
+                                 String originalJudgment, String mutualJudgment, String changedJudgment,
+                                 String[] originalLines, String[] mutualLines, String[] changedLines,
+                                 int movingLine,
+                                 boolean[] originalLinePattern, boolean[] mutualLinePattern, boolean[] changedLinePattern) {
             this.originalName = originalName;
             this.mutualName = mutualName;
             this.changedName = changedName;
@@ -35,6 +39,9 @@ public class DivinationEngine {
             this.mutualLines = mutualLines;
             this.changedLines = changedLines;
             this.movingLine = movingLine;
+            this.originalLinePattern = originalLinePattern;
+            this.mutualLinePattern = mutualLinePattern;
+            this.changedLinePattern = changedLinePattern;
         }
 
         public String getOriginalName() { return originalName; }
@@ -47,6 +54,9 @@ public class DivinationEngine {
         public String[] getMutualLines() { return mutualLines; }
         public String[] getChangedLines() { return changedLines; }
         public int getMovingLine() { return movingLine; }
+        public boolean[] getOriginalLinePattern() { return originalLinePattern; }
+        public boolean[] getMutualLinePattern() { return mutualLinePattern; }
+        public boolean[] getChangedLinePattern() { return changedLinePattern; }
     }
 
     public DivinationResult divine(Date date) {
@@ -93,9 +103,29 @@ public class DivinationEngine {
             changedLines[i - 1] = HexagramTexts.getLineText(changedHexagram, i);
         }
 
+        boolean[] originalLinePattern = getLinePattern(originalHexagram);
+        boolean[] mutualLinePattern = getLinePattern(mutualHexagram);
+        boolean[] changedLinePattern = getLinePattern(changedHexagram);
+
         return new DivinationResult(originalName, mutualName, changedName,
                 originalJudgment, mutualJudgment, changedJudgment,
-                originalLines, mutualLines, changedLines, movingLine);
+                originalLines, mutualLines, changedLines, movingLine,
+                originalLinePattern, mutualLinePattern, changedLinePattern);
+    }
+
+    public boolean[] getLinePattern(int hexagram) {
+        int upper = (hexagram - 1) % 8 + 1;
+        int lower = (hexagram - 1) / 8 + 1;
+        int lowerLines = trigramToLines(lower);
+        int upperLines = trigramToLines(upper);
+        boolean[] pattern = new boolean[6];
+        pattern[0] = (lowerLines & 1) == 1;
+        pattern[1] = ((lowerLines >> 1) & 1) == 1;
+        pattern[2] = ((lowerLines >> 2) & 1) == 1;
+        pattern[3] = (upperLines & 1) == 1;
+        pattern[4] = ((upperLines >> 1) & 1) == 1;
+        pattern[5] = ((upperLines >> 2) & 1) == 1;
+        return pattern;
     }
 
     public DivinationResult divineToday() {

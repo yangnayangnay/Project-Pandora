@@ -1,0 +1,160 @@
+@startuml 数据流图_DataFlowDiagram
+title Project Pandora - 数据流图 (DFD)
+
+' 定义样式
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Microsoft YaHei
+skinparam shadowing false
+
+' ============ Level 0: 上下文图 ============
+package "Level 0: 系统上下文图" {
+    actor "用户\n(5种角色)" as User
+    rectangle "Pandora\n智能掌上工作系统" as System
+    database "H2数据库\n(17张表)" as DB
+    
+    User --> System : 请求 (HTTP/JSON)
+    System --> User : 响应 (HTTP/JSON)
+    System --> DB : SQL查询/更新
+    DB --> System : 查询结果
+}
+
+' ============ Level 1: 主要数据流 ============
+package "Level 1: 主要数据流分解" {
+    
+    actor "用户" as U1
+    
+    ' 客户端处理
+    rectangle "Android客户端" as Client {
+        rectangle "UI层\n(Activity/Fragment)" as UI
+        rectangle "ViewModel层\n(MVVM)" as VM
+        rectangle "Repository层" as Repo
+        rectangle "Retrofit\n网络层" as Net
+        rectangle "Room\n本地缓存" as Cache
+    }
+    
+    ' 服务端处理
+    rectangle "Spring Boot后端" as Server {
+        rectangle "Controller层\n(路由+校验)" as Ctrl
+        rectangle "Service层\n(业务逻辑)" as Svc
+        rectangle "JdbcTemplate\n(数据访问)" as DAO
+        rectangle "JWT\n(认证授权)" as Auth
+        rectangle "NotificationService\n(通知服务)" as NotifSvc
+    }
+    
+    database "H2数据库" as DB1
+    
+    U1 --> UI : 用户操作\n(点击/输入)
+    UI --> VM : UI事件
+    VM --> Repo : 数据请求
+    Repo --> Net : API调用
+    Repo --> Cache : 本地查询
+    
+    Net --> Ctrl : HTTP请求\n(带JWT Token)
+    Ctrl --> Auth : 验证Token
+    Auth --> Ctrl : 用户身份
+    Ctrl --> Svc : 业务调用
+    Svc --> DAO : 数据操作
+    Svc --> NotifSvc : 触发通知
+    DAO --> DB1 : SQL
+    DB1 --> DAO : 结果集
+    NotifSvc --> DB1 : 写入通知
+    
+    Svc --> Ctrl : 业务结果
+    Ctrl --> Net : HTTP响应\n(JSON)
+    Net --> Repo : 响应数据
+    Repo --> VM : 数据模型
+    VM --> UI : LiveData更新
+    UI --> U1 : 界面渲染
+}
+
+' ============ Level 2: 关键数据流 ============
+package "Level 2: 关键业务数据流" {
+    
+    ' 认证数据流
+    package "认证数据流" {
+        actor "用户" as U2
+        rectangle "LoginActivity" as Login
+        rectangle "AuthController" as AuthCtrl
+        database "users表" as UserT
+        
+        U2 --> Login : 输入用户名/密码
+        Login --> AuthCtrl : POST /api/auth/login
+        AuthCtrl --> UserT : SELECT password_hash
+        UserT --> AuthCtrl : 用户记录
+        AuthCtrl --> Login : JWT Token + 用户信息
+        Login --> U2 : 跳转主页
+    }
+    
+    ' 任务数据流
+    package "任务管理数据流" {
+        actor "派发者" as Dispatcher
+        actor "执行者" as Assignee
+        rectangle "TaskCreateActivity" as TaskCreate
+        rectangle "TaskController" as TaskCtrl
+        rectangle "NotificationService" as NotifS
+        database "tasks表" as TaskT
+        database "notifications表" as NotifT
+        
+        Dispatcher --> TaskCreate : 创建任务\n(名称/紧急/截止/分配人)
+        TaskCreate --> TaskCtrl : POST /api/task
+        TaskCtrl --> TaskT : INSERT task
+        TaskCtrl --> NotifS : detectNewTask()
+        NotifS --> NotifT : INSERT notification
+        NotifT --> Assignee : 轮询通知\n(GET /api/notification/poll)
+    }
+    
+    ' 视图数据流
+    package "视图数据流" {
+        actor "用户" as U3
+        rectangle "ViewFragment" as ViewF
+        rectangle "MindMapFragment" as MindMapF
+        rectangle "ViewController" as ViewCtrl
+        database "tasks表" as TaskT2
+        database "work_logs表" as LogT
+        
+        U3 --> ViewF : 选择月/周/日视图
+        ViewF --> ViewCtrl : GET /api/view/month?todayCoverage=true
+        ViewCtrl --> TaskT2 : SELECT tasks\n(end_time >= today)
+        ViewCtrl --> LogT : SELECT logs
+        TaskT2 --> ViewCtrl : 任务列表
+        LogT --> ViewCtrl : 日志列表
+        ViewCtrl --> ViewF : 聚合数据
+        ViewF --> U3 : 日历视图渲染
+        
+        U3 --> MindMapF : 查看导图
+        MindMapF --> ViewCtrl : GET /api/view/mindmap
+        ViewCtrl --> TaskT2 : 四象限查询
+        TaskT2 --> ViewCtrl : 四类任务列表
+        ViewCtrl --> MindMapF : 四象限数据
+        MindMapF --> U3 : 四象限矩阵渲染
+    }
+    
+    ' MBTI分析数据流
+    package "MBTI分析数据流" {
+        actor "用户" as U4
+        rectangle "MBTITestActivity" as Mbti
+        rectangle "AIController" as AiCtrl
+        database "mbti_analysis_requests" as MbtiReq
+        database "mbti_analysis_results" as MbtiRes
+        
+        U4 --> Mbti : 输入个人信息\n(姓名/性别/出生时间/地点)
+        Mbti --> AiCtrl : POST /api/ai/mbti/analyze
+        AiCtrl --> MbtiReq : INSERT request (PENDING)
+        AiCtrl --> MbtiRes : INSERT result (四柱+洞察)
+        AiCtrl --> MbtiReq : UPDATE status=COMPLETED
+        AiCtrl --> Mbti : 返回 requestId
+        
+        loop 每5秒轮询
+            Mbti --> AiCtrl : GET /api/ai/mbti/analyze/{id}
+            AiCtrl --> MbtiReq : SELECT status
+            MbtiReq --> AiCtrl : COMPLETED
+            AiCtrl --> MbtiRes : SELECT result
+            MbtiRes --> AiCtrl : 四柱+洞察
+            AiCtrl --> Mbti : 返回完整结果
+        end
+        
+        Mbti --> U4 : 显示命理报告
+    }
+}
+
+@enduml

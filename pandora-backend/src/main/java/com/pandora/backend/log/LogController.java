@@ -3,7 +3,10 @@ package com.pandora.backend.log;
 import com.pandora.backend.common.ApiResponse;
 import com.pandora.backend.common.BusinessException;
 import com.pandora.backend.common.ErrorCode;
+import com.pandora.backend.audit.Auditable;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
@@ -19,7 +22,27 @@ public class LogController {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private LogDraftGenerator logDraftGenerator;
+
+    @Autowired
+    private LogAnalysisTriggerService logAnalysisTriggerService;
+
+    @Autowired
+    private com.pandora.backend.draft.DraftService draftService;
+
+    @Autowired
+    private com.pandora.backend.hierarchy.HierarchyService hierarchyService;
+
+    @PostMapping("/draft")
+    @Auditable(operationType = "LOG_DRAFT_GENERATE", targetType = "WORK_LOG")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> generateDraft() {
+        Long userId = getCurrentUserId();
+        return ResponseEntity.ok(ApiResponse.success(logDraftGenerator.generateDraft(userId)));
+    }
+
     @PostMapping
+    @Auditable(operationType = "LOG_CREATE", targetType = "WORK_LOG")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createLog(@RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
         String workItem = (String) request.get("workItem");
@@ -27,26 +50,176 @@ public class LogController {
             throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "工作事项不能为空");
         }
 
-        String completionStatus = (String) request.getOrDefault("completionStatus", "IN_PROGRESS");
+        String completionStatus = (String) request.getOrDefault("completionStatus", "PENDING");
         Object timeCostObj = request.get("timeCost");
         String logDate = (String) request.getOrDefault("logDate", new java.sql.Date(System.currentTimeMillis()).toString());
 
-        jdbcTemplate.update(
-                "INSERT INTO work_logs (user_id, work_item, completion_status, time_cost, log_date) VALUES (?, ?, ?, ?, ?)",
-                userId, workItem, completionStatus, timeCostObj, logDate
-        );
+        Integer existingCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM work_logs WHERE user_id = ? AND log_date = ? AND deleted = 0",
+                Integer.class, userId, logDate);
+        if (existingCount != null && existingCount > 0) {
+            throw new BusinessException(ErrorCode.LOG_DATE_CONFLICT);
+        }
+
+        try {
+            jdbcTemplate.update(
+                    "INSERT INTO work_logs (user_id, work_item, completion_status, time_cost, log_date) VALUES (?, ?, ?, ?, ?)",
+                    userId, workItem, completionStatus, timeCostObj, logDate
+            );
+        } catch (DuplicateKeyException e) {
+            throw new BusinessException(ErrorCode.LOG_DATE_CONFLICT);
+        }
 
         Long logId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         Map<String, Object> result = new HashMap<>();
         result.put("id", logId);
+
+        try {
+            logAnalysisTriggerService.triggerAutoAnalysis(logId, userId);
+        } catch (Exception ignored) {}
+
+        try {
+            draftService.deleteDraft(userId, "LOG");
+        } catch (Exception ignored) {}
+
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
-    @GetMapping("/list")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listLogs() {
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listAllLogs(
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String keyword) {
+        String role = getCurrentUserRole();
+        if (!"ADMIN".equals(role) && !"FOUNDER".equals(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "仅管理员或创始人可查看全量日志"));
+        }
+
+        if (startDate != null && endDate != null && startDate.compareTo(endDate) > 0) {
+            return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
+        }
+
+        StringBuilder sql = new StringBuilder(
+                "SELECT l.*, u.username, u.real_name FROM work_logs l JOIN users u ON l.user_id = u.id WHERE l.deleted = 0");
+        List<Object> params = new ArrayList<>();
+        if (userId != null) {
+            sql.append(" AND l.user_id = ?");
+            params.add(userId);
+        }
+        if (startDate != null) {
+            sql.append(" AND l.log_date >= ?");
+            params.add(startDate);
+        }
+        if (endDate != null) {
+            sql.append(" AND l.log_date <= ?");
+            params.add(endDate);
+        }
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            sql.append(" AND l.work_item LIKE ?");
+            params.add("%" + keyword + "%");
+        }
+        sql.append(" ORDER BY l.log_date DESC, l.created_at DESC");
+
+        List<Map<String, Object>> logs = jdbcTemplate.queryForList(sql.toString(), params.toArray());
+        return ResponseEntity.ok(ApiResponse.success(logs));
+    }
+
+    @GetMapping("/cleanup-preview")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> cleanupPreview() {
+        String role = getCurrentUserRole();
+        if (!"ADMIN".equals(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "仅管理员可执行数据清理"));
+        }
+        List<Map<String, Object>> candidates = jdbcTemplate.queryForList(
+                "SELECT l.*, u.username, u.real_name FROM work_logs l JOIN users u ON l.user_id = u.id " +
+                "WHERE l.deleted = 0 AND (l.work_item LIKE '%测试%' OR l.work_item LIKE '%test%' OR l.work_item LIKE '%Test%' " +
+                "OR l.work_item LIKE '%Round7%' OR l.work_item LIKE '%tmp%' OR l.work_item LIKE '%临时%' " +
+                "OR l.work_item LIKE 'This is a test%') ORDER BY l.created_at DESC");
+        return ResponseEntity.ok(ApiResponse.success(candidates));
+    }
+
+    @PostMapping("/cleanup-execute")
+    @Auditable(operationType = "TEST_DATA_CLEANUP", targetType = "WORK_LOG")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> cleanupExecute() {
+        String role = getCurrentUserRole();
+        if (!"ADMIN".equals(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "仅管理员可执行数据清理"));
+        }
+        int deleted = jdbcTemplate.update(
+                "UPDATE work_logs SET deleted = 1 WHERE deleted = 0 AND (work_item LIKE '%测试%' OR work_item LIKE '%test%' OR work_item LIKE '%Test%' " +
+                "OR work_item LIKE '%Round7%' OR work_item LIKE '%tmp%' OR work_item LIKE '%临时%' " +
+                "OR work_item LIKE 'This is a test%')");
+        Map<String, Object> result = new HashMap<>();
+        result.put("deletedCount", deleted);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @GetMapping("/{logId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getLogDetail(@PathVariable Long logId) {
         Long userId = getCurrentUserId();
-        List<Map<String, Object>> logs = jdbcTemplate.queryForList(
-                "SELECT * FROM work_logs WHERE user_id = ? AND deleted = 0 ORDER BY log_date DESC, created_at DESC", userId);
+        String role = getCurrentUserRole();
+
+        Map<String, Object> log = jdbcTemplate.queryForList(
+                "SELECT l.*, u.username, u.real_name, u.avatar FROM work_logs l " +
+                "JOIN users u ON l.user_id = u.id WHERE l.id = ? AND l.deleted = 0",
+                logId).stream().findFirst().orElse(null);
+
+        if (log == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "日志不存在");
+        }
+
+        Object logUserIdObj = log.get("USER_ID");
+        Long logUserId = logUserIdObj != null ? ((Number) logUserIdObj).longValue() : null;
+        boolean isOwner = logUserId != null && logUserId.equals(userId);
+        boolean canViewOthers = "ADMIN".equals(role) || "FOUNDER".equals(role);
+        if (!isOwner && !canViewOthers) {
+            List<Long> subordinateIds = hierarchyService.getSubordinateIds(userId);
+            if (!subordinateIds.contains(logUserId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error(403, "无权查看此日志"));
+            }
+        }
+
+        List<Map<String, Object>> analyses = jdbcTemplate.queryForList(
+                "SELECT id, analysis_type, result, status, generated_at FROM ai_analyses " +
+                "WHERE user_id = ? AND deleted = 0 ORDER BY generated_at DESC LIMIT 5",
+                logUserId);
+        log.put("ai_analyses", analyses);
+
+        return ResponseEntity.ok(ApiResponse.success(log));
+    }
+
+    @GetMapping("/list")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listLogs(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String keyword) {
+        Long userId = getCurrentUserId();
+
+        if (startDate != null && endDate != null && startDate.compareTo(endDate) > 0) {
+            return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
+        }
+
+        StringBuilder sql = new StringBuilder(
+                "SELECT l.*, u.username, u.real_name, u.avatar FROM work_logs l JOIN users u ON l.user_id = u.id WHERE l.user_id = ? AND l.deleted = 0");
+        List<Object> params = new ArrayList<>();
+        params.add(userId);
+        if (startDate != null) {
+            sql.append(" AND l.log_date >= ?");
+            params.add(startDate);
+        }
+        if (endDate != null) {
+            sql.append(" AND l.log_date <= ?");
+            params.add(endDate);
+        }
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            sql.append(" AND l.work_item LIKE ?");
+            params.add("%" + keyword + "%");
+        }
+        sql.append(" ORDER BY l.log_date DESC, l.created_at DESC");
+
+        List<Map<String, Object>> logs = jdbcTemplate.queryForList(sql.toString(), params.toArray());
         return ResponseEntity.ok(ApiResponse.success(logs));
     }
 
@@ -69,6 +242,7 @@ public class LogController {
     }
 
     @PutMapping("/top10")
+    @Auditable(operationType = "TOP10_UPDATE", targetType = "TOP10_WORK")
     public ResponseEntity<ApiResponse<Void>> updateTop10(@RequestBody List<Map<String, Object>> top10List) {
         Long userId = getCurrentUserId();
 
@@ -104,6 +278,7 @@ public class LogController {
     }
 
     @PutMapping("/{logId}")
+    @Auditable(operationType = "LOG_UPDATE", targetType = "WORK_LOG")
     public ResponseEntity<ApiResponse<Map<String, Object>>> editLog(
             @PathVariable Long logId, @RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
@@ -144,6 +319,7 @@ public class LogController {
     }
 
     @DeleteMapping("/{logId}")
+    @Auditable(operationType = "LOG_DELETE", targetType = "WORK_LOG")
     public ResponseEntity<ApiResponse<Void>> deleteLog(@PathVariable Long logId) {
         Long userId = getCurrentUserId();
         int updated = jdbcTemplate.update(
@@ -155,8 +331,128 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+    @GetMapping("/subordinate")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSubordinateLogs(
+            @RequestParam(required = false) Long subordinateId,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String keyword) {
+        Long userId = getCurrentUserId();
+        String role = getCurrentUserRole();
+        if ("EMPLOYEE".equals(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "无权访问"));
+        }
+
+        List<Long> subordinateIds = hierarchyService.getSubordinateIds(userId);
+        if (subordinateIds.isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
+        }
+
+        if (subordinateId != null && !subordinateIds.contains(subordinateId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "无权访问该下属日志"));
+        }
+
+        if (startDate != null && endDate != null && startDate.compareTo(endDate) > 0) {
+            return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
+        }
+
+        StringBuilder sql = new StringBuilder(
+                "SELECT l.*, u.username, u.real_name, u.avatar FROM work_logs l JOIN users u ON l.user_id = u.id WHERE l.deleted = 0");
+        List<Object> params = new ArrayList<>();
+
+        if (subordinateId != null) {
+            sql.append(" AND l.user_id = ?");
+            params.add(subordinateId);
+        } else {
+            String placeholders = String.join(",", Collections.nCopies(subordinateIds.size(), "?"));
+            sql.append(" AND l.user_id IN (").append(placeholders).append(")");
+            params.addAll(subordinateIds);
+        }
+        if (startDate != null) {
+            sql.append(" AND l.log_date >= ?");
+            params.add(startDate);
+        }
+        if (endDate != null) {
+            sql.append(" AND l.log_date <= ?");
+            params.add(endDate);
+        }
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            sql.append(" AND l.work_item LIKE ?");
+            params.add("%" + keyword + "%");
+        }
+        sql.append(" ORDER BY l.log_date DESC, l.created_at DESC");
+
+        List<Map<String, Object>> logs = jdbcTemplate.queryForList(sql.toString(), params.toArray());
+        return ResponseEntity.ok(ApiResponse.success(logs));
+    }
+
+    @GetMapping("/subordinates")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSubordinates() {
+        Long userId = getCurrentUserId();
+        String role = getCurrentUserRole();
+        if ("EMPLOYEE".equals(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "无权访问"));
+        }
+
+        List<Map<String, Object>> subordinates = hierarchyService.getSubordinates(userId);
+        if (subordinates.isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
+        }
+        return ResponseEntity.ok(ApiResponse.success(subordinates));
+    }
+
+    @PostMapping("/auto-generate")
+    @Deprecated
+    @Auditable(operationType = "LOG_AUTO_GENERATE", targetType = "WORK_LOG")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> autoGenerateLogs() {
+        Long userId = getCurrentUserId();
+        String today = new java.sql.Date(System.currentTimeMillis()).toString();
+
+        List<Map<String, Object>> todayTasks = jdbcTemplate.queryForList(
+                "SELECT id, name, status, progress_note FROM tasks " +
+                "WHERE assignee_id = ? AND deleted = 0 " +
+                "AND DATE(updated_at) = ? AND status IN ('IN_PROGRESS', 'COMPLETED', 'CONFIRMED')",
+                userId, today);
+
+        int generated = 0;
+        for (Map<String, Object> task : todayTasks) {
+            String taskName = (String) task.get("NAME");
+            String status = (String) task.get("STATUS");
+            Object taskId = task.get("ID");
+
+            Integer existing = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM work_logs WHERE user_id = ? AND log_date = ? AND work_item LIKE ? AND deleted = 0",
+                    Integer.class, userId, today, "[自动]" + taskName + "%");
+
+            if (existing == 0) {
+                String completionStatus = "COMPLETED".equals(status) || "CONFIRMED".equals(status) ? "COMPLETED" : "PENDING";
+                String workItem = "[自动]" + taskName + " (" + status + ")";
+                jdbcTemplate.update(
+                        "INSERT INTO work_logs (user_id, work_item, completion_status, log_date) VALUES (?, ?, ?, ?)",
+                        userId, workItem, completionStatus, today);
+                generated++;
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("generated", generated);
+        result.put("date", today);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+
     private Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return (Long) auth.getPrincipal();
+    }
+
+    private String getCurrentUserRole() {
+        Long userId = getCurrentUserId();
+        try {
+            Map<String, Object> user = jdbcTemplate.queryForMap("SELECT role FROM users WHERE id = ?", userId);
+            return (String) user.get("role");
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

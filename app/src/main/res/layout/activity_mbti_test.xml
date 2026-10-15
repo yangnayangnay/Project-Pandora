@@ -9,21 +9,112 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@android:color/white">
+        android:background="#FFFAF0">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
-            app:title="MBTI职业性格测试"
-            app:titleTextColor="@android:color/white"
+            android:background="#8B0000"
+            app:title="MBTI性格测试"
+            app:titleTextColor="#FFD700"
             app:navigationIcon="@drawable/ic_back"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <ScrollView
+        <LinearLayout
+            android:id="@+id/layout_question"
             android:layout_width="match_parent"
             android:layout_height="0dp"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gravity="center_vertical"
+            android:visibility="visible"
+            app:layout_constraintTop_toBottomOf="@id/toolbar"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <TextView
+                android:id="@+id/text_progress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="#888888"
+                android:gravity="center"
+                android:layout_marginBottom="8dp" />
+
+            <ProgressBar
+                android:id="@+id/progressBar_question"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                android:progressTint="#8B0000" />
+
+            <TextView
+                android:id="@+id/text_question"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="#333333"
+                android:gravity="center"
+                android:layout_marginBottom="32dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_option_a"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:padding="16dp"
+                android:layout_marginBottom="12dp"
+                app:backgroundTint="#FFFFFF"
+                app:strokeColor="#8B0000"
+                app:strokeWidth="1dp"
+                android:textColor="#333333" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_option_b"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:padding="16dp"
+                app:backgroundTint="#FFFFFF"
+                app:strokeColor="#8B0000"
+                app:strokeWidth="1dp"
+                android:textColor="#333333" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_loading"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/toolbar"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <ProgressBar
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:indeterminateTint="#8B0000"
+                android:layout_marginBottom="24dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="正在生成分析报告"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="#8B0000" />
+
+        </LinearLayout>
+
+        <ScrollView
+            android:id="@+id/layout_result"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:visibility="gone"
             app:layout_constraintTop_toBottomOf="@id/toolbar"
             app:layout_constraintBottom_toBottomOf="parent">
 
@@ -31,121 +122,93 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="20dp">
+                android:padding="24dp">
 
-                <LinearLayout
-                    android:id="@+id/layoutVersionSelect"
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:visibility="visible">
+                    android:text="你的MBTI类型"
+                    android:textSize="16sp"
+                    android:textColor="#888888"
+                    android:gravity="center" />
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="选择测试版本"
-                        android:textSize="22sp"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="8dp" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="不同版本题目数量不同，结果精度也不同"
-                        android:textSize="14sp"
-                        android:textColor="#888888"
-                        android:layout_marginBottom="24dp" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnVersion12"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="12dp"
-                        android:text="12题精简版（约2分钟）" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnVersion24"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="12dp"
-                        android:text="24题标准版（约5分钟）" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnVersion36"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="36题完整版（约8分钟）" />
-
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/layoutQuestion"
+                <TextView
+                    android:id="@+id/text_mbti_type"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:visibility="gone">
+                    android:textSize="48sp"
+                    android:textStyle="bold"
+                    android:textColor="#8B0000"
+                    android:gravity="center"
+                    android:layout_marginBottom="8dp" />
 
-                    <TextView
-                        android:id="@+id/textQuestionNumber"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:textSize="16sp"
-                        android:textColor="#888888"
-                        android:layout_marginBottom="16dp" />
-
-                    <TextView
-                        android:id="@+id/textQuestion"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:textSize="18sp"
-                        android:layout_marginBottom="24dp" />
-
-                    <RadioGroup
-                        android:id="@+id/radioGroup"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="24dp">
-
-                        <RadioButton
-                            android:id="@+id/radioOptionA"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginBottom="8dp"
-                            android:textSize="16sp" />
-
-                        <RadioButton
-                            android:id="@+id/radioOptionB"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:textSize="16sp" />
-                    </RadioGroup>
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnNext"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="下一题" />
-
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/layoutResult"
+                <TextView
+                    android:id="@+id/text_mbti_desc"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:visibility="gone">
+                    android:textSize="16sp"
+                    android:textColor="#555555"
+                    android:gravity="center"
+                    android:layout_marginBottom="24dp" />
 
-                    <TextView
-                        android:id="@+id/textResult"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:textSize="15sp"
-                        android:lineSpacingExtra="6dp" />
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E0E0E0"
+                    android:layout_marginBottom="16dp" />
 
-                </LinearLayout>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="荣格认知功能栈"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#8B0000"
+                    android:layout_marginBottom="12dp" />
+
+                <TextView
+                    android:id="@+id/text_functions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="6dp"
+                    android:textColor="#555555"
+                    android:layout_marginBottom="24dp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E0E0E0"
+                    android:layout_marginBottom="16dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="分析报告"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#8B0000"
+                    android:layout_marginBottom="12dp" />
+
+                <TextView
+                    android:id="@+id/text_report"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="15sp"
+                    android:lineSpacingExtra="4dp"
+                    android:textColor="#555555"
+                    android:background="#F5F5F5"
+                    android:padding="16dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_retry"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="重新测试"
+                    android:layout_marginTop="24dp"
+                    app:backgroundTint="#8B0000" />
 
             </LinearLayout>
-
         </ScrollView>
 
     </androidx.constraintlayout.widget.ConstraintLayout>

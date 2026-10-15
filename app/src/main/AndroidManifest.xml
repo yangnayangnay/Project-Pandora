@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
     <application
         android:allowBackup="true"
@@ -18,21 +21,24 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Project_Pandora"
         android:screenOrientation="portrait"
+        android:usesCleartextTraffic="true"
+        android:name=".PandoraApplication"
         tools:targetApi="31">
         <activity
             android:name=".MainActivity"
-            android:exported="true"
+            android:exported="false"
             android:theme="@style/Theme.Project_Pandora"
             android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".ui.login.LoginActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".ui.login.LoginActivity"
-            android:screenOrientation="portrait" />
         <activity
             android:name=".ui.login.RegisterActivity"
             android:screenOrientation="portrait" />
@@ -41,12 +47,19 @@
             android:screenOrientation="portrait" />
         <activity
             android:name=".ui.task.TaskDetailActivity"
+
             android:screenOrientation="portrait" />
         <activity
             android:name=".ui.task.TaskDispatchActivity"
             android:screenOrientation="portrait" />
         <activity
+            android:name=".ui.task.CompanyDispatchManageActivity"
+            android:screenOrientation="portrait" />
+        <activity
             android:name=".ui.log.LogCreateActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".ui.log.LogDetailActivity"
             android:screenOrientation="portrait" />
         <activity
             android:name=".ui.log.Top10WorkEditActivity"
@@ -58,9 +71,7 @@
             android:name=".ui.ai.MBTIReportActivity"
             android:screenOrientation="portrait" />
         <activity
-            android:name=".ui.ai.DivinationActivity"
-            android:screenOrientation="portrait" />
-        <activity
+
             android:name=".ui.ai.KeywordAnalysisActivity"
             android:screenOrientation="portrait" />
         <activity
@@ -70,14 +81,48 @@
             android:name=".ui.mine.ProfileActivity"
             android:screenOrientation="portrait" />
         <activity
-            android:name=".ui.mine.ThemeSettingActivity"
+            android:name=".ui.mine.HierarchyManageActivity"
             android:screenOrientation="portrait" />
         <activity
+
             android:name=".ui.ai.BirthdayWishActivity"
             android:screenOrientation="portrait" />
         <activity
             android:name=".ui.focus.FocusActivity"
             android:screenOrientation="portrait" />
+        <activity
+            android:name=".ui.login.ForgotPasswordActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".ui.mine.ResetRequestsActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".ui.mine.AuditLogActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".ui.aimap.DataCollectActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".ui.aimap.AIAnalysisActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".ui.aimap.TaskShowActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".ui.mine.SettingsActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".ui.mine.UserRelationActivity"
+            android:screenOrientation="portrait" />
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

@@ -53,7 +53,7 @@ public class LogViewModel extends BaseViewModel {
     public void loadLogList() {
         showLoading();
         compositeDisposable.add(
-                repository.listLogs()
+                repository.listLogs(null, null, null)
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 list -> {

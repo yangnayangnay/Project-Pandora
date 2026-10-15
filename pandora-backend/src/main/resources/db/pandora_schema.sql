@@ -240,6 +240,34 @@ CREATE TABLE `audit_rule_approvers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='审核规则审批人子表（4NF拆分）';
 
 -- =============================================================================
+-- user_hierarchy 显式层级关系表 (4NF: 关系事实独立存储)
+-- =============================================================================
+DROP TABLE IF EXISTS `user_hierarchy`;
+CREATE TABLE `user_hierarchy` (
+    `id`             BIGINT       NOT NULL AUTO_INCREMENT          COMMENT '自增主键',
+    `superior_id`    BIGINT       NOT NULL                         COMMENT '上级用户ID',
+    `subordinate_id` BIGINT       NOT NULL                         COMMENT '下级用户ID',
+    `created_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    CONSTRAINT `uk_hierarchy_pair` UNIQUE (`superior_id`, `subordinate_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='显式层级关系表（4NF）';
+CREATE INDEX `idx_hierarchy_superior` ON `user_hierarchy` (`superior_id`);
+CREATE INDEX `idx_hierarchy_subordinate` ON `user_hierarchy` (`subordinate_id`);
+
+-- =============================================================================
+-- user_org_affiliation 组织归属独立表 (4NF: 从users分离归属信息)
+-- =============================================================================
+DROP TABLE IF EXISTS `user_org_affiliation`;
+CREATE TABLE `user_org_affiliation` (
+    `user_id`       BIGINT       NOT NULL                          COMMENT '用户ID(主键)',
+    `department_id` BIGINT       DEFAULT NULL                      COMMENT '部门ID',
+    `team_id`       BIGINT       DEFAULT NULL                      COMMENT '团队ID',
+    PRIMARY KEY (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='组织归属独立表（4NF分离）';
+CREATE INDEX `idx_org_dept` ON `user_org_affiliation` (`department_id`);
+CREATE INDEX `idx_org_team` ON `user_org_affiliation` (`team_id`);
+
+-- =============================================================================
 -- 初始化数据：管理员账号
 -- =============================================================================
 -- 密码: admin123 (BCrypt加密)

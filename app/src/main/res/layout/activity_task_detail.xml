@@ -33,13 +33,151 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <TextView
-                    android:id="@+id/textTaskName"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:textColor="#333333" />
+                    android:orientation="horizontal"
+                    android:background="#f8f9fa"
+                    android:paddingHorizontal="6dp"
+                    android:paddingVertical="8dp"
+                    android:weightSum="7"
+                    android:layout_marginTop="12dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:text="任务名称"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="#495057" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="截止日期"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="#495057"
+                        android:gravity="center" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="紧急程度"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="#495057"
+                        android:gravity="center" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="完成情况"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="#495057"
+                        android:gravity="center" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="进度备注"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="#495057" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="负责人"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="#495057"
+                        android:gravity="center" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="6dp"
+                    android:paddingVertical="8dp"
+                    android:weightSum="7">
+
+                    <TextView
+                        android:id="@+id/textTaskName"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:textColor="#212529"
+                        android:maxLines="2"
+                        android:ellipsize="end" />
+
+                    <TextView
+                        android:id="@+id/textSummaryDeadline"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textSize="11sp"
+                        android:textColor="#6c757d"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:ellipsize="end" />
+
+                    <TextView
+                        android:id="@+id/textSummaryUrgency"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textSize="11sp"
+                        android:gravity="center"
+                        android:textColor="@android:color/white"
+                        android:paddingHorizontal="4dp"
+                        android:paddingVertical="2dp" />
+
+                    <TextView
+                        android:id="@+id/textSummaryCompletion"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textSize="11sp"
+                        android:gravity="center"
+                        android:textColor="@android:color/white"
+                        android:paddingHorizontal="4dp"
+                        android:paddingVertical="2dp" />
+
+                    <TextView
+                        android:id="@+id/textSummaryProgress"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textSize="11sp"
+                        android:textColor="#6c757d"
+                        android:maxLines="2"
+                        android:ellipsize="end" />
+
+                    <TextView
+                        android:id="@+id/textSummaryAssignee"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textSize="10sp"
+                        android:textColor="#6c757d"
+                        android:gravity="center"
+                        android:maxLines="2"
+                        android:ellipsize="end" />
+
+                </LinearLayout>
+
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -127,36 +265,26 @@
                     android:layout_marginTop="4dp">
 
                     <RadioButton
-                        android:id="@+id/radioUrgencyCritical"
+                        android:id="@+id/radioUrgencyUrgent"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="最高"
-                        android:textSize="13sp" />
+                        android:text="紧急"
+                        android:textSize="14sp"
+                        android:textColor="#F44336"
+                        android:textStyle="bold"
+                        android:paddingVertical="8dp" />
 
                     <RadioButton
-                        android:id="@+id/radioUrgencyHigh"
+                        android:id="@+id/radioUrgencyNotUrgent"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="高"
-                        android:textSize="13sp" />
-
-                    <RadioButton
-                        android:id="@+id/radioUrgencyMedium"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="中"
-                        android:textSize="13sp" />
-
-                    <RadioButton
-                        android:id="@+id/radioUrgencyLow"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="低"
-                        android:textSize="13sp" />
+                        android:text="不紧急"
+                        android:textSize="14sp"
+                        android:textColor="#4CAF50"
+                        android:textStyle="bold"
+                        android:paddingVertical="8dp" />
 
                 </RadioGroup>
 
@@ -257,6 +385,17 @@
                 android:layout_margin="4dp"
                 android:text="退回"
                 android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDelete"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_margin="4dp"
+                android:text="删除"
+                android:textSize="14sp"
+                android:backgroundTint="#F44336"
+                android:visibility="gone" />
 
         </LinearLayout>
 

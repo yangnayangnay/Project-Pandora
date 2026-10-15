@@ -208,6 +208,7 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.TaskVi
                 case "IN_PROGRESS": return "进行中";
                 case "COMPLETED": return "已完成";
                 case "CONFIRMED": return "已确认";
+                case "REJECTED": return "已退回";
                 default: return status;
             }
         }

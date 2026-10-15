@@ -22,3 +22,12 @@ pandora-data/
 
 # CodeArts
 .codeartsdoer/
+tmp_screenshots/
+generate_weekly_report.py
+*.docx
+backend-jar.log
+ui_dump*.xml
+nul
+*.log
+bo.log
+emulator_*.log

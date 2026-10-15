@@ -3,40 +3,50 @@ package com.example.project_pandora.ui.log;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.widget.ArrayAdapter;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.project_pandora.core.autosave.AutoSaveManager;
+import com.example.project_pandora.core.autosave.DraftRestoreDialog;
+import com.example.project_pandora.core.template.TemplateMigrationHelper;
+import com.example.project_pandora.core.util.BackToolbarHelper;
+import com.example.project_pandora.core.sync.RoutePath;
+import com.example.project_pandora.core.sync.SyncRouteResult;
 import com.example.project_pandora.databinding.ActivityLogCreateBinding;
+import com.example.project_pandora.repository.DraftRepository;
 import com.example.project_pandora.repository.LogRepository;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.example.project_pandora.repository.SyncRoutingRepository;
+import com.example.project_pandora.repository.TemplateRepository;
 
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 
 public class LogCreateActivity extends AppCompatActivity {
 
-    private static final String PREF_NAME = "log_templates";
-    private static final String KEY_TEMPLATES = "templates";
-
     private ActivityLogCreateBinding binding;
     private LogRepository logRepository;
+    private SyncRoutingRepository syncRoutingRepository;
+    private DraftRepository draftRepository;
+    private TemplateRepository templateRepository;
+    private TemplateMigrationHelper templateMigrationHelper;
+    private AutoSaveManager autoSaveManager;
     private String selectedDate;
     private boolean isEditMode = false;
     private long editLogId = -1;
     private final CompositeDisposable disposables = new CompositeDisposable();
+    private boolean isRestoringDraft = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,17 +55,111 @@ public class LogCreateActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         logRepository = new LogRepository(this);
+        syncRoutingRepository = new SyncRoutingRepository(this);
+        draftRepository = new DraftRepository(this);
+        templateRepository = new TemplateRepository(this);
+        templateMigrationHelper = new TemplateMigrationHelper(this);
 
-        binding.toolbar.setNavigationOnClickListener(v -> finish());
+        BackToolbarHelper.setupBack(binding.toolbar, this::finish);
 
         selectedDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
         binding.textLogDate.setText(selectedDate);
-        binding.textLogDate.setOnClickListener(v -> showDatePicker());
+        binding.textLogDate.setOnClickListener(v -> {
+            showDatePicker();
+            onContentChanged();
+        });
 
-        setupCompletionSpinner();
         checkEditMode();
         setupTemplateButtons();
+        setupAutoSave();
+        checkDraftRestore();
+        templateMigrationHelper.migrateIfNeeded();
+
         binding.btnSave.setOnClickListener(v -> handleSave());
+    }
+
+    private void setupAutoSave() {
+        autoSaveManager = new AutoSaveManager(this, "LOG",
+                () -> {
+                    Map<String, Object> content = new HashMap<>();
+                    content.put("workItem", binding.editWorkItem.getText().toString());
+                    content.put("timeCost", binding.editTimeCost.getText().toString());
+                    content.put("logDate", selectedDate);
+                    return content;
+                },
+                status -> {
+                    switch (status) {
+                        case SAVING:
+                            binding.textAutoSaveStatus.setVisibility(android.view.View.VISIBLE);
+                            binding.textAutoSaveStatus.setText("保存中...");
+                            break;
+                        case SAVED:
+                            binding.textAutoSaveStatus.setVisibility(android.view.View.VISIBLE);
+                            String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
+                            binding.textAutoSaveStatus.setText("已保存 " + time);
+                            break;
+                        case SAVE_FAILED:
+                            binding.textAutoSaveStatus.setVisibility(android.view.View.VISIBLE);
+                            binding.textAutoSaveStatus.setText("保存失败");
+                            break;
+                        default:
+                            break;
+                    }
+                });
+
+        TextWatcher textWatcher = new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (!isRestoringDraft) onContentChanged();
+            }
+        };
+        binding.editWorkItem.addTextChangedListener(textWatcher);
+        binding.editTimeCost.addTextChangedListener(textWatcher);
+    }
+
+    public void onContentChanged() {
+        if (autoSaveManager != null) {
+            autoSaveManager.onContentChanged();
+        }
+    }
+
+    private void checkDraftRestore() {
+        if (isEditMode) return;
+        disposables.add(draftRepository.getDraft("LOG")
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        draftData -> {
+                            if (draftData != null && draftData.get("content") != null) {
+                                DraftRestoreDialog.show(this, draftData,
+                                        content -> {
+                                            isRestoringDraft = true;
+                                            restoreDraft(content);
+                                            isRestoringDraft = false;
+                                        },
+                                        () -> disposables.add(draftRepository.deleteDraft("LOG")
+                                                .subscribe(r -> {}, Throwable::printStackTrace)));
+                            }
+                        },
+                        error -> {}
+                ));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void restoreDraft(Map<String, Object> content) {
+        if (content == null) return;
+        Object workItem = content.get("workItem");
+        if (workItem != null) binding.editWorkItem.setText(workItem.toString());
+        Object timeCost = content.get("timeCost");
+        if (timeCost != null) binding.editTimeCost.setText(timeCost.toString());
+        Object logDate = content.get("logDate");
+        if (logDate != null) {
+            selectedDate = logDate.toString();
+            binding.textLogDate.setText(selectedDate);
+        }
     }
 
     private void checkEditMode() {
@@ -69,15 +173,6 @@ public class LogCreateActivity extends AppCompatActivity {
             String workItem = intent.getStringExtra("workItem");
             if (workItem != null) binding.editWorkItem.setText(workItem);
 
-            String completionStatus = intent.getStringExtra("completionStatus");
-            if (completionStatus != null) {
-                switch (completionStatus) {
-                    case "COMPLETED": binding.spinnerCompletionStatus.setSelection(1); break;
-                    case "NOT_STARTED": binding.spinnerCompletionStatus.setSelection(2); break;
-                    default: binding.spinnerCompletionStatus.setSelection(0); break;
-                }
-            }
-
             String timeCost = intent.getStringExtra("timeCost");
             if (timeCost != null) binding.editTimeCost.setText(timeCost);
 
@@ -87,13 +182,6 @@ public class LogCreateActivity extends AppCompatActivity {
                 binding.textLogDate.setText(selectedDate);
             }
         }
-    }
-
-    private void setupCompletionSpinner() {
-        String[] statuses = {"进行中 - IN_PROGRESS", "已完成 - COMPLETED", "未开始 - NOT_STARTED"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_dropdown_item, statuses);
-        binding.spinnerCompletionStatus.setAdapter(adapter);
     }
 
     private void showDatePicker() {
@@ -115,105 +203,74 @@ public class LogCreateActivity extends AppCompatActivity {
             Toast.makeText(this, "请先输入工作事项", Toast.LENGTH_SHORT).show();
             return;
         }
-
-        String completionStatus = getCompletionStatus();
         String timeCost = binding.editTimeCost.getText().toString().trim();
 
-        try {
-            SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
-            String json = prefs.getString(KEY_TEMPLATES, "[]");
-            JSONArray array = new JSONArray(json);
+        Map<String, Object> content = new HashMap<>();
+        content.put("workItem", workItem);
+        content.put("timeCost", timeCost);
 
-            JSONObject template = new JSONObject();
-            template.put("workItem", workItem);
-            template.put("completionStatus", completionStatus);
-            template.put("timeCost", timeCost);
-            template.put("savedAt", System.currentTimeMillis());
-            array.put(template);
-
-            prefs.edit().putString(KEY_TEMPLATES, array.toString()).apply();
-            Toast.makeText(this, "模板已保存", Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            Toast.makeText(this, "保存模板失败", Toast.LENGTH_SHORT).show();
-        }
+        disposables.add(templateRepository.saveTemplate("LOG", workItem, content)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        result -> Toast.makeText(this, "模板已保存", Toast.LENGTH_SHORT).show(),
+                        error -> Toast.makeText(this, "保存模板失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
+                ));
     }
 
     private void showTemplateDialog() {
-        try {
-            SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
-            String json = prefs.getString(KEY_TEMPLATES, "[]");
-            JSONArray array = new JSONArray(json);
-
-            if (array.length() == 0) {
-                Toast.makeText(this, "暂无模板，请先保存模板", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            List<String> templateNames = new ArrayList<>();
-            for (int i = 0; i < array.length(); i++) {
-                JSONObject tpl = array.getJSONObject(i);
-                templateNames.add(tpl.getString("workItem"));
-            }
-
-            String[] items = templateNames.toArray(new String[0]);
-            new AlertDialog.Builder(this)
-                    .setTitle("选择模板")
-                    .setItems(items, (dialog, which) -> {
-                        try {
-                            JSONObject tpl = array.getJSONObject(which);
-                            binding.editWorkItem.setText(tpl.getString("workItem"));
-                            String status = tpl.optString("completionStatus", "IN_PROGRESS");
-                            switch (status) {
-                                case "COMPLETED": binding.spinnerCompletionStatus.setSelection(1); break;
-                                case "NOT_STARTED": binding.spinnerCompletionStatus.setSelection(2); break;
-                                default: binding.spinnerCompletionStatus.setSelection(0); break;
+        disposables.add(templateRepository.listTemplates("LOG")
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        templates -> {
+                            if (templates == null || templates.isEmpty()) {
+                                Toast.makeText(this, "暂无模板，请先保存模板", Toast.LENGTH_SHORT).show();
+                                return;
                             }
-                            String timeCost = tpl.optString("timeCost", "");
-                            if (!timeCost.isEmpty()) binding.editTimeCost.setText(timeCost);
-                        } catch (Exception e) {
-                            Toast.makeText(this, "加载模板失败", Toast.LENGTH_SHORT).show();
-                        }
-                    })
-                    .setNeutralButton("删除模板", (dialog, which) -> showDeleteTemplateDialog(array))
-                    .show();
-        } catch (Exception e) {
-            Toast.makeText(this, "加载模板失败", Toast.LENGTH_SHORT).show();
-        }
+                            String[] items = new String[templates.size()];
+                            for (int i = 0; i < templates.size(); i++) {
+                                items[i] = (String) templates.get(i).get("name");
+                            }
+                            new AlertDialog.Builder(this)
+                                    .setTitle("选择模板")
+                                    .setItems(items, (dialog, which) -> {
+                                        Map<String, Object> tpl = templates.get(which);
+                                        Object contentObj = tpl.get("content");
+                                        if (contentObj instanceof Map) {
+                                            Map<String, Object> content = (Map<String, Object>) contentObj;
+                                            isRestoringDraft = true;
+                                            Object wi = content.get("workItem");
+                                            if (wi != null) binding.editWorkItem.setText(wi.toString());
+                                            Object tc = content.get("timeCost");
+                                            if (tc != null) binding.editTimeCost.setText(tc.toString());
+                                            isRestoringDraft = false;
+                                        }
+                                    })
+                                    .setNeutralButton("删除模板", (dialog, which) -> showDeleteTemplateDialog(templates))
+                                    .show();
+                        },
+                        error -> Toast.makeText(this, "加载模板失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
+                ));
     }
 
-    private void showDeleteTemplateDialog(JSONArray array) {
-        try {
-            List<String> names = new ArrayList<>();
-            for (int i = 0; i < array.length(); i++) {
-                names.add(array.getJSONObject(i).getString("workItem"));
-            }
-            new AlertDialog.Builder(this)
-                    .setTitle("删除模板")
-                    .setItems(names.toArray(new String[0]), (dialog, which) -> {
-                        try {
-                            JSONArray newArray = new JSONArray();
-                            for (int i = 0; i < array.length(); i++) {
-                                if (i != which) newArray.put(array.get(i));
-                            }
-                            getSharedPreferences(PREF_NAME, MODE_PRIVATE)
-                                    .edit().putString(KEY_TEMPLATES, newArray.toString()).apply();
-                            Toast.makeText(this, "模板已删除", Toast.LENGTH_SHORT).show();
-                        } catch (Exception e) {
-                            Toast.makeText(this, "删除失败", Toast.LENGTH_SHORT).show();
-                        }
-                    })
-                    .show();
-        } catch (Exception e) {
-            Toast.makeText(this, "操作失败", Toast.LENGTH_SHORT).show();
+    private void showDeleteTemplateDialog(List<Map<String, Object>> templates) {
+        String[] names = new String[templates.size()];
+        for (int i = 0; i < templates.size(); i++) {
+            names[i] = (String) templates.get(i).get("name");
         }
-    }
-
-    private String getCompletionStatus() {
-        switch (binding.spinnerCompletionStatus.getSelectedItemPosition()) {
-            case 1: return "COMPLETED";
-            case 2: return "NOT_STARTED";
-            default: return "IN_PROGRESS";
-        }
+        new AlertDialog.Builder(this)
+                .setTitle("删除模板")
+                .setItems(names, (dialog, which) -> {
+                    Object idObj = templates.get(which).get("templateId");
+                    if (idObj == null) return;
+                    Long templateId = Long.parseLong(idObj.toString());
+                    disposables.add(templateRepository.deleteTemplate(templateId)
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe(
+                                    v -> Toast.makeText(this, "模板已删除", Toast.LENGTH_SHORT).show(),
+                                    error -> Toast.makeText(this, "删除失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
+                            ));
+                })
+                .show();
     }
 
     private void handleSave() {
@@ -222,8 +279,6 @@ public class LogCreateActivity extends AppCompatActivity {
             Toast.makeText(this, "请输入工作事项", Toast.LENGTH_SHORT).show();
             return;
         }
-
-        String completionStatus = getCompletionStatus();
 
         Double timeCost = null;
         String timeCostStr = binding.editTimeCost.getText().toString().trim();
@@ -240,11 +295,11 @@ public class LogCreateActivity extends AppCompatActivity {
         binding.btnSave.setText("保存中...");
 
         if (isEditMode && editLogId > 0) {
-            disposables.add(logRepository.editLog(editLogId, workItem, completionStatus, timeCost, selectedDate)
+            disposables.add(syncRoutingRepository.editLog(editLogId, workItem, "PENDING", timeCost, selectedDate)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                             result -> {
-                                Toast.makeText(this, "日志更新成功", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(this, result.getMessage(), Toast.LENGTH_SHORT).show();
                                 finish();
                             },
                             error -> {
@@ -254,11 +309,11 @@ public class LogCreateActivity extends AppCompatActivity {
                             }
                     ));
         } else {
-            disposables.add(logRepository.createLog(workItem, completionStatus, timeCost, selectedDate)
+            disposables.add(syncRoutingRepository.createLog(workItem, "PENDING", timeCost, selectedDate)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                             result -> {
-                                Toast.makeText(this, "日志保存成功", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(this, result.getMessage(), Toast.LENGTH_SHORT).show();
                                 finish();
                             },
                             error -> {
@@ -271,8 +326,22 @@ public class LogCreateActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        if (autoSaveManager != null) {
+            autoSaveManager.triggerImmediateSave();
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (autoSaveManager != null) {
+            autoSaveManager.stop();
+        }
+        if (templateMigrationHelper != null) {
+            templateMigrationHelper.dispose();
+        }
         disposables.clear();
     }
 }

@@ -247,3 +247,135 @@ Sprint 0 业务功能实现 - 2026-09-11
 2026-09-18 | openspec/config.yaml | 新增 | 全局 | codearts | OpenSpec项目配置(技术栈/6个Epic/5种角色/NFR/编码规范)
 2026-09-18 | openspec/specs/*.md | 新增 | 全局 | codearts | 6个核心能力规格文件(任务/日志/视图/AI/权限/主题)
 2026-09-18 | openspec/changes/initial-mvp-delivery/ | 新增 | 全局 | codearts | 初始MVP交付变更(proposal+design+tasks+specs)
+2026-09-19 | app/.../ui/login/RegisterActivity.java | 修改 | Epic-5 | codearts | 角色列表改为5个(员工/团队长/部门老总/创始人/管理员)，命名与文档统一
+2026-09-19 | pandora-backend/.../auth/RoleAuthFilter.java | 修改 | Epic-5 | codearts | 恢复JWT校验逻辑(取消注释)，结束调试模式
+2026-09-19 | pandora-backend/.../auth/SecurityConfig.java | 修改 | Epic-5 | codearts | permitAll改为authenticated(排除login/register/refresh)
+2026-09-19 | app/.../ui/mindmap/MindMapFragment.java | 修改 | Epic-3 | codearts | 接入ViewRepository.getMindMap()，动态填充四大板块数据
+2026-09-19 | app/src/main/res/layout/fragment_mindmap.xml | 修改 | Epic-3 | codearts | 改为ConstraintLayout+数据容器，移除硬编码"暂无数据"
+2026-09-19 | app/.../ui/view/ViewFragment.java | 修改 | Epic-1 | codearts | 新增"任务表格"Tab+TaskTableAdapter(卡片式展示任务6字段)
+2026-09-19 | app/src/main/res/layout/fragment_view.xml | 修改 | Epic-1 | codearts | 新增containerTaskTable+RecyclerView，Tab改为scrollable
+2026-09-19 | app/src/main/res/layout/item_task_table.xml | 新增 | Epic-1 | codearts | 任务表格卡片布局(名称/截止/优先级/状态/负责人/进度)
+2026-09-19 | app/src/main/res/layout/fragment_quadrant.xml | 修改 | Epic-1 | codearts | 新增数据地图概念栏(数据收集→任务展示→AI分析)
+2026-09-19 | app/.../MainActivity.java | 修改 | Epic-6 | codearts | 底部导航切换时动态控制screenOrientation(导图=横屏,其他=竖屏)
+2026-09-19 | app/src/main/res/layout/activity_register.xml | 修改 | Epic-6 | codearts | 包裹ScrollView提升小屏自适应
+2026-09-19 | app/src/main/res/layout/activity_task_create.xml | 修改 | Epic-6 | codearts | 硬编码文本移入strings.xml
+2026-09-19 | app/src/main/res/values/strings.xml | 修改 | 全局 | codearts | 新增首页/任务表格/数据地图/视图页/任务创建等字符串资源
+2026-09-19 | docx/docx_generate/项目看板.md | 新增 | 全局 | codearts | 项目管理看板(Markdown)，43个任务按Sprint分组，对应OpenSpec change/task
+2026-09-19 | docx/docx_generate/项目看板_飞书导入.csv | 新增 | 全局 | codearts | 飞书多维表格/CodeArts导入CSV(任务ID/名称/Epic/Sprint/OpenSpec Change/状态/负责人)
+================================================================================
+2026-09-20 底部导航5项 + 启动改登录 + 服务器检测 + 测试数据
+================================================================================
+
+2026-09-20 | app/src/main/res/menu/bottom_nav_menu.xml | 修改 | Epic-6 | codearts | 底部导航从6项改为5项(导图/视图/日志/AI地图/我的)，删除首页
+2026-09-20 | app/src/main/res/navigation/nav_graph.xml | 修改 | Epic-6 | codearts | startDestination改为mindmapFragment，删除homeFragment
+2026-09-20 | app/src/main/res/layout/activity_main.xml | 修改 | Epic-6 | codearts | 恢复app:menu引用，移除反射hack代码
+2026-09-20 | app/.../MainActivity.java | 修改 | Epic-6 | codearts | 移除setupBottomNavWith6Items()反射代码，保留动态屏幕方向控制
+2026-09-20 | app/.../ui/view/ViewFragment.java | 修改 | Epic-3 | codearts | 删除setupLogNavigation()方法和调用及未使用的Navigation import
+2026-09-20 | app/src/main/res/layout/fragment_view.xml | 修改 | Epic-3 | codearts | 删除btnViewLogs，TabLayout约束改为占满宽度
+2026-09-20 | app/src/main/AndroidManifest.xml | 修改 | Epic-5 | codearts | LoginActivity设为launcher，MainActivity改为exported=false
+2026-09-20 | app/.../ui/login/LoginActivity.java | 修改 | Epic-5 | codearts | 添加服务器连接检测(checkServerConnectivity)，使用字符串资源
+2026-09-20 | app/src/main/res/layout/activity_login.xml | 修改 | Epic-5 | codearts | 添加服务器状态指示器TextView，硬编码文本移入strings.xml
+2026-09-20 | app/src/main/res/values/strings.xml | 修改 | Epic-5 | codearts | 添加login_title/btn_login/login_loading/login_empty_input/login_failed/server_checking/server_connected/server_disconnected
+2026-09-20 | app/.../ui/aimap/AIMapFragment.java | 修改 | Epic-6 | codearts | 删除生日祝福按钮和import
+2026-09-20 | app/src/main/res/layout/fragment_aimap.xml | 修改 | Epic-6 | codearts | 删除btnBirthdayWish
+2026-09-20 | app/.../ui/mine/MineFragment.java | 修改 | Epic-6 | codearts | 添加生日祝福按钮和import
+2026-09-20 | app/src/main/res/layout/fragment_mine.xml | 修改 | Epic-6 | codearts | 添加btnBirthdayWish
+2026-09-20 | app/src/main/res/layout/fragment_quadrant.xml | 修改 | Epic-1 | codearts | 删除headerDataMap(三个黄色卡片)，toolbar标题改为数据地图
+2026-09-20 | pandora-backend/src/main/resources/db/h2_data.sql | 新增 | 全局 | codearts | H2测试数据(7用户/2部门/3团队/15任务/12日志/10十大工作，MERGE INTO)
+2026-09-20 | pandora-backend/src/main/resources/application.yml | 修改 | 全局 | codearts | 添加spring.sql.init.data-locations=classpath:db/h2_data.sql
+2026-09-20 | openspec/changes/initial-mvp-delivery/tasks.md | 修改 | 全局 | codearts | 去掉中文后括号英文标注(如"实现任务创建表单(TaskCreateActivity)"改为"实现任务创建表单")
+================================================================================
+2026-09-20 Web端个人中心 + 任务完成分析 + 注册审批流程
+================================================================================
+
+2026-09-20 | pandora-backend/.../common/EmailService.java | 新增 | Epic-5 | codearts | 创建邮件发送服务(JavaMailSender异步发送)
+2026-09-20 | pandora-backend/.../permission/EmployeeRecordController.java | 新增 | Epic-5 | codearts | 创建员工预登记CRUD Controller(预登记/匹配/列表)
+2026-09-20 | pandora-backend/.../permission/ApprovalController.java | 新增 | Epic-5 | codearts | 创建审批管理Controller(待审批列表/批准/拒绝)
+2026-09-20 | pandora-backend/.../auth/AuthController.java | 修改 | Epic-5 | codearts | 改造登录(支持邮箱登录+审批状态检查)+注册(实名认证+预登记匹配+审批流程)
+2026-09-20 | pandora-backend/.../common/ErrorCode.java | 修改 | Epic-5 | codearts | 新增ACCOUNT_PENDING_APPROVAL/ACCOUNT_REJECTED/EMAIL_ALREADY_EXISTS/INVALID_EMAIL_FORMAT/INVALID_ID_CARD/ID_CARD_ALREADY_EXISTS/REAL_NAME_MISMATCH/EMPLOYEE_RECORD_NOT_FOUND/EMPLOYEE_RECORD_ALREADY_REGISTERED/APPROVAL_NOT_FOUND错误码
+2026-09-20 | pandora-backend/.../PandoraBackendApplication.java | 修改 | 全局 | codearts | 添加@EnableAsync注解(邮件异步发送)
+2026-09-20 | pandora-backend/pom.xml | 修改 | Epic-5 | codearts | 添加spring-boot-starter-mail依赖
+2026-09-20 | pandora-backend/src/main/resources/application.yml | 修改 | Epic-5 | codearts | 添加spring.mail SMTP配置
+2026-09-20 | pandora-backend/src/main/resources/db/h2_schema.sql | 修改 | Epic-5 | codearts | users表新增email/real_name/id_card/approval_status字段，新增employee_records表
+2026-09-20 | pandora-backend/src/main/resources/db/h2_data.sql | 修改 | Epic-5 | codearts | 新增员工预登记数据+统一邮箱UPDATE语句
+2026-09-20 | pandora-backend/.../user/UserController.java | 修改 | Epic-5 | codearts | /me返回更多字段(用双引号别名保留小写)+新增PUT /me/password修改密码端点
+2026-09-20 | pandora-backend/.../common/GlobalExceptionHandler.java | 修改 | 全局 | codearts | 去掉临时调试用的错误详情暴露
+2026-09-20 | app/.../ui/login/LoginActivity.java | 修改 | Epic-5 | codearts | 添加通知栏提醒(POST_NOTIFICATIONS权限)
+2026-09-20 | app/.../ui/login/RegisterActivity.java | 修改 | Epic-5 | codearts | 新增邮箱/真实姓名/身份证号/手机号输入字段
+2026-09-20 | app/src/main/res/layout/activity_register.xml | 修改 | Epic-5 | codearts | 新增5个输入框(邮箱/真实姓名/身份证号/手机号/确认密码)
+2026-09-20 | app/.../data/remote/AuthApi.java | 修改 | Epic-5 | codearts | register方法改为Map<String,Object>支持多字段
+2026-09-20 | app/src/main/res/values/strings.xml | 修改 | Epic-5 | codearts | 添加注册新字段/通知相关字符串
+2026-09-20 | app/src/main/AndroidManifest.xml | 修改 | Epic-5 | codearts | 添加POST_NOTIFICATIONS权限
+2026-09-20 | pandora-web/src/router/index.js | 修改 | 全局 | codearts | 恢复路由守卫登录验证+添加/profile路由+/ai指向TaskCompletionView
+2026-09-20 | pandora-web/src/components/Layout.vue | 修改 | 全局 | codearts | 菜单添加"个人中心"项+"AI分析"改为"任务完成分析"
+2026-09-20 | pandora-web/src/views/user/ProfileView.vue | 新增 | Epic-5 | codearts | 创建个人中心页面(查看/编辑个人信息+修改密码)
+2026-09-20 | pandora-web/src/views/ai/TaskCompletionView.vue | 新增 | Epic-4 | codearts | 创建任务完成分析页面(统计卡片+状态分布+优先级分布+任务列表)
+2026-09-20 | pandora-web/src/api/user.js | 修改 | Epic-5 | codearts | 添加changePassword函数
+2026-09-20 | app/.../ui/login/RegisterActivity.java | 修改 | Epic-5 | codearts | 添加BroadcastReceiver支持ADB广播输入中文(adb shell am broadcast -a com.example.project_pandora.SET_FIELD --es field real_name --es value "测试安卓用户")
+================================================================================
+2026-09-23 删除月相主题/晨星冒烟/邮件通知（根据客户QA）
+================================================================================
+
+2026-09-23 | app/src/main/res/values/strings.xml | 修改 | Epic-6 | codearts | 移除月相相关字符串(theme_auto/theme_manual/moon_new等10条)
+2026-09-23 | pandora-web/src/views/config/ThemeConfigView.vue | 删除 | Epic-6 | codearts | 删除月相主题策略配置页
+2026-09-23 | pandora-web/src/api/theme.js | 删除 | Epic-6 | codearts | 删除主题API(getMoonPhase/主题偏好)
+2026-09-23 | pandora-web/src/router/index.js | 修改 | Epic-6 | codearts | /config路由改为redirect到/config/audit-log
+2026-09-23 | pandora-backend/.../common/EmailService.java | 删除 | 全局 | codearts | 删除邮件服务(JavaMailSender异步发送)
+2026-09-23 | pandora-backend/.../auth/AuthController.java | 修改 | Epic-5 | codearts | 移除EmailService引用和notifyAdminNewRegistration调用
+2026-09-23 | pandora-backend/.../permission/ApprovalController.java | 修改 | Epic-5 | codearts | 移除EmailService引用和notifyUserApprovalResult调用(approve+reject)
+2026-09-23 | pandora-backend/pom.xml | 修改 | 全局 | codearts | 移除spring-boot-starter-mail依赖
+2026-09-23 | pandora-backend/src/main/resources/application.yml | 修改 | 全局 | codearts | 移除spring.mail配置和pandora.mail-enabled
+2026-09-23 | openspec/specs/ui-theme.md | 修改 | Epic-6 | codearts | 移除月相主题规格,保留底部导航/专注模式/生日祝福
+2026-09-23 | openspec/specs/work-log-management.md | 修改 | Epic-2 | codearts | 移除晨星冒烟测试规格和场景
+2026-09-23 | openspec/config.yaml | 修改 | 全局 | codearts | Epic-2/Epic-6移除月相/晨星冒烟,NFR-1改为本地日志管理
+2026-09-23 | openspec/changes/initial-mvp-delivery/proposal.md | 修改 | 全局 | codearts | 移除月相主题和晨星冒烟
+2026-09-23 | openspec/changes/initial-mvp-delivery/specs.md | 修改 | 全局 | codearts | 移除月相/晨星冒烟
+2026-09-23 | openspec/changes/initial-mvp-delivery/tasks.md | 修改 | 全局 | codearts | 移除月相/晨星冒烟任务
+2026-09-23 | docx/docx_generate/特色小巧思.txt | 修改 | 全局 | codearts | 移除月相主题/晨星冒烟/月相Redis缓存记录
+2026-09-23 | docx/tasks/task0.md | 新增 | 全局 | codearts | 创建任务执行方案
+2026-09-23 | docx/tasks/task0_operation.md | 新增 | 全局 | codearts | 创建详细执行文档
+2026-09-23 | README.md | 修改 | 全局 | codearts | 移除主题管理/月相NFR,底部导航改为5项,core目录描述移除主题/冒烟测试
+================================================================================
+2026-10-05 全面实机测试与修复
+================================================================================
+2026-10-05 | app/.../core/network/NetworkClient.java | 修改 | 全局 | codearts | BASE_URL从10.0.2.2改为127.0.0.1,适配实机ADB反向端口转发
+2026-10-05 | app/.../ui/login/LoginActivity.java | 修改 | 全局 | codearts | 服务器检测URL从10.0.2.2改为127.0.0.1
+2026-10-05 | app/.../ui/task/TaskDetailActivity.java | 修改 | Epic-2 | codearts | P0修复:紧急程度从4级RadioGroup(最高/高/中/低)改为2级(紧急/不紧急),移除自动计算逻辑,改为手动设置
+2026-10-05 | app/.../ui/task/TaskDetailActivity.java | 修改 | Epic-2 | codearts | P1修复:添加formatDateTime()方法,日期从原始ISO格式改为"yyyy-MM-dd HH:mm"格式
+2026-10-05 | app/.../ui/task/TaskDetailActivity.java | 修改 | 全局 | codearts | 清理未使用的imports(RadioButton/ParseException/Calendar/Date/SimpleDateFormat/Locale)
+2026-10-05 | app/src/main/res/layout/activity_task_detail.xml | 修改 | Epic-2 | codearts | RadioGroup从4个RadioButton改为2个(紧急/不紧急),添加颜色和样式
+2026-10-05 | docx/docx_generate/测试报告.md | 新增 | 全局 | codearts | 生成全面实机测试报告
+2026-10-05 | docx/tasks/task1.md | 新增 | 全局 | codearts | 创建测试任务执行方案
+2026-10-05 | app/src/main/res/layout/activity_task_dispatch.xml | 修改 | Epic-1 | codearts | P3修复:给"选择责任人"TextView添加id(textSelectAssignee),新增"暂无下属"提示TextView(textNoSubordinates,默认gone)
+2026-10-05 | app/.../ui/task/TaskDispatchActivity.java | 修改 | Epic-1 | codearts | P3修复:无下属时隐藏"选择责任人"标题和RecyclerView,显示"暂无下属,无法分发任务"提示,禁用分发按钮;有下属时恢复正常显示
+2026-10-05 | app/src/main/res/layout/fragment_view.xml | 修改 | Epic-3 | codearts | P4修复:删除"查看日志"按钮(btnViewLogs),TabLayout改为占满宽度;日视图删除"日志"标题和recyclerDayLogs,只保留任务列表
+2026-10-05 | app/.../ui/view/ViewFragment.java | 修改 | Epic-3 | codearts | P4修复:删除setupLogNavigation()方法和调用,displayDayView()不再显示日志列表,移除Navigation import
+2026-10-05 | app/src/main/res/layout/fragment_view.xml | 修改 | Epic-3 | codearts | 视图页重新设计:背景改为暖米色(#FFF8F0),TabLayout红色指示器(#E53935),日视图新增周历导航(HorizontalScrollView+7天按钮)+空状态(dayEmptyState)+FAB(fabAddTask,#E53935),月视图导航按钮文字色#4E342E
+2026-10-05 | app/.../ui/view/ViewFragment.java | 修改 | Epic-3 | codearts | 视图页重新设计:新增setupWeekCalendarNav()(7天周历导航,高亮选中日期红色),setupFab()(FAB点击启动TaskCreateActivity),TimelineAdapter(时间轴样式:左侧时间标签+右侧白色任务卡片含名称/状态/优先级),displayDayView()空状态切换,FAB仅日视图可见,暖色调(#FFF8F0/#E53935/#4E342E/#8D6E63)
+2026-10-06 | app/.../core/network/NetworkClient.java | 修改 | 全局 | codearts | 修复模拟器登录连接:BASE_URL从127.0.0.1改为10.0.2.2(模拟器访问宿主机标准地址),新增isEmulator()检测方法动态选择baseUrl
+2026-10-06 | app/.../ui/login/LoginActivity.java | 修改 | 全局 | codearts | 修复服务器连接检查:checkServerConnectivity()中硬编码URL从127.0.0.1改为10.0.2.2,与NetworkClient保持一致
+2026-10-06 | app/src/main/res/layout/fragment_quadrant.xml | 修改 | Epic-1 | codearts | 四象限顺序对齐PDF第8页:Q1(左上)改为"重要且紧急"(红色#F44336),Q2(右上)改为"重要不紧急"(绿色#4CAF50)
+2026-10-06 | app/.../ui/task/QuadrantFragment.java | 修改 | Epic-1 | codearts | 四象限数据绑定对齐PDF:Q1绑定importantUrgent,Q2绑定importantNotUrgent(原Q1/Q2互换)
+2026-10-06 | docx/docx_generate/界面结构设计文档.md | 新增 | 全局 | codearts | 基于PDF 17页图片分析生成界面结构设计文档,逐页解读界面元素/布局/色彩/交互规范
+2026-10-06 | pandora-backend/src/main/resources/db/h2_schema.sql | 修改 | Epic-5 | codearts | 新增password_reset_requests表(id/user_id/status/request_reason/reject_reason/processed_by/processed_at/created_at)
+2026-10-06 | pandora-backend/.../common/ErrorCode.java | 修改 | Epic-5 | codearts | 新增3个错误码:RESET_REQUEST_NOT_FOUND(4023)/RESET_REQUEST_ALREADY_PROCESSED(4024)/RESET_REQUEST_DUPLICATE(4025)
+2026-10-06 | pandora-backend/.../auth/AuthController.java | 修改 | Epic-5 | codearts | 新增POST /auth/forgot-password接口(未登录用户提交密码重置申请)
+2026-10-06 | pandora-backend/.../auth/RoleAuthFilter.java | 修改 | Epic-5 | codearts | 白名单新增/auth/forgot-password(允许未登录访问)
+2026-10-06 | pandora-backend/.../auth/SecurityConfig.java | 修改 | Epic-5 | codearts | permitAll新增/auth/forgot-password(放行安全过滤)
+2026-10-06 | pandora-backend/.../user/PasswordResetController.java | 新增 | Epic-5 | codearts | 新建密码重置管理Controller:GET /user/reset-requests(管理员列表,支持status筛选),POST /user/reset-requests/{id}/approve(批准,可选自定义密码,默认pandora123),POST /user/reset-requests/{id}/reject(拒绝,需rejectReason),POST /user/{userId}/reset-password(管理员直接重置)
+2026-10-06 | app/.../data/remote/AuthApi.java | 修改 | Epic-5 | codearts | 新增forgotPassword(@Body ForgotPasswordRequest)方法
+2026-10-06 | app/.../data/remote/UserApi.java | 修改 | Epic-5 | codearts | 新增4个方法:getResetRequests/getResetRequestsByStatus/approveResetRequest/rejectResetRequest
+2026-10-06 | app/src/main/res/layout/activity_login.xml | 修改 | Epic-5 | codearts | 新增"忘记密码？"按钮(btn_forgot_password),位于登录按钮和注册按钮之间
+2026-10-06 | app/src/main/res/values/strings.xml | 修改 | Epic-5 | codearts | 新增密码重置相关字符串:forgot_password_title/forgot_password_desc/forgot_password_submit/reset_requests_title等
+2026-10-06 | app/.../ui/login/LoginActivity.java | 修改 | Epic-5 | codearts | 新增btn_forgot_password点击事件,跳转ForgotPasswordActivity
+2026-10-06 | app/src/main/res/layout/activity_forgot_password.xml | 新增 | Epic-5 | codearts | 忘记密码页布局:标题+说明文字+用户名输入+申请原因输入(可选)+提交按钮
+2026-10-06 | app/.../ui/login/ForgotPasswordActivity.java | 新增 | Epic-5 | codearts | 忘记密码页:用户输入用户名和可选申请原因,调用AuthApi.forgotPassword提交,成功后返回登录页
+2026-10-06 | app/src/main/res/layout/activity_reset_requests.xml | 新增 | Epic-5 | codearts | 密码重置申请管理页布局:TabLayout(待审批/已批准/已拒绝/全部)+RecyclerView+SwipeRefreshLayout
+2026-10-06 | app/src/main/res/layout/item_reset_request.xml | 新增 | Epic-5 | codearts | 重置申请列表项布局:用户名+状态标签+真实姓名/邮箱+申请原因+时间+批准/拒绝按钮
+2026-10-06 | app/.../ui/mine/ResetRequestsActivity.java | 新增 | Epic-5 | codearts | 管理员密码重置审批页:TabLayout切换状态筛选,RecyclerView展示申请列表,批准弹对话框(可选自定义密码,默认pandora123),拒绝弹对话框(必填拒绝原因)
+2026-10-06 | app/src/main/AndroidManifest.xml | 修改 | Epic-5 | codearts | 注册ForgotPasswordActivity和ResetRequestsActivity
+2026-10-06 | app/src/main/res/layout/fragment_mine.xml | 修改 | Epic-5 | codearts | 新增"密码重置申请"入口(layout_reset_requests,默认gone,仅管理员可见)
+2026-10-06 | app/.../ui/mine/MineFragment.java | 修改 | Epic-5 | codearts | ADMIN角色显示"密码重置申请"入口并跳转ResetRequestsActivity,非ADMIN保持隐藏
+2026-10-06 | app/.../ui/login/LoginActivity.java | 修改 | 全局 | codearts | 服务器连接检查改为自动重试3次(间隔2秒),3次失败后显示手动刷新按钮,点击重新检测
+2026-10-06 | app/src/main/res/layout/activity_login.xml | 修改 | 全局 | codearts | 新增"重新检测服务器"按钮(btn_refresh_server,默认gone,3次重试失败后显示)
+2026-10-06 | app/src/main/res/values/strings.xml | 修改 | 全局 | codearts | 新增server_retrying/server_retry_failed/btn_refresh_server字符串

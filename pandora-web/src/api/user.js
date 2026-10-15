@@ -15,3 +15,6 @@ export function getUserPanel(userId) {
 export function updateProfile(data) {
   return request.put('/user/me', data)
 }
+export function changePassword(data) {
+  return request.put('/user/me/password', data)
+}

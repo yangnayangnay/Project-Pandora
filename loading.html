@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>潘多拉 - 系统启动中</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            color: #fff;
+        }
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 30px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        h1 { font-size: 28px; margin-bottom: 10px; }
+        .subtitle { font-size: 16px; opacity: 0.8; margin-bottom: 40px; }
+        .status-list {
+            display: inline-block;
+            text-align: left;
+            font-size: 15px;
+            line-height: 2.2;
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ffa500;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        .status-dot.ready { background: #4caf50; animation: none; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner"></div>
+        <h1>潘多拉智能掌上工作系统</h1>
+        <p class="subtitle">系统正在启动中，请稍候...</p>
+        <div class="status-list">
+            <div class="status-item">
+                <span class="status-dot" id="backend-dot"></span>
+                <span id="backend-status">后端启动中...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-dot" id="web-dot"></span>
+                <span id="web-status">Web 端启动中...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_HEALTH_URL = 'http://localhost:8080/api/actuator/health';
+        const WEB_URL = 'http://localhost:3000';
+        const LOGIN_URL = 'http://localhost:3000';
+        const POLL_INTERVAL_MS = 2000;
+
+        let backendReady = false;
+        let webReady = false;
+        let backendTimerId = null;
+        let webTimerId = null;
+
+        function updateBackendStatus(text, ready) {
+            document.getElementById('backend-status').textContent = text;
+            if (ready) document.getElementById('backend-dot').classList.add('ready');
+        }
+
+        function updateWebStatus(text, ready) {
+            document.getElementById('web-status').textContent = text;
+            if (ready) document.getElementById('web-dot').classList.add('ready');
+        }
+
+        function tryJumpToLogin() {
+            if (backendReady && webReady) {
+                window.location.href = LOGIN_URL;
+            }
+        }
+
+        async function checkBackend() {
+            if (backendReady) return;
+            try {
+                const resp = await fetch(BACKEND_HEALTH_URL);
+                if (resp.ok) {
+                    backendReady = true;
+                    clearInterval(backendTimerId);
+                    updateBackendStatus('后端已就绪 ✓', true);
+                    tryJumpToLogin();
+                }
+            } catch (e) { }
+        }
+
+        async function checkWeb() {
+            if (webReady) return;
+            try {
+                await fetch(WEB_URL, { mode: 'no-cors' });
+                webReady = true;
+                clearInterval(webTimerId);
+                updateWebStatus('Web 端已就绪 ✓', true);
+                tryJumpToLogin();
+            } catch (e) { }
+        }
+
+        backendTimerId = setInterval(checkBackend, POLL_INTERVAL_MS);
+        webTimerId = setInterval(checkWeb, POLL_INTERVAL_MS);
+        checkBackend();
+        checkWeb();
+    </script>
+</body>
+</html>

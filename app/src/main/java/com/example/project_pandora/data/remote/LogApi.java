@@ -20,7 +20,14 @@ public interface LogApi {
     Observable<ApiResponse<Map<String, Object>>> createLog(@Body Map<String, Object> request);
 
     @GET("log/list")
-    Observable<ApiResponse<List<Map<String, Object>>>> listLogs();
+    Observable<ApiResponse<List<Map<String, Object>>>> listLogs(
+            @Query("startDate") String startDate,
+            @Query("endDate") String endDate,
+            @Query("keyword") String keyword
+    );
+
+    @GET("log/{logId}")
+    Observable<ApiResponse<Map<String, Object>>> getLogDetail(@Path("logId") Long logId);
 
     @GET("log/stat")
     Observable<ApiResponse<Map<String, Object>>> getLogStats();
@@ -36,4 +43,21 @@ public interface LogApi {
 
     @GET("log/top10")
     Observable<ApiResponse<List<Map<String, Object>>>> getTop10(@Query("workType") String workType);
+
+    @GET("log/subordinate")
+    Observable<ApiResponse<List<Map<String, Object>>>> getSubordinateLogs(
+            @Query("subordinateId") Long subordinateId,
+            @Query("startDate") String startDate,
+            @Query("endDate") String endDate,
+            @Query("keyword") String keyword
+    );
+
+    @GET("log/subordinates")
+    Observable<ApiResponse<List<Map<String, Object>>>> getSubordinates();
+
+    @POST("log/auto-generate")
+    Observable<ApiResponse<Map<String, Object>>> autoGenerateLogs();
+
+    @POST("log/draft")
+    Observable<ApiResponse<Map<String, Object>>> generateDraft();
 }

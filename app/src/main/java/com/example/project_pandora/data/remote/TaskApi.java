@@ -7,6 +7,7 @@ import java.util.Map;
 
 import io.reactivex.rxjava3.core.Observable;
 import retrofit2.http.Body;
+import retrofit2.http.DELETE;
 import retrofit2.http.GET;
 import retrofit2.http.POST;
 import retrofit2.http.Path;
@@ -23,8 +24,20 @@ public interface TaskApi {
             @Query("status") String status,
             @Query("assigneeId") Long assigneeId);
 
+    @GET("task/list")
+    Observable<ApiResponse<List<Map<String, Object>>>> listTasksExtended(
+            @Query("status") String status,
+            @Query("assigneeId") Long assigneeId,
+            @Query("dispatcherId") Long dispatcherId,
+            @Query("showCompleted") Boolean showCompleted);
+
     @GET("task/{taskId}")
     Observable<ApiResponse<Map<String, Object>>> getTask(@Path("taskId") Long taskId);
+
+    @PATCH("task/{taskId}")
+    Observable<ApiResponse<Map<String, Object>>> updateTask(
+            @Path("taskId") Long taskId,
+            @Body Map<String, Object> request);
 
     @PATCH("task/{taskId}/progress")
     Observable<ApiResponse<Map<String, Object>>> updateProgress(
@@ -38,4 +51,13 @@ public interface TaskApi {
     Observable<ApiResponse<Map<String, Object>>> transitionStatus(
             @Path("taskId") Long taskId,
             @Body Map<String, String> request);
+
+    @GET("task/subordinate")
+    Observable<ApiResponse<List<Map<String, Object>>>> getSubordinateTasks();
+
+    @GET("task/subordinate/users")
+    Observable<ApiResponse<List<Map<String, Object>>>> getSubordinateUsers();
+
+    @DELETE("task/{taskId}")
+    Observable<ApiResponse<Void>> deleteTask(@Path("taskId") Long taskId);
 }
