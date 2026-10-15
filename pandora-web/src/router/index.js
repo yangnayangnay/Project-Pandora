@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { getToken } from '@/utils/auth'
+import { getToken, isTokenValid, removeToken, removeUser } from '@/utils/auth'
 
 const routes = [
   {
@@ -156,7 +156,8 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const token = getToken()
-  if (to.meta.requiresAuth !== false && !token) {
+  if (to.meta.requiresAuth !== false && !isTokenValid()) {
+    if (token) { removeToken(); removeUser() }
     next('/login')
   } else if ((to.path === '/login' || to.path === '/register') && token) {
     next('/')
