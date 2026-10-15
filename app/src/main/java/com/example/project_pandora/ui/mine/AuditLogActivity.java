@@ -144,7 +144,13 @@ public class AuditLogActivity extends AppCompatActivity {
             Object operatedAt = item.get("operated_at") != null ? item.get("operated_at") : item.get("OPERATED_AT");
 
             addTextView(row, "操作类型: " + (opType != null ? opType : action));
-            addTextView(row, "操作人: " + (operatorId != null ? operatorId : "?"));
+            String opIdStr = "?";
+            if (operatorId instanceof Number) {
+                opIdStr = String.valueOf(((Number) operatorId).intValue());
+            } else if (operatorId != null) {
+                opIdStr = operatorId.toString();
+            }
+            addTextView(row, "操作人: " + opIdStr);
             if (opContent != null) addTextView(row, "内容: " + opContent);
             addTextView(row, "时间: " + (operatedAt != null ? operatedAt : ""));
         }
