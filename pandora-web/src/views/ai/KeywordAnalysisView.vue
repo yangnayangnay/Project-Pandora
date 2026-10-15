@@ -22,7 +22,7 @@ async function analyze() {
   loading.value = true
   try {
     const res = await keywordAnalysis({ text: text.value })
-    keywords.value = res.data.data
+    keywords.value = res.data
   } catch (e) {
     console.error('分析失败', e)
   } finally {

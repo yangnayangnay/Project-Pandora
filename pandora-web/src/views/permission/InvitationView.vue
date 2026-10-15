@@ -26,13 +26,13 @@ const invitations = ref([])
 
 onMounted(async () => {
   const res = await listInvitations()
-  invitations.value = res.data.data
+  invitations.value = res.data
 })
 
 async function respond(id, status) {
   await respondInvitation(id, { status })
   const res = await listInvitations()
-  invitations.value = res.data.data
+  invitations.value = res.data
 }
 
 function statusType(s) {

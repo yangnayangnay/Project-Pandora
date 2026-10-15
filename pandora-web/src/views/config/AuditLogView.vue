@@ -80,7 +80,7 @@ async function loadLogs() {
   loading.value = true
   try {
     const res = await getAuditLogs(buildParams())
-    const data = res.data.data
+    const data = res.data
     logs.value = data.records || []
     pagination.total = data.total || 0
   } catch (e) {

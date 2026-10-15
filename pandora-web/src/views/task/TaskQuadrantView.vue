@@ -50,7 +50,7 @@ const quadrant = ref({})
 onMounted(async () => {
   try {
     const res = await getQuadrantTasks()
-    quadrant.value = res.data.data
+    quadrant.value = res.data
   } catch (e) {
     console.error('加载四象限任务失败', e)
   }

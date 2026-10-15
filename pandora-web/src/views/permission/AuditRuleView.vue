@@ -33,13 +33,13 @@ const form = ref({ triggerAction: '', sequence: 1 })
 
 onMounted(async () => {
   const res = await listAuditRules()
-  rules.value = res.data.data
+  rules.value = res.data
 })
 
 async function save() {
   await createAuditRule(form.value)
   showDialog.value = false
   const res = await listAuditRules()
-  rules.value = res.data.data
+  rules.value = res.data
 }
 </script>

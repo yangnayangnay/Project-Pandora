@@ -14,7 +14,7 @@ const chartRef = ref(null)
 onMounted(async () => {
   try {
     const res = await request.get('/view/info-map')
-    const data = res.data.data
+    const data = res.data
     const chart = echarts.init(chartRef.value)
     chart.setOption({
       tooltip: {},

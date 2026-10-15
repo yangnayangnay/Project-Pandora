@@ -55,7 +55,7 @@ async function loadLogs() {
   loading.value = true
   try {
     const res = await listAllLogs(buildParams())
-    logs.value = res.data.data || []
+    logs.value = res.data || []
   } catch (e) {
     console.error('加载日志失败', e)
   } finally {
@@ -66,7 +66,7 @@ async function loadLogs() {
 async function loadUsers() {
   try {
     const res = await listUsers()
-    users.value = res.data.data || []
+    users.value = res.data || []
   } catch (e) {
     console.error('加载用户列表失败', e)
   }
