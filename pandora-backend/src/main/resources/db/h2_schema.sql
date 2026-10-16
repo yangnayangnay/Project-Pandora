@@ -201,10 +201,10 @@ CREATE INDEX IF NOT EXISTS `idx_org_dept` ON `user_org_affiliation` (`department
 CREATE INDEX IF NOT EXISTS `idx_org_team` ON `user_org_affiliation` (`team_id`);
 
 -- =============================================================================
--- 初始化数据：管理员账号 (密码: admin123, BCrypt加密)
+-- 初始化数据：管理员账号 (密码: admin123, BCrypt加密, 用户名统一使用编号后缀)
 -- =============================================================================
 MERGE INTO `users` (`id`, `username`, `password_hash`, `role`) KEY(`id`) VALUES
-(1, 'admin', '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'ADMIN');
+(1, 'admin0', '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'ADMIN');
 -- =============================================================================
 -- 扩展字段：用户邮箱/实名认证/审批状态 (ALTER TABLE, 幂等)
 -- =============================================================================

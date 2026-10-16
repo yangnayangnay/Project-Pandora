@@ -5,14 +5,14 @@
 -- 使用 MERGE INTO 避免重复插入
 -- =============================================================================
 
--- 用户数据 (admin已存在, 补充4个用户)
+-- 用户数据 (admin0已存在, 补充4个用户, 用户名统一使用编号后缀)
 MERGE INTO `users` (`id`, `username`, `password_hash`, `role`, `department_id`, `team_id`) KEY(`id`) VALUES
-(2, 'founder',     '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'FOUNDER',     1, 1),
-(3, 'dept_head',   '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'DEPT_HEAD',   1, 1),
-(4, 'team_leader', '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'TEAM_LEADER', 1, 2),
-(5, 'employee',    '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'EMPLOYEE',    1, 2),
-(6, 'zhang_san',   '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'EMPLOYEE',    2, 3),
-(7, 'li_si',       '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'TEAM_LEADER', 2, 3);
+(2, 'founder1',      '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'FOUNDER',     1, 1),
+(3, 'dept_head2',    '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'DEPT_HEAD',   1, 1),
+(4, 'team_leader3',  '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'TEAM_LEADER', 1, 2),
+(5, 'employee4',     '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'EMPLOYEE',    1, 2),
+(6, 'zhang_san4',    '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'EMPLOYEE',    2, 3),
+(7, 'li_si3',        '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'TEAM_LEADER', 2, 3);
 
 -- 部门数据
 MERGE INTO `departments` (`id`, `name`, `head_user_id`, `parent_id`) KEY(`id`) VALUES
@@ -86,11 +86,11 @@ UPDATE `employee_records` SET `phone` = '19310693809' WHERE `deleted` = 0;
 -- 组织架构: 创始人 → 部门老总 → 团队长 → 员工
 -- =============================================================================
 MERGE INTO `users` (`id`, `username`, `password_hash`, `role`, `department_id`, `team_id`, `email`, `real_name`, `phone`, `approval_status`) KEY(`id`) VALUES
-(100, 'yjl_founder',      '$2a$10$fi4vy2jU0b0HW88235.5NuVFSaJi1Ii4DJBTaN5O1cgcY8X62ba8a', 'FOUNDER',     3, 4, '2120951033@qq.com', 'YJL创始人',   '19310693809', 'APPROVED'),
-(101, 'yjl_dept_head',    '$2a$10$fi4vy2jU0b0HW88235.5NuVFSaJi1Ii4DJBTaN5O1cgcY8X62ba8a', 'DEPT_HEAD',   3, 4, '2120951033@qq.com', 'YJL部门老总', '19310693809', 'APPROVED'),
-(102, 'yjl_team_leader',  '$2a$10$fi4vy2jU0b0HW88235.5NuVFSaJi1Ii4DJBTaN5O1cgcY8X62ba8a', 'TEAM_LEADER', 3, 4, '2120951033@qq.com', 'YJL团队长',   '19310693809', 'APPROVED'),
-(103, 'yjl_employee',     '$2a$10$fi4vy2jU0b0HW88235.5NuVFSaJi1Ii4DJBTaN5O1cgcY8X62ba8a', 'EMPLOYEE',    3, 4, '2120951033@qq.com', 'YJL员工',     '19310693809', 'APPROVED'),
-(104, 'yjl_employee2',    '$2a$10$fi4vy2jU0b0HW88235.5NuVFSaJi1Ii4DJBTaN5O1cgcY8X62ba8a', 'EMPLOYEE',    3, 4, '2120951033@qq.com', 'YJL员工2',    '19310693809', 'APPROVED');
+(100, 'yjl_founder1',      '$2a$10$fi4vy2jU0b0HW88235.5NuVFSaJi1Ii4DJBTaN5O1cgcY8X62ba8a', 'FOUNDER',     3, 4, '2120951033@qq.com', 'YJL创始人',   '19310693809', 'APPROVED'),
+(101, 'yjl_dept_head2',    '$2a$10$fi4vy2jU0b0HW88235.5NuVFSaJi1Ii4DJBTaN5O1cgcY8X62ba8a', 'DEPT_HEAD',   3, 4, '2120951033@qq.com', 'YJL部门老总', '19310693809', 'APPROVED'),
+(102, 'yjl_team_leader3',  '$2a$10$fi4vy2jU0b0HW88235.5NuVFSaJi1Ii4DJBTaN5O1cgcY8X62ba8a', 'TEAM_LEADER', 3, 4, '2120951033@qq.com', 'YJL团队长',   '19310693809', 'APPROVED'),
+(103, 'yjl_employee4',     '$2a$10$fi4vy2jU0b0HW88235.5NuVFSaJi1Ii4DJBTaN5O1cgcY8X62ba8a', 'EMPLOYEE',    3, 4, '2120951033@qq.com', 'YJL员工',     '19310693809', 'APPROVED'),
+(104, 'yjl_employee24',    '$2a$10$fi4vy2jU0b0HW88235.5NuVFSaJi1Ii4DJBTaN5O1cgcY8X62ba8a', 'EMPLOYEE',    3, 4, '2120951033@qq.com', 'YJL员工2',    '19310693809', 'APPROVED');
 
 -- yjl 部门和团队
 MERGE INTO `departments` (`id`, `name`, `head_user_id`, `parent_id`) KEY(`id`) VALUES
