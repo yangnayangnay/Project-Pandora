@@ -11,6 +11,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import com.example.project_pandora.R;
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.core.network.TokenManager;
+import com.example.project_pandora.core.util.BackToolbarHelper;
 import com.example.project_pandora.core.util.PermissionLevel;
 import com.example.project_pandora.data.remote.UserApi;
 import com.example.project_pandora.databinding.ActivityUserRelationBinding;
@@ -39,6 +40,8 @@ public class UserRelationActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityUserRelationBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        BackToolbarHelper.setupBack(binding.toolbar, this::finish);
 
         binding.recyclerSuperiors.setLayoutManager(new LinearLayoutManager(this));
         binding.recyclerSuperiors.setAdapter(superiorsAdapter);

@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.project_pandora.R;
 import com.example.project_pandora.core.divination.DivinationEngine;
+import com.example.project_pandora.core.util.BackToolbarHelper;
 import com.example.project_pandora.databinding.ActivityDivinationBinding;
 
 /**
@@ -25,7 +26,7 @@ public class DivinationActivity extends AppCompatActivity {
         binding = ActivityDivinationBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        binding.toolbar.setNavigationOnClickListener(v -> finish());
+        BackToolbarHelper.setupBack(binding.toolbar, this::finish);
 
         binding.btnDivine.setOnClickListener(v -> performDivination());
     }

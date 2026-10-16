@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.project_pandora.core.network.NetworkClient;
+import com.example.project_pandora.core.util.BackToolbarHelper;
 import com.example.project_pandora.data.remote.AuditApi;
 import com.example.project_pandora.databinding.ActivityAuditLogBinding;
 
@@ -47,6 +48,8 @@ public class AuditLogActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityAuditLogBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        BackToolbarHelper.setupBack(binding.toolbar, this::finish);
 
         auditApi = NetworkClient.getInstance(this).createService(AuditApi.class);
 
