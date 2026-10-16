@@ -24,6 +24,7 @@ import com.example.project_pandora.core.sync.SyncProgress;
 import com.example.project_pandora.core.sync.SyncState;
 import com.example.project_pandora.core.sync.SyncWorker;
 import com.example.project_pandora.databinding.ActivityMainBinding;
+import com.example.project_pandora.notification.NotificationPollWorker;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
@@ -155,6 +156,18 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         ServerConnectivityMonitor.getInstance().onAppForeground();
+    }
+
+    /**
+     * TASK-R18-017: 应用切回前台时触发一次性立即通知轮询（OneTimeWorkRequest，REPLACE 防重复入队）
+     * 实现后台 15 分钟 / 前台立即的通知及时性
+     */
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (TokenManager.getInstance(this).isLoggedIn()) {
+            NotificationPollWorker.enqueueOneTimeWork(this);
+        }
     }
 
     @Override

@@ -18,24 +18,24 @@
       </template>
 
       <el-table :data="users" v-loading="loading" border style="width: 100%">
-        <el-table-column prop="ID" label="ID" width="60" />
-        <el-table-column prop="USERNAME" label="用户名" width="160" />
-        <el-table-column prop="REAL_NAME" label="真实姓名" width="120" />
-        <el-table-column prop="ROLE" label="角色" width="100">
+        <el-table-column prop="id" label="ID" width="60" />
+        <el-table-column prop="username" label="用户名" width="160" />
+        <el-table-column prop="real_name" label="真实姓名" width="120" />
+        <el-table-column prop="role" label="角色" width="100">
           <template #default="{ row }">
-            <el-tag :type="roleTagType(row.ROLE)">{{ roleMap[row.ROLE] || row.ROLE }}</el-tag>
+            <el-tag :type="roleTagType(row.role)">{{ roleMap[row.role] || row.role }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="DEPARTMENT_ID" label="部门ID" width="80" />
-        <el-table-column prop="TEAM_ID" label="团队ID" width="80" />
-        <el-table-column prop="EMAIL" label="邮箱" width="200" />
-        <el-table-column prop="PHONE" label="手机号" width="140" />
-        <el-table-column prop="APPROVAL_STATUS" label="状态" width="100">
+        <el-table-column prop="department_id" label="部门ID" width="80" />
+        <el-table-column prop="team_id" label="团队ID" width="80" />
+        <el-table-column prop="email" label="邮箱" width="200" />
+        <el-table-column prop="phone" label="手机号" width="140" />
+        <el-table-column prop="approval_status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag v-if="row.APPROVAL_STATUS === 'PENDING'" type="warning">待审批</el-tag>
-            <el-tag v-else-if="row.APPROVAL_STATUS === 'APPROVED'" type="success">已批准</el-tag>
-            <el-tag v-else-if="row.APPROVAL_STATUS === 'REJECTED'" type="danger">已拒绝</el-tag>
-            <el-tag v-else type="info">{{ row.APPROVAL_STATUS || '正常' }}</el-tag>
+            <el-tag v-if="row.approval_status === 'PENDING'" type="warning">待审批</el-tag>
+            <el-tag v-else-if="row.approval_status === 'APPROVED'" type="success">已批准</el-tag>
+            <el-tag v-else-if="row.approval_status === 'REJECTED'" type="danger">已拒绝</el-tag>
+            <el-tag v-else type="info">{{ row.approval_status || '正常' }}</el-tag>
           </template>
         </el-table-column>
       </el-table>

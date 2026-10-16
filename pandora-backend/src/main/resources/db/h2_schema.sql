@@ -274,6 +274,24 @@ CREATE INDEX IF NOT EXISTS `idx_notif_user_created` ON `notifications` (`target_
 CREATE INDEX IF NOT EXISTS `idx_notif_user_unread` ON `notifications` (`target_user_id`, `is_read`);
 
 
+-- TASK-R18-001: notifications.type 列宽扩展 VARCHAR(20)→VARCHAR(32)
+-- 支持新通知类型 TOP10_IMPORTANT_CHANGED（22 字符）、TOP10_DISPATCH_CHANGED（21 字符）
+-- H2 幂等执行，重复执行无副作用，存量 NEW_TASK/STATUS_CHANGE 数据不受影响
+ALTER TABLE `notifications` ALTER COLUMN `type` VARCHAR(32) NOT NULL;
+
+-- TASK-R18-005: 通知偏好表（每用户每类通知至多一条记录）
+-- 偏好仅影响 Android 弹窗过滤，不影响通知记录生成（REQ-R18-06 规则 5）
+CREATE TABLE IF NOT EXISTS `notification_preferences` (
+    `id`       BIGINT      NOT NULL AUTO_INCREMENT,
+    `user_id`  BIGINT      NOT NULL,
+    `type`     VARCHAR(32) NOT NULL,
+    `enabled`  TINYINT     NOT NULL DEFAULT 1,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+);
+-- user_id + type 联合唯一索引：每用户对每类通知至多一条偏好记录
+CREATE UNIQUE INDEX IF NOT EXISTS `idx_notif_pref_user_type` ON `notification_preferences` (`user_id`, `type`);
+
 ALTER TABLE `top10_works` ADD COLUMN IF NOT EXISTS `is_auto_filled` TINYINT NOT NULL DEFAULT 0;
 ALTER TABLE `top10_works` ADD COLUMN IF NOT EXISTS `source_note` VARCHAR(256) DEFAULT NULL;
 ALTER TABLE `top10_works` ADD COLUMN IF NOT EXISTS `source_log_date` DATE DEFAULT NULL;

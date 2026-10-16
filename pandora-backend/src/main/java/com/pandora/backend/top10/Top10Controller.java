@@ -5,6 +5,7 @@ import com.pandora.backend.common.ApiResponse;
 import com.pandora.backend.common.BusinessException;
 import com.pandora.backend.common.ErrorCode;
 import com.pandora.backend.common.RoleChecker;
+import com.pandora.backend.notification.NotificationService;
 import com.pandora.backend.permission.FunctionCode;
 import com.pandora.backend.permission.FunctionPermissionService;
 import org.slf4j.Logger;
@@ -32,6 +33,9 @@ public class Top10Controller {
     @Autowired
     private FunctionPermissionService functionPermissionService;
 
+    @Autowired
+    private NotificationService notificationService;
+
     @Value("${pandora.top10.cleanup-dirty-data:true}")
     private boolean cleanupDirtyData;
 
@@ -53,6 +57,11 @@ public class Top10Controller {
         String content = (String) request.get("content");
         if (content == null || content.trim().isEmpty()) {
             throw new BusinessException(ErrorCode.TOP10_CONTENT_EMPTY);
+        }
+        // TASK-R18-002: 纯数字内容拦截（三层防御之一：入库拦截）
+        // 复用 TOP10_CONTENT_EMPTY 错误码避免错误码膨胀，ErrorMessageMapper 映射为可读提示
+        if (content.trim().matches("^[0-9]+$")) {
+            throw new BusinessException(ErrorCode.TOP10_CONTENT_EMPTY, "事项内容不能为纯数字");
         }
 
         Integer rankOrder = (Integer) request.get("rankOrder");
@@ -89,6 +98,11 @@ public class Top10Controller {
             throw new BusinessException(ErrorCode.TOP10_SAVE_VERIFY_FAILED);
         }
 
+        // TASK-R18-009: 事项创建成功后触发 TOP10_IMPORTANT_CHANGED 通知（埋点）
+        try {
+            notificationService.detectTop10ImportantChanged(userId, "新增");
+        } catch (Exception ignored) {}
+
         Map<String, Object> result = new HashMap<>();
         result.put("id", id);
         return ResponseEntity.ok(ApiResponse.success(result));
@@ -111,6 +125,10 @@ public class Top10Controller {
         String content = (String) request.get("content");
         if (content == null || content.trim().isEmpty()) {
             throw new BusinessException(ErrorCode.TOP10_CONTENT_EMPTY);
+        }
+        // TASK-R18-002: 纯数字内容拦截（三层防御之一：入库拦截）
+        if (content.trim().matches("^[0-9]+$")) {
+            throw new BusinessException(ErrorCode.TOP10_CONTENT_EMPTY, "事项内容不能为纯数字");
         }
 
         Integer rankOrder = (Integer) request.get("rankOrder");
@@ -144,6 +162,11 @@ public class Top10Controller {
             throw new BusinessException(ErrorCode.TOP10_SAVE_VERIFY_FAILED);
         }
 
+        // TASK-R18-009: 事项修改成功后触发 TOP10_IMPORTANT_CHANGED 通知（埋点）
+        try {
+            notificationService.detectTop10ImportantChanged(userId, "修改");
+        } catch (Exception ignored) {}
+
         Map<String, Object> result = new HashMap<>();
         result.put("id", id);
         return ResponseEntity.ok(ApiResponse.success(result));
@@ -162,6 +185,12 @@ public class Top10Controller {
         if (updated == 0) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "记录不存在");
         }
+
+        // TASK-R18-009: 事项删除成功后触发 TOP10_IMPORTANT_CHANGED 通知（埋点）
+        try {
+            notificationService.detectTop10ImportantChanged(userId, "删除");
+        } catch (Exception ignored) {}
+
         return ResponseEntity.ok(ApiResponse.success());
     }
 
@@ -256,6 +285,12 @@ public class Top10Controller {
         Map<String, Object> result = new HashMap<>();
         result.put("id", id);
         result.put("taskId", taskId);
+
+        // TASK-R18-009: 派发标记成功后触发 TOP10_DISPATCH_CHANGED 通知（埋点）
+        try {
+            notificationService.detectTop10DispatchChanged(userId, "标记");
+        } catch (Exception ignored) {}
+
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
@@ -270,6 +305,12 @@ public class Top10Controller {
         jdbcTemplate.update(
                 "UPDATE top10_works SET deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE work_type = 'COMPANY_DISPATCH' AND related_task_id = ? AND deleted = 0",
                 taskId);
+
+        // TASK-R18-009: 派发取消成功后触发 TOP10_DISPATCH_CHANGED 通知（埋点）
+        try {
+            notificationService.detectTop10DispatchChanged(userId, "移除");
+        } catch (Exception ignored) {}
+
         return ResponseEntity.ok(ApiResponse.success());
     }
 
@@ -364,6 +405,12 @@ public class Top10Controller {
         Map<String, Object> result = new HashMap<>();
         result.put("taskId", taskId);
         result.put("top10Id", top10Id);
+
+        // TASK-R18-009: 派发创建成功后触发 TOP10_DISPATCH_CHANGED 通知（埋点）
+        try {
+            notificationService.detectTop10DispatchChanged(userId, "新增");
+        } catch (Exception ignored) {}
+
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 

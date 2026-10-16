@@ -162,6 +162,9 @@ public class ProfileActivity extends AppCompatActivity {
                                 originalEmail = email;
                                 originalPhone = phone;
                                 Toast.makeText(this, "保存成功", Toast.LENGTH_SHORT).show();
+                                // TASK-R18-019: 修改成功后主动触发当前页面展示刷新（账号信息实时生效）
+                                // 清除 TokenManager 中可能存在的姓名缓存副本（如有），重新拉取最新数据
+                                loadUserInfo();
                             } else {
                                 rollbackFields();
                                 Toast.makeText(this, "保存失败: " + response.getMessage(), Toast.LENGTH_SHORT).show();

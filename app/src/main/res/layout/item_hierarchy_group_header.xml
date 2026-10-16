@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TASK-R18-013: 树形分组标题（孤儿节点"上级已删除"等） -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingTop="14dp"
+    android:paddingBottom="10dp"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp"
+    android:textColor="#B71C1C"
+    android:textSize="15sp"
+    android:textStyle="bold"
+    android:background="#FFF4E5" />

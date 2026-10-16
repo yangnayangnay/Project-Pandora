@@ -70,7 +70,9 @@ const treeLoading = ref(true)
 const relationLoading = ref(true)
 
 function getDisplayName(node) {
-  const realName = node.realName || node.real_name || node.REAL_NAME
+  // TASK-R18-021: lowercaseKeys 将驼峰 realName 转为 realname，
+  // TASK-R18-004 后端追加 real_name 后双命中，三重兜底 + '未知'
+  const realName = node.realName || node.realname || node.real_name || node.REAL_NAME
   const username = node.username || node.USERNAME
   return realName || username || '未知'
 }
@@ -80,6 +82,23 @@ function getDisplayRole(node) {
   return role ? `(${role})` : ''
 }
 
+// TASK-R18-021: RoleRank 等级排序（展示端兜底，与 Android 端 RoleRank 序一致）
+const ROLE_RANK = { ADMIN: 1, FOUNDER: 2, DEPT_HEAD: 3, TEAM_LEADER: 4, EMPLOYEE: 5 }
+function roleRankOf(role) {
+  return ROLE_RANK[role] || 99
+}
+function sortNodesByRoleRank(nodes) {
+  if (!Array.isArray(nodes)) return
+  nodes.sort((a, b) => {
+    const rankA = roleRankOf(a.role || a.ROLE)
+    const rankB = roleRankOf(b.role || b.ROLE)
+    if (rankA !== rankB) return rankA - rankB
+    const idA = a.id || a.ID || 0
+    const idB = b.id || b.ID || 0
+    return idA - idB
+  })
+}
+
 function loadTree() {
   treeLoading.value = true
   getTree()
@@ -87,11 +106,16 @@ function loadTree() {
       const data = response.data || response
       if (data && data.code === 200 && data.data) {
         roots.value = data.data.roots || []
-        orphanNodes.value = data.data.orphanNodes || []
+        // TASK-R18-021: 孤儿分组取值改为 orphannodes || orphanNodes 双取
+        // lowercaseKeys 将驼峰 orphanNodes 转换后为 orphannodes，原三重兜底全部命不中
+        orphanNodes.value = data.data.orphannodes || data.data.orphanNodes || []
+        // TASK-R18-021: 渲染前对 roots 按 role 等级排序（展示端兜底）
+        sortNodesByRoleRank(roots.value)
       } else if (data && data.data) {
         // 兼容直接返回数组的情况
         roots.value = Array.isArray(data.data) ? data.data : (data.data.roots || [])
-        orphanNodes.value = Array.isArray(data.data) ? [] : (data.data.orphanNodes || [])
+        orphanNodes.value = Array.isArray(data.data) ? [] : (data.data.orphannodes || data.data.orphanNodes || [])
+        sortNodesByRoleRank(roots.value)
       }
     })
     .catch(() => {
@@ -127,7 +151,7 @@ const TreeNode = {
   name: 'TreeNode',
   props: ['node'],
   template: `
-    <span class="node-name">{{ node.realName || node.real_name || '未知' }}</span>
+    <span class="node-name">{{ node.realName || node.realname || node.real_name || '未知' }}</span>
     <span class="node-role">{{ node.role ? '(' + node.role + ')' : '' }}</span>
     <ul v-if="node.children && node.children.length > 0" class="tree-children">
       <li v-for="child in node.children" :key="child.id" class="tree-node">

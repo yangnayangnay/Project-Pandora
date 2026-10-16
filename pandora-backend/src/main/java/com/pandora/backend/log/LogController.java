@@ -34,6 +34,9 @@ public class LogController {
     @Autowired
     private com.pandora.backend.hierarchy.HierarchyService hierarchyService;
 
+    @Autowired
+    private com.pandora.backend.notification.NotificationService notificationService;
+
     @PostMapping("/draft")
     @Auditable(operationType = "LOG_DRAFT_GENERATE", targetType = "WORK_LOG")
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateDraft() {
@@ -91,6 +94,11 @@ public class LogController {
 
         try {
             draftService.deleteDraft(userId, "LOG");
+        } catch (Exception ignored) {}
+
+        // TASK-R18-009: 日志创建成功后触发 LOG_COMPLETED 通知（埋点，通知失败不影响主流程）
+        try {
+            notificationService.detectLogCompleted(userId, logDate);
         } catch (Exception ignored) {}
 
         return ResponseEntity.ok(ApiResponse.success(result));
@@ -322,6 +330,13 @@ public class LogController {
         if (updated == 0) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "日志不存在或无权编辑");
         }
+
+        // TASK-R18-009: 日志更新成功后触发 LOG_COMPLETED 通知（埋点）
+        try {
+            Object logDateObj = request.get("logDate");
+            String logDate = logDateObj != null ? logDateObj.toString() : null;
+            notificationService.detectLogCompleted(userId, logDate);
+        } catch (Exception ignored) {}
 
         Map<String, Object> result = new HashMap<>();
         result.put("id", logId);

@@ -7,6 +7,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
@@ -26,6 +27,10 @@ import java.util.Map;
  *
  * <p>全部采用软删除（deleted = 1），保留数据可追溯。启动时执行一次，
  * 防止测试产生的脏数据累积导致真实用户创建时触发"数量已满"。</p>
+ *
+ * <p>TASK-R18-003: 新增 @Scheduled 定时触发（每 30 分钟一次），
+ * 使运行期间写入的纯数字/空 content 脏数据最迟 30 分钟内被清理。
+ * @EnableScheduling 已在 PandoraBackendApplication 启用。</p>
  */
 @Component
 @Order(100)
@@ -38,6 +43,20 @@ public class Top10StartupCleaner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        doCleanup("启动");
+    }
+
+    /**
+     * TASK-R18-003: 定时清理触发入口，每 30 分钟一次（fixedRate = 1800000 毫秒）。
+     * 复用现有 cleanNumericTestEntries/cleanEmptyContentEntries 等软删除逻辑。
+     * 运行期写入的纯数字/空 content 脏数据最迟 30 分钟内被清理。
+     */
+    @Scheduled(fixedRateString = "${pandora.top10.cleanup-schedule-ms:1800000}", initialDelay = 1800000)
+    public void scheduledCleanup() {
+        doCleanup("定时");
+    }
+
+    private void doCleanup(String trigger) {
         int cleaned = 0;
         cleaned += cleanNumericTestEntries();
         cleaned += cleanEmptyContentEntries();
@@ -45,9 +64,9 @@ public class Top10StartupCleaner implements ApplicationRunner {
         cleaned += cleanOverLimitEntries();
         cleaned += cleanDuplicateDispatch();
         if (cleaned > 0) {
-            log.info("Top10启动清理完成，共软删除 {} 条脏数据", cleaned);
+            log.info("Top10{}清理完成，共软删除 {} 条脏数据", trigger, cleaned);
         } else {
-            log.info("Top10启动清理完成，无脏数据");
+            log.info("Top10{}清理完成，无脏数据", trigger);
         }
     }
 

@@ -18,6 +18,14 @@ public interface HierarchyApi {
     @GET("hierarchy/relations")
     Observable<ApiResponse<List<Map<String, Object>>>> getHierarchyTree();
 
+    /**
+     * TASK-R18-012: 新增 getTree 方法调 GET /hierarchy/tree
+     * 返回 {roots, orphanNodes} 包装结构，节点含 id/username/realName/displayName/role/children
+     * 保留 getHierarchyTree（实际调 relations 接口）不动，向后兼容
+     */
+    @GET("hierarchy/tree")
+    Observable<ApiResponse<Map<String, Object>>> getTree();
+
     @POST("hierarchy/relation")
     Observable<ApiResponse<Map<String, Object>>> addRelation(@Body Map<String, Object> request);
 

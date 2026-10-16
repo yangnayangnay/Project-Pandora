@@ -117,7 +117,19 @@ public class CompanyDispatchManageActivity extends AppCompatActivity {
             if (assigneeName == null) assigneeName = item.get("ASSIGNEE_NAME");
             Object rank = item.get("rank_order");
             if (rank == null) rank = item.get("RANK_ORDER");
-            String text = rank + ". " + (taskName != null ? taskName : "未命名");
+            // TASK-R18-010: content 字段双取兜底（派发类条目 content 由任务名填充，task_name 缺失时兜底）
+            Object content = item.get("content");
+            if (content == null) content = item.get("CONTENT");
+            // 优先 task_name，其次 content，最后"未命名"
+            String displayName;
+            if (taskName != null && !taskName.toString().isEmpty()) {
+                displayName = taskName.toString();
+            } else if (content != null && !content.toString().isEmpty() && !content.toString().trim().matches("^[0-9]+$")) {
+                displayName = content.toString();
+            } else {
+                displayName = "未命名";
+            }
+            String text = rank + ". " + displayName;
             if (assigneeName != null) text += " (" + assigneeName + ")";
             items.add(text);
         }

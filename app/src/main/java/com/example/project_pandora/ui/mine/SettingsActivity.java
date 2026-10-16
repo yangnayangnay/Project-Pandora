@@ -17,7 +17,9 @@ import com.example.project_pandora.core.sync.NetworkMode;
 import com.example.project_pandora.core.sync.SyncManager;
 import com.example.project_pandora.core.sync.SyncProgress;
 import com.example.project_pandora.core.sync.SyncState;
+import com.example.project_pandora.core.sync.SyncWorker;
 import com.example.project_pandora.core.util.BackToolbarHelper;
+import com.example.project_pandora.data.remote.NotificationApi;
 import com.example.project_pandora.data.remote.UserApi;
 import com.example.project_pandora.databinding.ActivitySettingsBinding;
 import com.example.project_pandora.repository.SyncRepository;
@@ -34,10 +36,20 @@ public class SettingsActivity extends AppCompatActivity {
 
     private ActivitySettingsBinding binding;
     private UserApi userApi;
+    private NotificationApi notificationApi;
     private LogDisplayLimitConfig logDisplayLimitConfig;
     private SyncManager syncManager;
     private SyncRepository syncRepository;
     private final CompositeDisposable disposables = new CompositeDisposable();
+
+    /** TASK-R18-018: 5 类通知类型与开关 view id 映射 */
+    private static final String[][] NOTIF_SWITCH_MAP = {
+            {"NEW_TASK", "switchNotifNewTask"},
+            {"STATUS_CHANGE", "switchNotifStatusChange"},
+            {"LOG_COMPLETED", "switchNotifLogCompleted"},
+            {"TOP10_DISPATCH_CHANGED", "switchNotifTop10Dispatch"},
+            {"TOP10_IMPORTANT_CHANGED", "switchNotifTop10Important"}
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,6 +58,7 @@ public class SettingsActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         userApi = NetworkClient.getInstance(this).createService(UserApi.class);
+        notificationApi = NetworkClient.getInstance(this).createService(NotificationApi.class);
         logDisplayLimitConfig = new LogDisplayLimitConfig(this);
         syncManager = SyncManager.getInstance();
         syncRepository = new SyncRepository(this);
@@ -55,6 +68,8 @@ public class SettingsActivity extends AppCompatActivity {
         loadSettings();
         loadLocalLogDisplaySettings();
         initSyncCard();
+        // TASK-R18-018: 加载通知偏好并初始化开关
+        loadNotificationPreferences();
 
         binding.switchShowCompleted.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!buttonView.isPressed()) return;
@@ -68,6 +83,28 @@ public class SettingsActivity extends AppCompatActivity {
 
         binding.cardLogTimeLimit.setOnClickListener(v -> showTimeLimitSelector());
         binding.cardLogCountLimit.setOnClickListener(v -> showCountLimitSelector());
+
+        // TASK-R18-018: 5 类通知开关切换监听
+        binding.switchNotifNewTask.setOnCheckedChangeListener((b, checked) -> {
+            if (!b.isPressed()) return;
+            updateNotificationPreference("NEW_TASK", checked, binding.switchNotifNewTask);
+        });
+        binding.switchNotifStatusChange.setOnCheckedChangeListener((b, checked) -> {
+            if (!b.isPressed()) return;
+            updateNotificationPreference("STATUS_CHANGE", checked, binding.switchNotifStatusChange);
+        });
+        binding.switchNotifLogCompleted.setOnCheckedChangeListener((b, checked) -> {
+            if (!b.isPressed()) return;
+            updateNotificationPreference("LOG_COMPLETED", checked, binding.switchNotifLogCompleted);
+        });
+        binding.switchNotifTop10Dispatch.setOnCheckedChangeListener((b, checked) -> {
+            if (!b.isPressed()) return;
+            updateNotificationPreference("TOP10_DISPATCH_CHANGED", checked, binding.switchNotifTop10Dispatch);
+        });
+        binding.switchNotifTop10Important.setOnCheckedChangeListener((b, checked) -> {
+            if (!b.isPressed()) return;
+            updateNotificationPreference("TOP10_IMPORTANT_CHANGED", checked, binding.switchNotifTop10Important);
+        });
     }
 
     private void loadSettings() {
@@ -290,5 +327,75 @@ public class SettingsActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         disposables.clear();
+    }
+
+    /**
+     * TASK-R18-018: 加载通知偏好（GET /notification/preferences）初始化 5 个开关状态
+     * 接口失败默认全部开启
+     */
+    private void loadNotificationPreferences() {
+        disposables.add(notificationApi.getPreferences()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        response -> {
+                            if (response.isSuccess() && response.getData() != null) {
+                                Map<String, Object> data = response.getData();
+                                binding.switchNotifNewTask.setChecked(getPrefBool(data, "NEW_TASK", true));
+                                binding.switchNotifStatusChange.setChecked(getPrefBool(data, "STATUS_CHANGE", true));
+                                binding.switchNotifLogCompleted.setChecked(getPrefBool(data, "LOG_COMPLETED", true));
+                                binding.switchNotifTop10Dispatch.setChecked(getPrefBool(data, "TOP10_DISPATCH_CHANGED", true));
+                                binding.switchNotifTop10Important.setChecked(getPrefBool(data, "TOP10_IMPORTANT_CHANGED", true));
+                            } else {
+                                setAllNotifSwitches(true);
+                            }
+                        },
+                        error -> setAllNotifSwitches(true)
+                ));
+    }
+
+    private boolean getPrefBool(Map<String, Object> data, String key, boolean defaultVal) {
+        Object value = data.get(key);
+        if (value instanceof Boolean) return (Boolean) value;
+        if (value != null) {
+            try { return Boolean.parseBoolean(value.toString()); } catch (Exception ignored) {}
+        }
+        return defaultVal;
+    }
+
+    private void setAllNotifSwitches(boolean enabled) {
+        binding.switchNotifNewTask.setChecked(enabled);
+        binding.switchNotifStatusChange.setChecked(enabled);
+        binding.switchNotifLogCompleted.setChecked(enabled);
+        binding.switchNotifTop10Dispatch.setChecked(enabled);
+        binding.switchNotifTop10Important.setChecked(enabled);
+    }
+
+    /**
+     * TASK-R18-018: 保存通知偏好（PUT /notification/preferences）并更新本地 SharedPreferences 偏好缓存
+     * 保存失败时开关回弹至保存前状态并提示"保存失败，请重试"（复用现有交互模式）
+     */
+    private void updateNotificationPreference(String type, boolean enabled,
+                                              com.google.android.material.materialswitch.MaterialSwitch switchView) {
+        Map<String, Object> request = new HashMap<>();
+        request.put(type, enabled);
+
+        disposables.add(notificationApi.updatePreferences(request)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        response -> {
+                            // 更新本地 SharedPreferences 偏好缓存（轮询 Worker 读取该缓存）
+                            android.content.SharedPreferences prefs = getSharedPreferences("notification_prefs", Context.MODE_PRIVATE);
+                            prefs.edit().putBoolean("pref_type_" + type, enabled)
+                                    .putLong("pref_timestamp", System.currentTimeMillis())
+                                    .apply();
+                        },
+                        error -> {
+                            // 失败回弹至保存前状态
+                            switchView.setChecked(!enabled);
+                            Toast.makeText(this, "\u4FDD\u5B58\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5", Toast.LENGTH_SHORT).show();
+                        }
+                ));
     }
 }

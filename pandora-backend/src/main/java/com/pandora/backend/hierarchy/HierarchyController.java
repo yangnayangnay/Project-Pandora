@@ -81,11 +81,19 @@ public class HierarchyController {
             Object role = root.get("ROLE") != null ? root.get("ROLE") : root.get("role");
             root.put("role", role != null ? role : "");
 
+            // TASK-R18-004: 追加 snake_case 副字段（real_name/display_name/username 已有小写对应）
+            // 使 request.js lowercaseKeys 递归转换后 realname 与 real_name 双存在（向后兼容）
+            root.put("real_name", root.get("realName"));
+            root.put("display_name", root.get("realName"));
+
             Long rootId = (Long) (root.get("ID") != null ? root.get("ID") : root.get("id"));
             // 每个根节点创建新的 visited 集合
             Set<Long> visited = new HashSet<>();
             root.put("children", buildChildren(rootId, relations, visited));
         }
+
+        // TASK-R18-004: roots 按 RoleRank 升序 + 用户 id 升序稳定排序
+        sortNodesByRoleRank(roots);
 
         // B8、B10：孤儿节点查询并单独返回
         List<Map<String, Object>> orphanNodes = hierarchyService.getOrphanNodes();
@@ -97,12 +105,56 @@ public class HierarchyController {
             orphan.put("realName", realName != null ? realName : "");
             Object role = orphan.get("ROLE") != null ? orphan.get("ROLE") : orphan.get("role");
             orphan.put("role", role != null ? role : "");
+
+            // TASK-R18-004: 孤儿节点同样追加 snake_case 副字段
+            orphan.put("real_name", orphan.get("realName"));
+            orphan.put("display_name", orphan.get("realName"));
         }
 
         Map<String, Object> resultBody = new HashMap<>();
         resultBody.put("roots", roots);
         resultBody.put("orphanNodes", orphanNodes);
         return ResponseEntity.ok(ApiResponse.success(resultBody));
+    }
+
+    /**
+     * TASK-R18-004: RoleRank 等级常量（独立于被 UserRelationActivity 依赖的 PermissionLevel，不得改动 PermissionLevel）
+     * ADMIN=1 > FOUNDER=2 > DEPT_HEAD=3 > TEAM_LEADER=4 > EMPLOYEE=5，未知角色=99
+     */
+    private int roleRankOf(String role) {
+        if (role == null) return 99;
+        switch (role) {
+            case "ADMIN": return 1;
+            case "FOUNDER": return 2;
+            case "DEPT_HEAD": return 3;
+            case "TEAM_LEADER": return 4;
+            case "EMPLOYEE": return 5;
+            default: return 99;
+        }
+    }
+
+    /**
+     * TASK-R18-004: 节点列表按 RoleRank 升序 + 用户 id 升序稳定排序
+     */
+    @SuppressWarnings("unchecked")
+    private void sortNodesByRoleRank(List<Map<String, Object>> nodes) {
+        nodes.sort((a, b) -> {
+            Object roleA = a.get("role") != null ? a.get("role") : a.get("ROLE");
+            Object roleB = b.get("role") != null ? b.get("role") : b.get("ROLE");
+            int rankA = roleRankOf(roleA != null ? roleA.toString() : null);
+            int rankB = roleRankOf(roleB != null ? roleB.toString() : null);
+            if (rankA != rankB) return Integer.compare(rankA, rankB);
+            // 同级按用户 id 升序稳定排序
+            Long idA = extractId(a);
+            Long idB = extractId(b);
+            return Long.compare(idA, idB);
+        });
+    }
+
+    private Long extractId(Map<String, Object> node) {
+        Object id = node.get("id") != null ? node.get("id") : node.get("ID");
+        if (id instanceof Number) return ((Number) id).longValue();
+        return Long.MAX_VALUE;
     }
 
     /**
@@ -132,10 +184,17 @@ public class HierarchyController {
                 child.put("displayName", displayName != null ? displayName : "");
                 Object role = rel.get("SUB_ROLE") != null ? rel.get("SUB_ROLE") : rel.get("sub_role");
                 child.put("role", role != null ? role : "");
+
+                // TASK-R18-004: children 追加 snake_case 副字段（向后兼容，既有驼峰字段不删除）
+                child.put("real_name", child.get("realName"));
+                child.put("display_name", child.get("displayName"));
+
                 child.put("children", buildChildren(subId, relations, visited));
                 children.add(child);
             }
         }
+        // TASK-R18-004: 同层子节点按 RoleRank 升序 + 用户 id 升序稳定排序
+        sortNodesByRoleRank(children);
         return children;
     }
 

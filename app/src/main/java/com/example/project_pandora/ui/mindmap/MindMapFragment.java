@@ -178,7 +178,20 @@ public class MindMapFragment extends Fragment {
             Map<String, Object> item = items.get(i);
             Object content = item.get("content");
             if (content == null) content = item.get("CONTENT");
-            TextView tv = createItemTextView((i + 1) + ". " + (content != null ? content.toString() : "\u672A\u547D\u540D"));
+            // TASK-R18-010: 纯数字/空字符串防御（三层防御之三：展示层兜底）
+            // content 为 null、空字符串或纯数字时显示"未命名"占位，保留"序号. "前缀
+            String displayContent;
+            if (content == null) {
+                displayContent = "\u672A\u547D\u540D";
+            } else {
+                String contentStr = content.toString();
+                if (contentStr.trim().isEmpty() || contentStr.trim().matches("^[0-9]+$")) {
+                    displayContent = "\u672A\u547D\u540D";
+                } else {
+                    displayContent = contentStr;
+                }
+            }
+            TextView tv = createItemTextView((i + 1) + ". " + displayContent);
             container.addView(tv);
         }
     }
@@ -440,6 +453,8 @@ public class MindMapFragment extends Fragment {
     public void onResume() {
         super.onResume();
         loadMindMapData();
+        // TASK-R18-017: 导图页 onResume 触发前台即时通知轮询
+        com.example.project_pandora.notification.NotificationPollWorker.enqueueOneTimeWork(requireContext());
     }
 
     @Override
