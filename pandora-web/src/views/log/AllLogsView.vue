@@ -21,7 +21,7 @@
       <el-table-column prop="work_item" label="工作事项" show-overflow-tooltip />
       <el-table-column prop="time_cost" label="时间花费(h)" width="120" />
       <el-table-column prop="log_date" label="日志日期" width="120" />
-      <el-table-column prop="created_at" label="创建时间" width="180" />
+      <!-- Round19 REQ-19-09: 移除创建时间列 -->
     </el-table>
   </div>
 </template>

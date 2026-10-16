@@ -132,6 +132,67 @@ public class DivinationEngine {
         return divine(new Date());
     }
 
+    /**
+     * Round19 REQ-19-12: 基于输入数字 N 的梅花易数起卦方法。
+     *
+     * 算法:
+     *   上卦数 = N % 8，若为 0 取 8
+     *   下卦数 = ((N/8 的余数 + N%8) % 8)，若为 0 取 8
+     *       注: N/8 的余数即 N % 8，故下卦数 = ((N%8 + N%8) % 8)
+     *   动爻 = ((N/64 的余数 + N/8 的余数 + N%8) % 6)，若为 0 取 6
+     *       注: N/64 的余数即 N % 64，N/8 的余数即 N % 8
+     *   本卦编号 = (下卦数 - 1) × 8 + 上卦数（范围 1-64）
+     *
+     * @param number 用户输入的正整数
+     * @return DivinationResult 含本卦/互卦/变卦名称、卦辞、爻辞、动爻
+     */
+    public DivinationResult divine(int number) {
+        // 上卦数 = N % 8，若为 0 取 8
+        int upperHexagram = number % 8;
+        if (upperHexagram == 0) upperHexagram = 8;
+
+        // 下卦数 = ((N%8 + N%8) % 8)，若为 0 取 8
+        int nMod8 = number % 8;
+        int lowerHexagram = (nMod8 + nMod8) % 8;
+        if (lowerHexagram == 0) lowerHexagram = 8;
+
+        // 动爻 = ((N%64 + N%8 + N%8) % 6)，若为 0 取 6
+        int nMod64 = number % 64;
+        int movingLine = (nMod64 + nMod8 + nMod8) % 6;
+        if (movingLine == 0) movingLine = 6;
+
+        // 本卦编号 = (下卦数 - 1) × 8 + 上卦数（范围 1-64）
+        int originalHexagram = (lowerHexagram - 1) * 8 + upperHexagram;
+        int mutualHexagram = calculateMutualHexagram(originalHexagram);
+        int changedHexagram = calculateChangedHexagram(originalHexagram, movingLine);
+
+        String originalName = HexagramTexts.getHexagramName(originalHexagram);
+        String mutualName = HexagramTexts.getHexagramName(mutualHexagram);
+        String changedName = HexagramTexts.getHexagramName(changedHexagram);
+
+        String originalJudgment = HexagramTexts.getJudgment(originalHexagram);
+        String mutualJudgment = HexagramTexts.getJudgment(mutualHexagram);
+        String changedJudgment = HexagramTexts.getJudgment(changedHexagram);
+
+        String[] originalLines = new String[6];
+        String[] mutualLines = new String[6];
+        String[] changedLines = new String[6];
+        for (int i = 1; i <= 6; i++) {
+            originalLines[i - 1] = HexagramTexts.getLineText(originalHexagram, i);
+            mutualLines[i - 1] = HexagramTexts.getLineText(mutualHexagram, i);
+            changedLines[i - 1] = HexagramTexts.getLineText(changedHexagram, i);
+        }
+
+        boolean[] originalLinePattern = getLinePattern(originalHexagram);
+        boolean[] mutualLinePattern = getLinePattern(mutualHexagram);
+        boolean[] changedLinePattern = getLinePattern(changedHexagram);
+
+        return new DivinationResult(originalName, mutualName, changedName,
+                originalJudgment, mutualJudgment, changedJudgment,
+                originalLines, mutualLines, changedLines, movingLine,
+                originalLinePattern, mutualLinePattern, changedLinePattern);
+    }
+
     private int calculateChangedHexagram(int hexagram, int movingLine) {
         int upper = (hexagram - 1) % 8 + 1;
         int lower = (hexagram - 1) / 8 + 1;

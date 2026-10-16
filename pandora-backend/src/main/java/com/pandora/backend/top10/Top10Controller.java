@@ -36,6 +36,9 @@ public class Top10Controller {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private Top10SortService top10SortService;
+
     @Value("${pandora.top10.cleanup-dirty-data:true}")
     private boolean cleanupDirtyData;
 
@@ -43,6 +46,8 @@ public class Top10Controller {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCompanyImportant() {
         List<Map<String, Object>> list = jdbcTemplate.queryForList(
                 "SELECT * FROM top10_works WHERE work_type = 'COMPANY_IMPORTANT' AND deleted = 0 ORDER BY rank_order");
+        // Round19 REQ-19-07: 按综合评分降序排列（同分按 rank_order 升序兜底）
+        list = top10SortService.sortAndScore(list);
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 
@@ -50,7 +55,8 @@ public class Top10Controller {
     @Auditable(operationType = "COMPANY_IMPORTANT_CREATE", targetType = "COMPANY_IMPORTANT")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createCompanyImportant(@RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
-        if (!functionPermissionService.check(userId, FunctionCode.COMPANY_IMPORTANT_EDIT.getCode())) {
+        // Round19 REQ-19-05: 写操作权限收紧为仅 ADMIN 独占
+        if (!RoleChecker.isAdminOnly(getCurrentUserRole())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "无权操作"));
         }
 
@@ -69,6 +75,17 @@ public class Top10Controller {
             throw new BusinessException(ErrorCode.TOP10_RANK_OUT_OF_RANGE);
         }
 
+        // Round19 REQ-19-07: 紧急度等级与截止时间字段
+        String urgencyLevel = (String) request.get("urgencyLevel");
+        if (urgencyLevel != null && !urgencyLevel.isEmpty()
+                && !urgencyLevel.equals("高") && !urgencyLevel.equals("中") && !urgencyLevel.equals("低")
+                && !urgencyLevel.equalsIgnoreCase("HIGH") && !urgencyLevel.equalsIgnoreCase("MEDIUM")
+                && !urgencyLevel.equalsIgnoreCase("MID") && !urgencyLevel.equalsIgnoreCase("LOW")) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "紧急度等级非法，必须为高/中/低");
+        }
+        String deadline = (String) request.get("deadline");
+        if (deadline != null && deadline.trim().isEmpty()) deadline = null;
+
         // 内容唯一性校验（B3）
         Integer dupCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM top10_works WHERE work_type = 'COMPANY_IMPORTANT' AND TRIM(content) = TRIM(?) AND deleted = 0",
@@ -85,8 +102,11 @@ public class Top10Controller {
         }
 
         jdbcTemplate.update(
-                "INSERT INTO top10_works (user_id, work_type, rank_order, content) VALUES (?, 'COMPANY_IMPORTANT', ?, ?)",
-                userId, rankOrder, content.trim());
+                "INSERT INTO top10_works (user_id, work_type, rank_order, content, urgency_level, deadline) " +
+                        "VALUES (?, 'COMPANY_IMPORTANT', ?, ?, ?, ?)",
+                userId, rankOrder, content.trim(),
+                (urgencyLevel != null && !urgencyLevel.isEmpty()) ? urgencyLevel : null,
+                deadline);
 
         Long id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
 
@@ -112,7 +132,8 @@ public class Top10Controller {
     @Auditable(operationType = "COMPANY_IMPORTANT_UPDATE", targetType = "COMPANY_IMPORTANT")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateCompanyImportant(@PathVariable Long id, @RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
-        if (!functionPermissionService.check(userId, FunctionCode.COMPANY_IMPORTANT_EDIT.getCode())) {
+        // Round19 REQ-19-05: 写操作权限收紧为仅 ADMIN 独占
+        if (!RoleChecker.isAdminOnly(getCurrentUserRole())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "无权操作"));
         }
 
@@ -136,6 +157,17 @@ public class Top10Controller {
             throw new BusinessException(ErrorCode.TOP10_RANK_OUT_OF_RANGE);
         }
 
+        // Round19 REQ-19-07: 紧急度等级与截止时间字段
+        String urgencyLevel = (String) request.get("urgencyLevel");
+        if (urgencyLevel != null && !urgencyLevel.isEmpty()
+                && !urgencyLevel.equals("高") && !urgencyLevel.equals("中") && !urgencyLevel.equals("低")
+                && !urgencyLevel.equalsIgnoreCase("HIGH") && !urgencyLevel.equalsIgnoreCase("MEDIUM")
+                && !urgencyLevel.equalsIgnoreCase("MID") && !urgencyLevel.equalsIgnoreCase("LOW")) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "紧急度等级非法，必须为高/中/低");
+        }
+        String deadline = (String) request.get("deadline");
+        if (deadline != null && deadline.trim().isEmpty()) deadline = null;
+
         // 内容唯一性校验（排除自身）（B4）
         Integer dupCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM top10_works WHERE work_type = 'COMPANY_IMPORTANT' AND TRIM(content) = TRIM(?) AND deleted = 0 AND id != ?",
@@ -145,8 +177,10 @@ public class Top10Controller {
         }
 
         jdbcTemplate.update(
-                "UPDATE top10_works SET content = ?, rank_order = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                content.trim(), rankOrder, id);
+                "UPDATE top10_works SET content = ?, rank_order = ?, urgency_level = ?, deadline = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                content.trim(), rankOrder,
+                (urgencyLevel != null && !urgencyLevel.isEmpty()) ? urgencyLevel : null,
+                deadline, id);
 
         // 保存后验证（B4）
         List<Map<String, Object>> verify = jdbcTemplate.queryForList(
@@ -176,7 +210,8 @@ public class Top10Controller {
     @Auditable(operationType = "COMPANY_IMPORTANT_DELETE", targetType = "COMPANY_IMPORTANT")
     public ResponseEntity<ApiResponse<Void>> deleteCompanyImportant(@PathVariable Long id) {
         Long userId = getCurrentUserId();
-        if (!functionPermissionService.check(userId, FunctionCode.COMPANY_IMPORTANT_EDIT.getCode())) {
+        // Round19 REQ-19-05: 写操作权限收紧为仅 ADMIN 独占
+        if (!RoleChecker.isAdminOnly(getCurrentUserRole())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "无权操作"));
         }
 

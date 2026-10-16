@@ -4,7 +4,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -12,6 +14,16 @@ public class AuditService {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    /**
+     * Round19 REQ-19-02: 系统日志默认三类白名单过滤。
+     * 仅展示首次登录 + 任务增删改 + 日志增删改 共 7 种 operation_type。
+     */
+    private static final List<String> DEFAULT_TYPE_WHITELIST = Arrays.asList(
+            "LOGIN",
+            "TASK_CREATE", "TASK_UPDATE", "TASK_DELETE",
+            "LOG_CREATE", "LOG_UPDATE", "LOG_DELETE"
+    );
 
     public void record(Long operatorId, String action, String targetType, Long targetId, String detail) {
         record(operatorId, action, targetType, targetId, detail, null, null);
@@ -52,9 +64,18 @@ public class AuditService {
             appendWhere(where, "a.operated_at <= ?");
             params.add(endTime);
         }
-        if (operationType != null && !operationType.isEmpty()) {
+        // Round19 REQ-19-02: 默认三类白名单过滤
+        // 当 operationType 未传入 → 附加白名单 IN 过滤
+        // 当 operationType 传入但不在白名单内 → 仍按白名单过滤（防越权查看其他类型）
+        // 当 operationType 传入且在白名单内 → 按指定类型精确过滤
+        if (operationType != null && !operationType.isEmpty()
+                && DEFAULT_TYPE_WHITELIST.contains(operationType)) {
             appendWhere(where, "a.operation_type = ?");
             params.add(operationType);
+        } else {
+            // 附加白名单 IN 过滤
+            appendWhere(where, "a.operation_type IN (" + buildPlaceholders(DEFAULT_TYPE_WHITELIST.size()) + ")");
+            params.addAll(DEFAULT_TYPE_WHITELIST);
         }
         if (keyword != null && !keyword.isEmpty()) {
             appendWhere(where, "a.operation_content LIKE ?");
@@ -100,9 +121,14 @@ public class AuditService {
             appendWhere(where, "a.operated_at <= ?");
             params.add(endTime);
         }
-        if (operationType != null && !operationType.isEmpty()) {
+        // Round19 REQ-19-02: 导出同样应用白名单过滤
+        if (operationType != null && !operationType.isEmpty()
+                && DEFAULT_TYPE_WHITELIST.contains(operationType)) {
             appendWhere(where, "a.operation_type = ?");
             params.add(operationType);
+        } else {
+            appendWhere(where, "a.operation_type IN (" + buildPlaceholders(DEFAULT_TYPE_WHITELIST.size()) + ")");
+            params.addAll(DEFAULT_TYPE_WHITELIST);
         }
         if (keyword != null && !keyword.isEmpty()) {
             appendWhere(where, "a.operation_content LIKE ?");
@@ -115,6 +141,15 @@ public class AuditService {
                 whereClause + " ORDER BY a.operated_at DESC";
 
         return jdbcTemplate.queryForList(sql, params.toArray());
+    }
+
+    private String buildPlaceholders(int count) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            if (i > 0) sb.append(",");
+            sb.append("?");
+        }
+        return sb.toString();
     }
 
     private void appendWhere(StringBuilder where, String condition) {

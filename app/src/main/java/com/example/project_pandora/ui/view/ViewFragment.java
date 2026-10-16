@@ -1,5 +1,6 @@
 package com.example.project_pandora.ui.view;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
@@ -18,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.project_pandora.R;
+import com.example.project_pandora.core.network.TokenManager;
 import com.example.project_pandora.databinding.FragmentViewBinding;
 import com.example.project_pandora.repository.ViewRepository;
 import com.example.project_pandora.ui.task.TaskCreateActivity;
@@ -27,6 +29,7 @@ import com.google.android.material.tabs.TabLayout;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -107,8 +110,23 @@ public class ViewFragment extends Fragment {
 
     private void setupFab() {
         binding.fabAddTask.setOnClickListener(v -> {
-            Intent intent = new Intent(requireContext(), TaskCreateActivity.class);
-            startActivity(intent);
+            String[] options = {"创建自己的任务", "创建他人任务"};
+            new AlertDialog.Builder(requireContext())
+                    .setTitle("选择创建方式")
+                    .setItems(options, (dialog, which) -> {
+                        Intent intent = new Intent(requireContext(), TaskCreateActivity.class);
+                        if (which == 0) {
+                            // 创建自己的任务：预设分配人为当前用户并锁定
+                            Long currentUserId = TokenManager.getInstance(requireContext()).getUserId();
+                            if (currentUserId != null && currentUserId > 0) {
+                                intent.putExtra("assigneeId", currentUserId);
+                                intent.putExtra("assigneeLocked", true);
+                            }
+                        }
+                        // which == 1: 创建他人任务，不预设，由用户在TaskCreateActivity自由选择
+                        startActivity(intent);
+                    })
+                    .show();
         });
     }
 
@@ -116,7 +134,7 @@ public class ViewFragment extends Fragment {
         binding.containerMonthView.setVisibility(position == 0 ? View.VISIBLE : View.GONE);
         binding.containerWeekView.setVisibility(position == 1 ? View.VISIBLE : View.GONE);
         binding.containerDayView.setVisibility(position == 2 ? View.VISIBLE : View.GONE);
-        binding.fabAddTask.setVisibility(position == 2 ? View.VISIBLE : View.GONE);
+        binding.fabAddTask.setVisibility(View.VISIBLE);
 
         switch (position) {
             case 0: loadMonthViewData(); break;
@@ -319,7 +337,7 @@ public class ViewFragment extends Fragment {
             binding.textSelectedDateLabel.setText(labelFmt.format(selectedDate.getTime()) + " （" + dayTasks.size() + "项任务）");
             binding.textSelectedDateLabel.setVisibility(View.VISIBLE);
             binding.recyclerMonthDayTasks.setVisibility(View.VISIBLE);
-            TaskCardAdapter adapter = new TaskCardAdapter(dayTasks);
+            TaskCardAdapter adapter = new TaskCardAdapter(dayTasks, this::onTaskSelected);
             binding.recyclerMonthDayTasks.setLayoutManager(new LinearLayoutManager(requireContext()));
             binding.recyclerMonthDayTasks.setAdapter(adapter);
         }
@@ -360,7 +378,7 @@ public class ViewFragment extends Fragment {
         } else {
             binding.recyclerWeekTasks.setVisibility(View.VISIBLE);
             binding.weekEmptyState.setVisibility(View.GONE);
-            TaskCardAdapter adapter = new TaskCardAdapter(tasks);
+            TaskCardAdapter adapter = new TaskCardAdapter(tasks, this::onTaskSelected);
             binding.recyclerWeekTasks.setLayoutManager(new LinearLayoutManager(requireContext()));
             binding.recyclerWeekTasks.setAdapter(adapter);
         }
@@ -395,9 +413,71 @@ public class ViewFragment extends Fragment {
         } else {
             binding.recyclerDayTasks.setVisibility(View.VISIBLE);
             binding.dayEmptyState.setVisibility(View.GONE);
-            TaskCardAdapter adapter = new TaskCardAdapter(tasks);
+            TaskCardAdapter adapter = new TaskCardAdapter(tasks, this::onTaskSelected);
             binding.recyclerDayTasks.setLayoutManager(new LinearLayoutManager(requireContext()));
             binding.recyclerDayTasks.setAdapter(adapter);
+        }
+    }
+
+    /**
+     * Round19 REQ-19-08: 任务选中后填充底部面板，不跳转详情页
+     */
+    @SuppressWarnings("unchecked")
+    private void onTaskSelected(Map<String, Object> task) {
+        // 填充底部任务面板
+        Object name = task.get("name");
+        if (name == null) name = task.get("NAME");
+        if (name == null) name = task.get("work_item");
+        binding.textPanelTitle.setText(name != null ? name.toString() : "未命名任务");
+
+        Object content = task.get("content");
+        if (content == null) content = task.get("CONTENT");
+        if (content != null && !content.toString().isEmpty()) {
+            binding.textPanelContent.setText(content.toString());
+            binding.textPanelContent.setVisibility(View.VISIBLE);
+        } else {
+            binding.textPanelContent.setVisibility(View.GONE);
+        }
+
+        // 更新底部时间横条
+        Object deadlineObj = task.get("deadline");
+        if (deadlineObj == null) deadlineObj = task.get("DEADLINE");
+        binding.textRemainingTime.setText(formatRemainingTime(deadlineObj));
+    }
+
+    /**
+     * Round19 REQ-19-08: 格式化剩余时间
+     * @return "已逾期X天" / "剩余X天X小时" / "无截止时间"
+     */
+    private String formatRemainingTime(Object deadlineObj) {
+        if (deadlineObj == null || deadlineObj.toString().isEmpty()) {
+            return "无截止时间";
+        }
+        try {
+            String deadlineStr = deadlineObj.toString();
+            // 兼容 "yyyy-MM-dd" 和 "yyyy-MM-dd HH:mm:ss" 格式
+            if (deadlineStr.length() >= 10) {
+                deadlineStr = deadlineStr.substring(0, 10);
+            }
+            Date deadline = java.sql.Date.valueOf(deadlineStr);
+            long nowMillis = System.currentTimeMillis();
+            long deadlineMillis = deadline.getTime();
+            long diffMillis = deadlineMillis - nowMillis;
+
+            if (diffMillis < 0) {
+                // 已逾期
+                long overdueDays = (-diffMillis) / (1000L * 60 * 60 * 24);
+                return "已逾期" + (overdueDays + 1) + "天";
+            } else {
+                long remainDays = diffMillis / (1000L * 60 * 60 * 24);
+                long remainHours = (diffMillis % (1000L * 60 * 60 * 24)) / (1000L * 60 * 60);
+                if (remainDays == 0 && remainHours == 0) {
+                    return "今日截止";
+                }
+                return "剩余" + remainDays + "天" + remainHours + "小时";
+            }
+        } catch (Exception e) {
+            return "无截止时间";
         }
     }
 
@@ -409,9 +489,15 @@ public class ViewFragment extends Fragment {
 
     private static class TaskCardAdapter extends RecyclerView.Adapter<TaskCardAdapter.CardViewHolder> {
         private final List<Map<String, Object>> items;
+        private final OnTaskClickListener listener;
 
-        TaskCardAdapter(List<Map<String, Object>> items) {
+        interface OnTaskClickListener {
+            void onTaskClick(Map<String, Object> task);
+        }
+
+        TaskCardAdapter(List<Map<String, Object>> items, OnTaskClickListener listener) {
             this.items = items != null ? items : new ArrayList<>();
+            this.listener = listener;
         }
 
         @NonNull
@@ -508,12 +594,8 @@ public class ViewFragment extends Fragment {
             holder.statusText.setText(sb.toString());
 
             holder.itemView.setOnClickListener(v -> {
-                Object taskId = item.get("id");
-                if (taskId == null) taskId = item.get("ID");
-                if (taskId instanceof Number) {
-                    Intent intent = new Intent(v.getContext(), com.example.project_pandora.ui.task.TaskDetailActivity.class);
-                    intent.putExtra("taskId", ((Number) taskId).longValue());
-                    v.getContext().startActivity(intent);
+                if (listener != null) {
+                    listener.onTaskClick(item);
                 }
             });
         }

@@ -98,7 +98,7 @@ public class LogDetailActivity extends AppCompatActivity {
         editWorkItem = workItem != null ? workItem.toString() : null;
 
         Object date = log.get("log_date");
-        binding.textDate.setText(date != null ? date.toString() : "");
+        // Round19 REQ-19-09: 移除时间字段展示，保留 editLogDate 用于编辑功能
         editLogDate = date != null ? date.toString() : null;
 
         Object status = log.get("completion_status");
@@ -124,7 +124,7 @@ public class LogDetailActivity extends AppCompatActivity {
         binding.textUsername.setText(nameStr);
 
         Object createdAt = log.get("created_at");
-        binding.textCreatedAt.setText(createdAt != null ? createdAt.toString() : "");
+        // Round19 REQ-19-09: 移除创建时间展示
 
         Object analysesObj = log.get("ai_analyses");
         if (analysesObj instanceof List) {

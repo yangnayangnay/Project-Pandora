@@ -62,7 +62,7 @@ public class MindMapFragment extends Fragment {
         viewRepository = new ViewRepository(requireContext());
         userApi = NetworkClient.getInstance(requireContext()).createService(UserApi.class);
         currentRole = TokenManager.getInstance(requireContext()).getRole();
-        canEditCompany = "ADMIN".equals(currentRole) || "FOUNDER".equals(currentRole);
+        canEditCompany = "ADMIN".equals(currentRole);
 
         binding.quadrantBottomLeft.setOnClickListener(v -> {
             Intent intent = new Intent(requireContext(), Top10WorkEditActivity.class);
@@ -193,6 +193,7 @@ public class MindMapFragment extends Fragment {
             }
             TextView tv = createItemTextView((i + 1) + ". " + displayContent);
             container.addView(tv);
+            if (i < items.size() - 1) container.addView(createDivider());
         }
     }
 
@@ -223,6 +224,7 @@ public class MindMapFragment extends Fragment {
                 display += " (" + assigneeName + ")";
             }
             container.addView(createItemTextView(display));
+            if (i < items.size() - 1) container.addView(createDivider());
         }
     }
 
@@ -268,6 +270,7 @@ public class MindMapFragment extends Fragment {
                 return true;
             });
             container.addView(tv);
+            container.addView(createDivider());
             rank++;
         }
 
@@ -298,6 +301,7 @@ public class MindMapFragment extends Fragment {
                 tv.setOnClickListener(v -> showBirthdayPicker());
             }
             container.addView(tv);
+            container.addView(createDivider());
             rank++;
         }
     }
@@ -388,6 +392,7 @@ public class MindMapFragment extends Fragment {
             }
             if (logDate != null) text += " [" + logDate + "]";
             container.addView(createItemTextView(text));
+            if (i < items.size() - 1) container.addView(createDivider());
         }
     }
 
@@ -424,6 +429,18 @@ public class MindMapFragment extends Fragment {
         tv.setPadding(8, 6, 8, 6);
         tv.setMaxLines(2);
         return tv;
+    }
+
+    /**
+     * Round19 REQ-19-04: 统一分隔横线粗细为 1dp
+     */
+    private View createDivider() {
+        View divider = new View(requireContext());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 1);
+        divider.setLayoutParams(lp);
+        divider.setBackgroundColor(0xFFE0E0E0);
+        return divider;
     }
 
     private void showEmpty(LinearLayout container, String text) {

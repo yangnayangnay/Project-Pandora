@@ -4,18 +4,23 @@
       <template #header>
         <div class="card-header">
           <span>公司十大重要事项管理</span>
-          <el-button type="primary" size="small" @click="openCreate">新增</el-button>
+          <!-- Round19 REQ-19-05: 仅管理员显示新增按钮 -->
+          <el-button v-if="userStore.role === 'ADMIN'" type="primary" size="small" @click="openCreate">新增</el-button>
         </div>
       </template>
 
       <el-table :data="list" v-loading="loading" border>
         <el-table-column prop="rank_order" label="排名" width="80" />
         <el-table-column prop="content" label="内容" />
-        <el-table-column prop="updated_at" label="更新时间" width="180" />
+        <!-- Round19 REQ-19-07: 新增紧急度/截止时间/综合评分列 -->
+        <el-table-column prop="urgency_level" label="紧急度" width="80" />
+        <el-table-column prop="deadline" label="截止时间" width="120" />
+        <el-table-column prop="composite_score" label="综合评分" width="100" />
         <el-table-column label="操作" width="150">
           <template #default="{ row }">
-            <el-button size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <!-- Round19 REQ-19-05: 仅管理员显示编辑/删除按钮 -->
+            <el-button v-if="userStore.role === 'ADMIN'" size="small" @click="openEdit(row)">编辑</el-button>
+            <el-button v-if="userStore.role === 'ADMIN'" size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -31,6 +36,22 @@
         <el-form-item label="内容">
           <el-input v-model="form.content" type="textarea" :rows="3" />
         </el-form-item>
+        <!-- Round19 REQ-19-07: 新增紧急度等级与截止时间字段 -->
+        <el-form-item label="紧急度">
+          <el-select v-model="form.urgencyLevel" placeholder="选择紧急度">
+            <el-option label="高" value="高" />
+            <el-option label="中" value="中" />
+            <el-option label="低" value="低" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="截止时间">
+          <el-date-picker
+            v-model="form.deadline"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="选择截止时间"
+          />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -44,12 +65,14 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
+import { useUserStore } from '@/stores/userStore'
 
+const userStore = useUserStore()
 const list = ref([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const editId = ref(null)
-const form = ref({ rankOrder: 1, content: '' })
+const form = ref({ rankOrder: 1, content: '', urgencyLevel: '', deadline: '' })
 
 const loadList = async () => {
   loading.value = true
@@ -62,7 +85,7 @@ const loadList = async () => {
 
 const openCreate = () => {
   editId.value = null
-  form.value = { rankOrder: 1, content: '' }
+  form.value = { rankOrder: 1, content: '', urgencyLevel: '', deadline: '' }
   dialogVisible.value = true
 }
 
@@ -70,7 +93,9 @@ const openEdit = (row) => {
   editId.value = row.id || row.ID
   form.value = {
     rankOrder: row.rank_order || row.RANK_ORDER,
-    content: row.content || row.CONTENT || ''
+    content: row.content || row.CONTENT || '',
+    urgencyLevel: row.urgency_level || row.URGENCY_LEVEL || '',
+    deadline: row.deadline || row.DEADLINE || ''
   }
   dialogVisible.value = true
 }

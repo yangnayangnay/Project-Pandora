@@ -4,7 +4,9 @@ import com.pandora.backend.common.ApiResponse;
 import com.pandora.backend.common.BusinessException;
 import com.pandora.backend.common.ErrorCode;
 import com.pandora.backend.common.FileStorageService;
+import com.pandora.backend.common.RoleChecker;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
@@ -384,6 +386,77 @@ public class UserController {
         try { return Long.parseLong(val.toString()); } catch (Exception e) { return null; }
     }
 
+
+    /**
+     * Round19 REQ-19-06: 管理员独占的账号创建接口。
+     * 仅 ADMIN 角色可调用，非 ADMIN 返回 403。
+     * 密码经 BCryptPasswordEncoder 加密存储，approval_status='APPROVED'，deleted=0。
+     */
+    @PostMapping("/create")
+    @Auditable(operationType = "USER_CREATE", targetType = "USER")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createUser(@RequestBody Map<String, Object> request) {
+        // 权限校验：仅 ADMIN 独占
+        String role = getCurrentUserRole();
+        if (!RoleChecker.isAdminOnly(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "无权操作"));
+        }
+
+        String username = (String) request.get("username");
+        String password = (String) request.get("password");
+        String newRole = (String) request.get("role");
+        String realName = (String) request.get("realName");
+        String email = (String) request.get("email");
+        String phone = (String) request.get("phone");
+
+        // 必填字段校验
+        if (username == null || username.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "用户名不能为空");
+        }
+        if (password == null || password.length() < 6) {
+            throw new BusinessException(ErrorCode.PASSWORD_TOO_SHORT);
+        }
+        if (newRole == null || newRole.isEmpty()) {
+            throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "角色不能为空");
+        }
+        // 角色合法性校验
+        if (!Arrays.asList("ADMIN", "FOUNDER", "DEPT_HEAD", "TEAM_LEADER", "EMPLOYEE").contains(newRole)) {
+            throw new BusinessException(ErrorCode.INVALID_ROLE);
+        }
+        if (realName == null || realName.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "真实姓名不能为空");
+        }
+        // 邮箱格式校验（可选字段）
+        if (email != null && !email.isEmpty() && !EMAIL_REGEX.matcher(email).matches()) {
+            throw new BusinessException(ErrorCode.INVALID_EMAIL_FORMAT);
+        }
+        // 手机号格式校验（可选字段）
+        if (phone != null && !phone.isEmpty() && !PHONE_REGEX.matcher(phone).matches()) {
+            throw new BusinessException(ErrorCode.INVALID_PHONE_FORMAT);
+        }
+
+        // 用户名唯一性校验
+        Integer existingCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM users WHERE username = ? AND deleted = 0",
+                Integer.class, username.trim());
+        if (existingCount != null && existingCount > 0) {
+            throw new BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS);
+        }
+
+        // 密码加密后入库
+        String passwordHash = passwordEncoder.encode(password);
+        jdbcTemplate.update(
+                "INSERT INTO users (username, password_hash, role, real_name, email, phone, approval_status, deleted) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, 'APPROVED', 0)",
+                username.trim(), passwordHash, newRole, realName.trim(),
+                (email != null && !email.isEmpty()) ? email : null,
+                (phone != null && !phone.isEmpty()) ? phone : null);
+
+        Long id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", id);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
 
     @PostMapping("/rename-batch")
     @Auditable(operationType = "USER_BATCH_RENAME", targetType = "USER")

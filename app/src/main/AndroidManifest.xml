@@ -114,6 +114,9 @@
         <activity
             android:name=".ui.mine.UserRelationActivity"
             android:screenOrientation="portrait" />
+        <activity
+            android:name=".ui.divination.DivinationActivity"
+            android:screenOrientation="portrait" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

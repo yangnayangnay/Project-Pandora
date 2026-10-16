@@ -376,3 +376,10 @@ CREATE TABLE IF NOT EXISTS `templates` (
     PRIMARY KEY (`template_id`)
 );
 CREATE INDEX IF NOT EXISTS `idx_template_user_type` ON `templates` (`user_id`, `template_type`, `deleted`);
+-- =============================================================================
+-- Round19 REQ-19-07: top10_works 表新增紧急度等级与截止时间字段（幂等）
+-- 支持公司十大事项加权排序：综合评分 = 0.6×紧急度等级 + 0.4×时间紧迫因子
+-- 存量数据 urgency_level=NULL 按低(1)计算，deadline=NULL 按因子1计算
+-- =============================================================================
+ALTER TABLE `top10_works` ADD COLUMN IF NOT EXISTS `urgency_level` VARCHAR(4) DEFAULT NULL;
+ALTER TABLE `top10_works` ADD COLUMN IF NOT EXISTS `deadline` DATE DEFAULT NULL;

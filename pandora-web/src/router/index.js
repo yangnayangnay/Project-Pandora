@@ -17,43 +17,49 @@ const routes = [
   {
     path: '/',
     component: () => import('@/components/Layout.vue'),
-    redirect: '/dashboard',
+    redirect: '/user',
     children: [
       {
         path: 'dashboard',
         name: 'Dashboard',
         component: () => import('@/views/dashboard/GlobalDashboardView.vue'),
-        meta: { title: '全局看板' }
+        meta: { title: '全局看板', removed: true }
       },
       {
         path: 'task',
         name: 'Task',
         component: () => import('@/views/task/TaskKanbanView.vue'),
-        meta: { title: '任务管理' }
+        meta: { title: '任务管理', removed: true }
       },
       {
         path: 'task/quadrant',
         name: 'TaskQuadrant',
         component: () => import('@/views/task/TaskQuadrantView.vue'),
-        meta: { title: '四象限看板' }
+        meta: { title: '四象限看板', removed: true }
       },
       {
         path: 'task/all',
         name: 'AllTasks',
         component: () => import('@/views/task/AllTasksView.vue'),
-        meta: { title: '全量任务' }
+        meta: { title: '全量任务', removed: true }
       },
       {
         path: 'log/all',
         name: 'AllLogs',
         component: () => import('@/views/log/AllLogsView.vue'),
-        meta: { title: '全量日志' }
+        meta: { title: '全量日志', removed: true }
       },
       {
         path: 'user',
         name: 'User',
         component: () => import('@/views/user/UserManageView.vue'),
         meta: { title: '人员管理' }
+      },
+      {
+        path: 'account/create',
+        name: 'AccountCreate',
+        component: () => import('@/views/user/AccountCreateView.vue'),
+        meta: { title: '账号创建' }
       },
       {
         path: 'profile',
@@ -65,55 +71,55 @@ const routes = [
         path: 'user/dept-team',
         name: 'DeptTeam',
         component: () => import('@/views/user/DeptTeamView.vue'),
-        meta: { title: '部门团队' }
+        meta: { title: '部门团队', removed: true }
       },
       {
         path: 'user/hierarchy-relation',
         name: 'HierarchyRelation',
         component: () => import('@/views/user/HierarchyRelationView.vue'),
-        meta: { title: '人员关系' }
+        meta: { title: '人员关系', removed: true }
       },
       {
         path: 'ai',
         name: 'AI',
         component: () => import('@/views/ai/TaskCompletionView.vue'),
-        meta: { title: '任务完成分析' }
+        meta: { title: '任务完成分析', removed: true }
       },
       {
         path: 'ai/keyword',
         name: 'KeywordAnalysis',
         component: () => import('@/views/ai/KeywordAnalysisView.vue'),
-        meta: { title: '关键词分析' }
+        meta: { title: '关键词分析', removed: true }
       },
       {
         path: 'ai/info-map',
         name: 'AIInfoMap',
         component: () => import('@/views/ai/AIInfoMapView.vue'),
-        meta: { title: 'AI信息地图' }
+        meta: { title: 'AI信息地图', removed: true }
       },
       {
         path: 'ai/mbti-report',
         name: 'MBTIReport',
         component: () => import('@/views/ai/MBTIReportView.vue'),
-        meta: { title: 'MBTI报告' }
+        meta: { title: 'MBTI报告', removed: true }
       },
       {
         path: 'permission/approval',
         name: 'Approval',
         component: () => import('@/views/permission/ApprovalView.vue'),
-        meta: { title: '账号审批' }
+        meta: { title: '账号审批', removed: true }
       },
       {
         path: 'permission/audit-rule',
         name: 'AuditRule',
         component: () => import('@/views/permission/AuditRuleView.vue'),
-        meta: { title: '审核规则' }
+        meta: { title: '审核规则', removed: true }
       },
       {
         path: 'permission/invitation',
         name: 'Invitation',
         component: () => import('@/views/permission/InvitationView.vue'),
-        meta: { title: '邀约请示' }
+        meta: { title: '邀约请示', removed: true }
       },
       {
         path: 'config/audit-log',
@@ -125,7 +131,7 @@ const routes = [
         path: 'config/system-config',
         name: 'SystemConfig',
         component: () => import('@/views/config/SystemConfigView.vue'),
-        meta: { title: '系统配置' }
+        meta: { title: '系统配置', removed: true }
       },
       {
         path: 'top10/company-important',
@@ -137,19 +143,19 @@ const routes = [
         path: 'permission/function',
         name: 'FunctionPermission',
         component: () => import('@/views/permission/FunctionPermissionView.vue'),
-        meta: { title: '功能权限' }
+        meta: { title: '功能权限', removed: true }
       },
       {
         path: 'config/ai',
         name: 'AiConfig',
         component: () => import('@/views/config/AiConfigView.vue'),
-        meta: { title: 'AI配置' }
+        meta: { title: 'AI配置', removed: true }
       },
       {
         path: 'template',
         name: 'TemplateManage',
         component: () => import('@/views/template/TemplateManageView.vue'),
-        meta: { title: '模板管理' }
+        meta: { title: '模板管理', removed: true }
       }
     ]
   }
@@ -161,6 +167,11 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
+  // Round19 REQ-19-01: 被移除菜单路径重定向至个人中心
+  if (to.meta.removed) {
+    next('/profile')
+    return
+  }
   const token = getToken()
   if (to.meta.requiresAuth !== false && !isTokenValid()) {
     if (token) { removeToken(); removeUser() }

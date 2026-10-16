@@ -70,8 +70,7 @@ public class LogAdapter extends RecyclerView.Adapter<LogAdapter.LogViewHolder> {
             Object workItem = log.get("work_item");
             binding.textWorkItem.setText(workItem != null ? workItem.toString() : "");
 
-            Object date = log.get("log_date");
-            binding.textDate.setText(date != null ? date.toString() : "");
+            // Round19 REQ-19-09: 移除时间字段展示（后端API不变）
 
             Object avatar = log.get("avatar");
             if (avatar != null && !avatar.toString().isEmpty()) {

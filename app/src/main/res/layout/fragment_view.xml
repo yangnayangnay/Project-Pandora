@@ -246,8 +246,65 @@
             android:src="@android:drawable/ic_input_add"
             app:backgroundTint="#E53935"
             app:tint="@android:color/white"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/bottomTaskPanel"
             app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Round19 REQ-19-11: 视图页底部任务详情面板 -->
+        <LinearLayout
+            android:id="@+id/bottomTaskPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@android:color/white"
+            android:elevation="8dp"
+            android:padding="12dp"
+            app:layout_constraintBottom_toTopOf="@id/bottomTimeBar">
+
+            <TextView
+                android:id="@+id/textPanelTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="请选择任务"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#4E342E" />
+
+            <TextView
+                android:id="@+id/textPanelContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="13sp"
+                android:textColor="#6D4C41"
+                android:maxLines="3"
+                android:ellipsize="end"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- Round19 REQ-19-08: 视图页底部固定宽度横条，显示剩余时间 -->
+        <LinearLayout
+            android:id="@+id/bottomTimeBar"
+            android:layout_width="360dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="#FFF3E0"
+            android:padding="8dp"
+            android:layout_gravity="center_horizontal"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <TextView
+                android:id="@+id/textRemainingTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="暂无任务"
+                android:textSize="13sp"
+                android:textColor="#5D4037" />
+
+        </LinearLayout>
 
         <ProgressBar
             android:id="@+id/progressBar"

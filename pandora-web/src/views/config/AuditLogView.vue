@@ -45,7 +45,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { getAuditLogs, exportAuditLogs } from '@/api/audit'
-import { mapOperationType, mapTargetType, operationTypeOptions } from '@/utils/auditLabelMap'
+import { mapOperationType, mapTargetType } from '@/utils/auditLabelMap'
 
 const logs = ref([])
 const loading = ref(false)
@@ -58,7 +58,16 @@ const filters = reactive({
 })
 const pagination = reactive({ page: 1, size: 20, total: 0 })
 
-const operationTypes = operationTypeOptions
+// Round19 REQ-19-02: 操作类型下拉精简为7类白名单
+const operationTypes = [
+  { label: '登录', value: 'LOGIN' },
+  { label: '任务创建', value: 'TASK_CREATE' },
+  { label: '任务更新', value: 'TASK_UPDATE' },
+  { label: '任务删除', value: 'TASK_DELETE' },
+  { label: '日志创建', value: 'LOG_CREATE' },
+  { label: '日志更新', value: 'LOG_UPDATE' },
+  { label: '日志删除', value: 'LOG_DELETE' }
+]
 
 function buildParams() {
   const params = {

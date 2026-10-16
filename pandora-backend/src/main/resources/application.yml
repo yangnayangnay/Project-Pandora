@@ -58,6 +58,9 @@ pandora:
     log-range-days: 30
   top10:
     cleanup-dirty-data: true
+    # Round19 REQ-19-07: 加权排序权重配置（可调）
+    urgency-weight: 0.6
+    time-weight: 0.4
   ai:
     quota-threshold: 100
     monitor-interval-ms: 300000

@@ -24,7 +24,7 @@ import com.example.project_pandora.data.remote.UserApi;
 import com.example.project_pandora.databinding.FragmentMineBinding;
 import com.example.project_pandora.repository.SyncRepository;
 import com.example.project_pandora.ui.ai.BirthdayWishActivity;
-import com.example.project_pandora.ui.focus.FocusActivity;
+import com.example.project_pandora.ui.divination.DivinationActivity;
 import com.example.project_pandora.ui.login.LoginActivity;
 
 import java.util.Map;
@@ -56,8 +56,12 @@ public class MineFragment extends Fragment {
         binding.btnUserProfile.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), ProfileActivity.class)));
 
-        binding.btnFocus.setOnClickListener(v ->
-                startActivity(new Intent(requireContext(), FocusActivity.class)));
+        // Round19 REQ-19-10: 移除专注模式入口（保留FocusActivity源码）
+        binding.btnFocus.setVisibility(View.GONE);
+
+        // Round19 REQ-19-12: 新增梅花易数入口
+        binding.btnDivination.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), DivinationActivity.class)));
 
         binding.btnBirthdayWish.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), BirthdayWishActivity.class)));

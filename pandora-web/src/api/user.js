@@ -18,3 +18,7 @@ export function updateProfile(data) {
 export function changePassword(data) {
   return request.put('/user/me/password', data)
 }
+// Round19 REQ-19-06: 管理员创建账号
+export function createUser(data) {
+  return request.post('/user/create', data)
+}

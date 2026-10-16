@@ -43,6 +43,9 @@ public class TaskCreateActivity extends AppCompatActivity {
     private final List<String> assigneeNames = new ArrayList<>();
     private final CompositeDisposable disposables = new CompositeDisposable();
     private boolean isRestoringDraft = false;
+    // Round19 REQ-19-03: 视图页FAB预设分配人
+    private Long presetAssigneeId = null;
+    private boolean assigneeLocked = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +57,11 @@ public class TaskCreateActivity extends AppCompatActivity {
         draftRepository = new DraftRepository(this);
 
         BackToolbarHelper.setupBack(binding.toolbar, this::finish);
+
+        // Round19 REQ-19-03: 读取 Intent 预设分配人参数
+        presetAssigneeId = getIntent().getLongExtra("assigneeId", -1);
+        if (presetAssigneeId <= 0) presetAssigneeId = null;
+        assigneeLocked = getIntent().getBooleanExtra("assigneeLocked", false);
 
         loadAssigneeOptions();
 
@@ -211,6 +219,19 @@ public class TaskCreateActivity extends AppCompatActivity {
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
                 this, android.R.layout.simple_spinner_dropdown_item, assigneeNames);
         binding.spinnerAssignee.setAdapter(adapter);
+
+        // Round19 REQ-19-03: 预设分配人定位与锁定
+        if (presetAssigneeId != null) {
+            int idx = assigneeIds.indexOf(presetAssigneeId);
+            if (idx >= 0) {
+                binding.spinnerAssignee.setSelection(idx);
+            }
+        }
+        if (assigneeLocked) {
+            // 锁定分配人，禁用 Spinner 选择
+            binding.spinnerAssignee.setEnabled(false);
+            binding.spinnerAssignee.setAlpha(0.6f);
+        }
     }
 
     private void showDatePicker() {

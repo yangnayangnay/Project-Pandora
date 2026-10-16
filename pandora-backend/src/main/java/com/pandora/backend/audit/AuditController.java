@@ -1,6 +1,7 @@
 package com.pandora.backend.audit;
 
 import com.pandora.backend.common.ApiResponse;
+import com.pandora.backend.common.RoleChecker;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -40,8 +41,9 @@ public class AuditController {
             @RequestParam(required = false) String keyword) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String role = auth.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "");
-        if (!"ADMIN".equals(role) && !"FOUNDER".equals(role)) {
-            return ResponseEntity.status(403).body(ApiResponse.error(403, "仅管理员或创始人可查询审计日志"));
+        // Round19 REQ-19-02: 系统日志查看权限收紧为仅 ADMIN
+        if (!RoleChecker.isAdminOnly(role)) {
+            return ResponseEntity.status(403).body(ApiResponse.error(403, "仅管理员可查询审计日志"));
         }
         if (startTime != null && endTime != null && !startTime.isEmpty() && !endTime.isEmpty()
                 && startTime.compareTo(endTime) > 0) {
@@ -61,7 +63,8 @@ public class AuditController {
             HttpServletResponse response) throws Exception {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String role = auth.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "");
-        if (!"ADMIN".equals(role) && !"FOUNDER".equals(role)) {
+        // Round19 REQ-19-02: 系统日志导出权限收紧为仅 ADMIN
+        if (!RoleChecker.isAdminOnly(role)) {
             response.setStatus(403);
             return;
         }
