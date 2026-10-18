@@ -8,7 +8,8 @@
 
     <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:fitsSystemWindows="true">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -85,28 +86,7 @@
                     <TextView
                         android:layout_width="100dp"
                         android:layout_height="wrap_content"
-                        android:text="耗时"
-                        android:textSize="14sp"
-                        android:textColor="#888888" />
 
-                    <TextView
-                        android:id="@+id/textTimeCost"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textSize="14sp"
-                        android:textColor="#333333" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginBottom="8dp">
-
-                    <TextView
-                        android:layout_width="100dp"
-                        android:layout_height="wrap_content"
                         android:text="创建人"
                         android:textSize="14sp"
                         android:textColor="#888888" />
@@ -121,32 +101,6 @@
                 </LinearLayout>
 
 
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="#E0E0E0"
-                    android:layout_marginTop="8dp"
-                    android:layout_marginBottom="12dp" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="AI分析"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#333333"
-                    android:layout_marginBottom="8dp" />
-
-                <TextView
-                    android:id="@+id/textAiAnalysis"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="14sp"
-                    android:textColor="#666666"
-                    android:lineSpacingExtra="4dp"
-                    android:background="#F5F5F5"
-                    android:padding="12dp"
-                    android:text="暂无AI分析" />
 
                 <LinearLayout
                     android:layout_width="match_parent"

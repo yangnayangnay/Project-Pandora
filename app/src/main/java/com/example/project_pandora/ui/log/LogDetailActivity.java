@@ -13,7 +13,7 @@ import com.example.project_pandora.core.util.BackToolbarHelper;
 import com.example.project_pandora.databinding.ActivityLogDetailBinding;
 import com.example.project_pandora.repository.LogRepository;
 
-import java.util.List;
+
 import java.util.Map;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
@@ -31,7 +31,7 @@ public class LogDetailActivity extends AppCompatActivity {
     private String currentRole;
     private Long currentUserId;
     private String editWorkItem;
-    private String editTimeCost;
+
     private String editLogDate;
 
     @Override
@@ -59,7 +59,7 @@ public class LogDetailActivity extends AppCompatActivity {
             intent.putExtra("editMode", true);
             intent.putExtra("logId", logId);
             intent.putExtra("workItem", editWorkItem);
-            intent.putExtra("timeCost", editTimeCost);
+
             intent.putExtra("logDate", editLogDate);
             startActivity(intent);
         });
@@ -89,7 +89,6 @@ public class LogDetailActivity extends AppCompatActivity {
                 ));
     }
 
-    @SuppressWarnings("unchecked")
     private void bindDetail(Map<String, Object> log) {
         binding.progressBar.setVisibility(View.GONE);
 
@@ -98,7 +97,6 @@ public class LogDetailActivity extends AppCompatActivity {
         editWorkItem = workItem != null ? workItem.toString() : null;
 
         Object date = log.get("log_date");
-        // Round19 REQ-19-09: 移除时间字段展示，保留 editLogDate 用于编辑功能
         editLogDate = date != null ? date.toString() : null;
 
         Object status = log.get("completion_status");
@@ -114,39 +112,10 @@ public class LogDetailActivity extends AppCompatActivity {
         }
         binding.textStatus.setText(statusText);
 
-        Object timeCost = log.get("time_cost");
-        binding.textTimeCost.setText(timeCost != null ? timeCost + " 小时" : "未记录");
-        editTimeCost = timeCost != null ? timeCost.toString() : null;
-
         Object username = log.get("username");
         Object realName = log.get("real_name");
         String nameStr = realName != null ? realName.toString() : (username != null ? username.toString() : "");
         binding.textUsername.setText(nameStr);
-
-        Object createdAt = log.get("created_at");
-        // Round19 REQ-19-09: 移除创建时间展示
-
-        Object analysesObj = log.get("ai_analyses");
-        if (analysesObj instanceof List) {
-            List<Map<String, Object>> analyses = (List<Map<String, Object>>) analysesObj;
-            if (!analyses.isEmpty()) {
-                StringBuilder sb = new StringBuilder();
-                for (Map<String, Object> a : analyses) {
-                    Object type = a.get("analysis_type");
-                    Object result = a.get("result");
-                    Object aStatus = a.get("status");
-                    sb.append("【").append(type != null ? type : "分析").append("】");
-                    sb.append(" (").append(aStatus != null ? aStatus : "").append(")\n");
-                    if (result != null) {
-                        String r = result.toString();
-                        if (r.length() > 500) r = r.substring(0, 500) + "...";
-                        sb.append(r);
-                    }
-                    sb.append("\n\n");
-                }
-                binding.textAiAnalysis.setText(sb.toString().trim());
-            }
-        }
 
         Object logUserIdObj = log.get("user_id");
         Long logUserId = logUserIdObj instanceof Number ? ((Number) logUserIdObj).longValue() : null;

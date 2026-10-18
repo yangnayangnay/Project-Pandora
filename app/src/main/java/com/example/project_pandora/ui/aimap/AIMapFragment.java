@@ -30,8 +30,6 @@ public class AIMapFragment extends Fragment {
         binding.btnDataCollect.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), DataCollectActivity.class)));
 
-        binding.btnTaskShow.setOnClickListener(v ->
-                startActivity(new Intent(requireContext(), TaskShowActivity.class)));
 
         binding.btnAiAnalysis.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), AIAnalysisActivity.class)));

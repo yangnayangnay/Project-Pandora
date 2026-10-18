@@ -72,7 +72,7 @@ public class LogCreateActivity extends AppCompatActivity {
                 () -> {
                     Map<String, Object> content = new HashMap<>();
                     content.put("workItem", binding.editWorkItem.getText().toString());
-                    content.put("timeCost", binding.editTimeCost.getText().toString());
+
                     content.put("logDate", selectedDate);
                     return content;
                 },
@@ -107,7 +107,7 @@ public class LogCreateActivity extends AppCompatActivity {
             }
         };
         binding.editWorkItem.addTextChangedListener(textWatcher);
-        binding.editTimeCost.addTextChangedListener(textWatcher);
+
     }
 
     public void onContentChanged() {
@@ -142,8 +142,7 @@ public class LogCreateActivity extends AppCompatActivity {
         if (content == null) return;
         Object workItem = content.get("workItem");
         if (workItem != null) binding.editWorkItem.setText(workItem.toString());
-        Object timeCost = content.get("timeCost");
-        if (timeCost != null) binding.editTimeCost.setText(timeCost.toString());
+
         Object logDate = content.get("logDate");
         if (logDate != null) {
             selectedDate = logDate.toString();
@@ -162,8 +161,6 @@ public class LogCreateActivity extends AppCompatActivity {
             String workItem = intent.getStringExtra("workItem");
             if (workItem != null) binding.editWorkItem.setText(workItem);
 
-            String timeCost = intent.getStringExtra("timeCost");
-            if (timeCost != null) binding.editTimeCost.setText(timeCost);
 
             String logDate = intent.getStringExtra("logDate");
             if (logDate != null) {
@@ -188,22 +185,11 @@ public class LogCreateActivity extends AppCompatActivity {
             return;
         }
 
-        Double timeCost = null;
-        String timeCostStr = binding.editTimeCost.getText().toString().trim();
-        if (!timeCostStr.isEmpty()) {
-            try {
-                timeCost = Double.parseDouble(timeCostStr);
-            } catch (NumberFormatException e) {
-                Toast.makeText(this, "时间花费格式错误", Toast.LENGTH_SHORT).show();
-                return;
-            }
-        }
-
         binding.btnSave.setEnabled(false);
         binding.btnSave.setText("保存中...");
 
         if (isEditMode && editLogId > 0) {
-            disposables.add(syncRoutingRepository.editLog(editLogId, workItem, "PENDING", timeCost, selectedDate)
+            disposables.add(syncRoutingRepository.editLog(editLogId, workItem, "PENDING", null, selectedDate)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                             result -> {
@@ -219,7 +205,7 @@ public class LogCreateActivity extends AppCompatActivity {
                             }
                     ));
         } else {
-            disposables.add(syncRoutingRepository.createLog(workItem, "PENDING", timeCost, selectedDate)
+            disposables.add(syncRoutingRepository.createLog(workItem, "PENDING", null, selectedDate)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                             result -> {
