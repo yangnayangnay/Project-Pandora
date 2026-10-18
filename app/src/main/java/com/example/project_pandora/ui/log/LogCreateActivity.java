@@ -72,7 +72,7 @@ public class LogCreateActivity extends AppCompatActivity {
                 () -> {
                     Map<String, Object> content = new HashMap<>();
                     content.put("workItem", binding.editWorkItem.getText().toString());
-
+                    content.put("workContent", binding.editWorkContent.getText().toString());
                     content.put("logDate", selectedDate);
                     return content;
                 },
@@ -107,6 +107,7 @@ public class LogCreateActivity extends AppCompatActivity {
             }
         };
         binding.editWorkItem.addTextChangedListener(textWatcher);
+        binding.editWorkContent.addTextChangedListener(textWatcher);
 
     }
 
@@ -143,6 +144,9 @@ public class LogCreateActivity extends AppCompatActivity {
         Object workItem = content.get("workItem");
         if (workItem != null) binding.editWorkItem.setText(workItem.toString());
 
+        Object workContent = content.get("workContent");
+        if (workContent != null) binding.editWorkContent.setText(workContent.toString());
+
         Object logDate = content.get("logDate");
         if (logDate != null) {
             selectedDate = logDate.toString();
@@ -161,6 +165,8 @@ public class LogCreateActivity extends AppCompatActivity {
             String workItem = intent.getStringExtra("workItem");
             if (workItem != null) binding.editWorkItem.setText(workItem);
 
+            String workContent = intent.getStringExtra("workContent");
+            if (workContent != null) binding.editWorkContent.setText(workContent);
 
             String logDate = intent.getStringExtra("logDate");
             if (logDate != null) {
@@ -184,12 +190,13 @@ public class LogCreateActivity extends AppCompatActivity {
             Toast.makeText(this, "请输入工作事项", Toast.LENGTH_SHORT).show();
             return;
         }
+        String workContent = binding.editWorkContent.getText().toString();
 
         binding.btnSave.setEnabled(false);
         binding.btnSave.setText("保存中...");
 
         if (isEditMode && editLogId > 0) {
-            disposables.add(syncRoutingRepository.editLog(editLogId, workItem, "PENDING", null, selectedDate)
+            disposables.add(syncRoutingRepository.editLog(editLogId, workItem, workContent, "PENDING", null, selectedDate)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                             result -> {
@@ -205,7 +212,7 @@ public class LogCreateActivity extends AppCompatActivity {
                             }
                     ));
         } else {
-            disposables.add(syncRoutingRepository.createLog(workItem, "PENDING", null, selectedDate)
+            disposables.add(syncRoutingRepository.createLog(workItem, workContent, "PENDING", null, selectedDate)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                             result -> {

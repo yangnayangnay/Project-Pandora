@@ -48,6 +48,23 @@
                     android:textColor="#333333"
                     android:layout_marginBottom="12dp" />
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="日志内容"
+                    android:textSize="14sp"
+                    android:textColor="#888888"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/textWorkContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="15sp"
+                    android:textColor="#333333"
+                    android:lineSpacingExtra="4dp"
+                    android:layout_marginBottom="12dp" />
+
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"

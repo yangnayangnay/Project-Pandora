@@ -1,6 +1,5 @@
 package com.example.project_pandora.ui.mindmap;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -11,13 +10,10 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 
 
-import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.core.network.TokenManager;
-import com.example.project_pandora.data.remote.TaskApi;
 import com.example.project_pandora.databinding.FragmentMindmapBinding;
 import com.example.project_pandora.repository.ViewRepository;
 
@@ -26,7 +22,6 @@ import java.util.Map;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
-import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class MindMapFragment extends Fragment {
 
@@ -35,7 +30,6 @@ public class MindMapFragment extends Fragment {
 
     private final CompositeDisposable disposables = new CompositeDisposable();
     private String currentRole;
-    private boolean hasSubordinates = false;
 
     @Nullable
     @Override
@@ -52,55 +46,7 @@ public class MindMapFragment extends Fragment {
 
         currentRole = TokenManager.getInstance(requireContext()).getRole();
 
-        loadSubordinateStatus();
-
-        binding.fabAdd.setOnClickListener(v -> showFabMenu());
-
         loadMindMapData();
-    }
-
-    private void loadSubordinateStatus() {
-        TaskApi taskApi = NetworkClient.getInstance(requireContext()).createService(TaskApi.class);
-        disposables.add(taskApi.getSubordinateUsers()
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        response -> {
-                            if (response.isSuccess() && response.getData() != null && !response.getData().isEmpty()) {
-                                hasSubordinates = true;
-                            }
-                        },
-                        error -> {}
-                ));
-    }
-
-    private void showFabMenu() {
-        Long currentUserId = TokenManager.getInstance(requireContext()).getUserId();
-        java.util.List<String> options = new java.util.ArrayList<>();
-        options.add("录入日志");
-        options.add("创建自己的任务");
-        final int createOtherTaskIndex;
-        if (hasSubordinates) {
-            options.add("创建他人的任务");
-            createOtherTaskIndex = options.size() - 1;
-        } else {
-            createOtherTaskIndex = -1;
-        }
-        new AlertDialog.Builder(requireContext())
-                .setTitle("快速操作")
-                .setItems(options.toArray(new String[0]), (dialog, which) -> {
-                    if (which == 0) {
-                        startActivity(new Intent(requireContext(), com.example.project_pandora.ui.log.LogCreateActivity.class));
-                    } else if (which == 1) {
-                        Intent intent = new Intent(requireContext(), com.example.project_pandora.ui.task.TaskCreateActivity.class);
-                        intent.putExtra("assigneeId", currentUserId);
-                        intent.putExtra("assigneeLocked", true);
-                        startActivity(intent);
-                    } else if (which == createOtherTaskIndex && createOtherTaskIndex > 0) {
-                        startActivity(new Intent(requireContext(), com.example.project_pandora.ui.task.TaskCreateActivity.class));
-                    }
-                })
-                .show();
     }
 
     private void loadMindMapData() {
@@ -230,6 +176,8 @@ public class MindMapFragment extends Fragment {
             Map<String, Object> item = items.get(i);
             Object workItem = item.get("work_item");
             if (workItem == null) workItem = item.get("WORK_ITEM");
+            Object workContent = item.get("work_content");
+            if (workContent == null) workContent = item.get("WORK_CONTENT");
             Object realName = item.get("real_name");
             if (realName == null) realName = item.get("REAL_NAME");
             Object username = item.get("username");
@@ -243,6 +191,13 @@ public class MindMapFragment extends Fragment {
                 if (!author.isEmpty()) text = author + ": " + text;
             }
             if (logDate != null) text += " [" + logDate + "]";
+            if (workContent != null) {
+                String contentStr = workContent.toString().trim();
+                if (!contentStr.isEmpty()) {
+                    String summary = contentStr.length() > 40 ? contentStr.substring(0, 40) + "..." : contentStr;
+                    text += "\n" + summary;
+                }
+            }
             container.addView(createItemTextView(text));
             if (i < items.size() - 1) container.addView(createDivider());
         }

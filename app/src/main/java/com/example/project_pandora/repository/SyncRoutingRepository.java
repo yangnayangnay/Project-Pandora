@@ -30,31 +30,33 @@ public class SyncRoutingRepository {
         this.gson = new Gson();
     }
 
-    public Observable<SyncRouteResult> createLog(String workItem, String completionStatus,
-                                                   Double timeCost, String logDate) {
+    public Observable<SyncRouteResult> createLog(String workItem, String workContent, String completionStatus,
+                                                    Double timeCost, String logDate) {
         Map<String, Object> content = new HashMap<>();
         content.put("operation", "CREATE");
         content.put("workItem", workItem);
+        content.put("workContent", workContent);
         content.put("completionStatus", completionStatus);
         content.put("timeCost", timeCost);
         content.put("logDate", logDate);
         String jsonContent = gson.toJson(content);
 
-        return routeLog(jsonContent, () -> logRepository.createLog(workItem, completionStatus, timeCost, logDate));
+        return routeLog(jsonContent, () -> logRepository.createLog(workItem, workContent, completionStatus, timeCost, logDate));
     }
 
-    public Observable<SyncRouteResult> editLog(Long logId, String workItem, String completionStatus,
+    public Observable<SyncRouteResult> editLog(Long logId, String workItem, String workContent, String completionStatus,
                                                  Double timeCost, String logDate) {
         Map<String, Object> content = new HashMap<>();
         content.put("operation", "EDIT");
         content.put("logId", logId);
         content.put("workItem", workItem);
+        content.put("workContent", workContent);
         content.put("completionStatus", completionStatus);
         content.put("timeCost", timeCost);
         content.put("logDate", logDate);
         String jsonContent = gson.toJson(content);
 
-        return routeLog(jsonContent, () -> logRepository.editLog(logId, workItem, completionStatus, timeCost, logDate));
+        return routeLog(jsonContent, () -> logRepository.editLog(logId, workItem, workContent, completionStatus, timeCost, logDate));
     }
 
     public Observable<SyncRouteResult> transitionTaskStatus(Long taskId, String targetStatus) {

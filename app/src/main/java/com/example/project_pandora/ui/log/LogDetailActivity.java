@@ -31,6 +31,7 @@ public class LogDetailActivity extends AppCompatActivity {
     private String currentRole;
     private Long currentUserId;
     private String editWorkItem;
+    private String editWorkContent;
 
     private String editLogDate;
 
@@ -59,6 +60,7 @@ public class LogDetailActivity extends AppCompatActivity {
             intent.putExtra("editMode", true);
             intent.putExtra("logId", logId);
             intent.putExtra("workItem", editWorkItem);
+            intent.putExtra("workContent", editWorkContent);
 
             intent.putExtra("logDate", editLogDate);
             startActivity(intent);
@@ -95,6 +97,17 @@ public class LogDetailActivity extends AppCompatActivity {
         Object workItem = log.get("work_item");
         binding.textWorkItem.setText(workItem != null ? workItem.toString() : "");
         editWorkItem = workItem != null ? workItem.toString() : null;
+
+        Object workContent = log.get("work_content");
+        String contentStr = workContent != null ? workContent.toString().trim() : "";
+        if (contentStr.isEmpty()) {
+            binding.textWorkContent.setText("暂无详细内容");
+            binding.textWorkContent.setTextColor(0xFF999999);
+        } else {
+            binding.textWorkContent.setText(workContent.toString());
+            binding.textWorkContent.setTextColor(0xFF333333);
+        }
+        editWorkContent = workContent != null ? workContent.toString() : null;
 
         Object date = log.get("log_date");
         editLogDate = date != null ? date.toString() : null;

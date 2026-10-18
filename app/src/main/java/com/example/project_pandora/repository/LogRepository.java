@@ -22,10 +22,11 @@ public class LogRepository {
         logApi = NetworkClient.getInstance(context).createService(LogApi.class);
     }
 
-    public Observable<Map<String, Object>> createLog(String workItem, String completionStatus,
-                                                      Double timeCost, String logDate) {
+    public Observable<Map<String, Object>> createLog(String workItem, String workContent, String completionStatus,
+                                                       Double timeCost, String logDate) {
         Map<String, Object> request = new HashMap<>();
         request.put("workItem", workItem);
+        request.put("workContent", workContent == null ? "" : workContent);
         request.put("completionStatus", completionStatus);
         request.put("timeCost", timeCost);
         request.put("logDate", logDate);
@@ -97,10 +98,11 @@ public class LogRepository {
                 });
     }
 
-    public Observable<Map<String, Object>> editLog(Long logId, String workItem, String completionStatus,
-                                                     Double timeCost, String logDate) {
+    public Observable<Map<String, Object>> editLog(Long logId, String workItem, String workContent, String completionStatus,
+                                                      Double timeCost, String logDate) {
         Map<String, Object> request = new HashMap<>();
         if (workItem != null) request.put("workItem", workItem);
+        if (workContent != null) request.put("workContent", workContent);
         if (completionStatus != null) request.put("completionStatus", completionStatus);
         if (timeCost != null) request.put("timeCost", timeCost);
         if (logDate != null) request.put("logDate", logDate);

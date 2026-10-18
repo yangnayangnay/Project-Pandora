@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS `work_logs` (
     `deleted`          TINYINT      NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`)
 );
+ALTER TABLE `work_logs` ADD COLUMN IF NOT EXISTS `work_content` TEXT DEFAULT NULL;
 CREATE INDEX IF NOT EXISTS `idx_log_user_date` ON `work_logs` (`user_id`, `log_date`);
 CREATE UNIQUE INDEX IF NOT EXISTS `uk_log_user_date_active` ON `work_logs` (`user_id`, `log_date`);
 

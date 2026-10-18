@@ -32,10 +32,10 @@ public class LogViewModel extends BaseViewModel {
     public LiveData<List<Map<String, Object>>> getTop10Works() { return top10Works; }
     public LiveData<Boolean> getOperationSuccess() { return operationSuccess; }
 
-    public void createLog(String workItem, String completionStatus, Double timeCost, String logDate) {
+    public void createLog(String workItem, String workContent, String completionStatus, Double timeCost, String logDate) {
         showLoading();
         compositeDisposable.add(
-                repository.createLog(workItem, completionStatus, timeCost, logDate)
+                repository.createLog(workItem, workContent, completionStatus, timeCost, logDate)
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 result -> {

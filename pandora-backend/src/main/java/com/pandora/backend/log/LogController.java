@@ -55,6 +55,7 @@ public class LogController {
 
         String completionStatus = (String) request.getOrDefault("completionStatus", "PENDING");
         Object timeCostObj = request.get("timeCost");
+        String workContent = (String) request.get("workContent");
         String logDate = (String) request.getOrDefault("logDate", new java.sql.Date(System.currentTimeMillis()).toString());
 
         List<Map<String, Object>> existingLogs = jdbcTemplate.queryForList(
@@ -71,14 +72,14 @@ public class LogController {
             }
             logId = ((Number) existing.get("ID")).longValue();
             jdbcTemplate.update(
-                    "UPDATE work_logs SET work_item = ?, completion_status = ?, time_cost = ?, deleted = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                    workItem, completionStatus, timeCostObj, logId
+                    "UPDATE work_logs SET work_item = ?, work_content = ?, completion_status = ?, time_cost = ?, deleted = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    workItem, workContent, completionStatus, timeCostObj, logId
             );
         } else {
             try {
                 jdbcTemplate.update(
-                        "INSERT INTO work_logs (user_id, work_item, completion_status, time_cost, log_date) VALUES (?, ?, ?, ?, ?)",
-                        userId, workItem, completionStatus, timeCostObj, logDate
+                        "INSERT INTO work_logs (user_id, work_item, work_content, completion_status, time_cost, log_date) VALUES (?, ?, ?, ?, ?, ?)",
+                        userId, workItem, workContent, completionStatus, timeCostObj, logDate
                 );
             } catch (DuplicateKeyException e) {
                 throw new BusinessException(ErrorCode.LOG_DATE_CONFLICT);
@@ -308,6 +309,10 @@ public class LogController {
         if (request.containsKey("workItem")) {
             sql.append(", work_item = ?");
             params.add(request.get("workItem"));
+        }
+        if (request.containsKey("workContent")) {
+            sql.append(", work_content = ?");
+            params.add(request.get("workContent"));
         }
         if (request.containsKey("completionStatus")) {
             sql.append(", completion_status = ?");
