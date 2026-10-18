@@ -16,12 +16,11 @@ public class AuditService {
     private JdbcTemplate jdbcTemplate;
 
     /**
-     * Round19 REQ-19-02: 系统日志默认三类白名单过滤。
-     * 仅展示首次登录 + 任务增删改 + 日志增删改 共 7 种 operation_type。
+     * Round19 REQ-19-02: 系统日志默认白名单过滤。
+     * 仅展示任务增删改 + 日志增删改 共 6 种 operation_type（登录不再记录到系统日志）。
      */
     private static final List<String> DEFAULT_TYPE_WHITELIST = Arrays.asList(
-            "LOGIN",
-            "TASK_CREATE", "TASK_UPDATE", "TASK_DELETE",
+            "TASK_CREATE", "TASK_UPDATE", "TASK_DELETE", "TASK_TRANSITION",
             "LOG_CREATE", "LOG_UPDATE", "LOG_DELETE"
     );
 

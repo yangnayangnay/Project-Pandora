@@ -197,6 +197,9 @@ public class AuthController {
         if (!"APP".equals(clientType) && !"ADMIN".equals(userRole)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
+        if ("APP".equals(clientType) && "ADMIN".equals(userRole)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
 
         String approvalStatus = user.get("approval_status") != null ? (String) user.get("approval_status") : "APPROVED";
         if ("PENDING".equals(approvalStatus)) {
@@ -217,9 +220,6 @@ public class AuthController {
 
         sessionStore.put(userId, token);
 
-        try {
-            auditService.record(userId, "login", "USER", userId, "用户登录: " + username, "LOGIN", "用户登录: " + username);
-        } catch (Exception ignored) {}
 
         Map<String, Object> result = new HashMap<>();
         result.put("token", token);
