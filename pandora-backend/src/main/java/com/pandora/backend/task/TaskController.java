@@ -55,13 +55,16 @@ public class TaskController {
 
         Object endTimeObj = taskRequest.get("endTime");
         Object startTimeObj = taskRequest.get("startTime");
+        if (startTimeObj == null) {
+            startTimeObj = new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date());
+        }
 
         String sql = "INSERT INTO tasks (name, priority, status, assignee_id, dispatcher_id, is_important, is_urgent" +
                 (endTimeObj != null ? ", end_time" : "") +
-                (startTimeObj != null ? ", start_time" : "") +
+                ", start_time" +
                 ") VALUES (?, ?, 'PENDING', ?, ?, ?, ?" +
                 (endTimeObj != null ? ", ?" : "") +
-                (startTimeObj != null ? ", ?" : "") +
+                ", ?" +
                 ")";
 
         List<Object> params = new ArrayList<>();
@@ -72,7 +75,7 @@ public class TaskController {
         params.add(isImportant ? 1 : 0);
         params.add(isUrgent ? 1 : 0);
         if (endTimeObj != null) params.add(endTimeObj);
-        if (startTimeObj != null) params.add(startTimeObj);
+        params.add(startTimeObj);
 
         jdbcTemplate.update(sql, params.toArray());
 

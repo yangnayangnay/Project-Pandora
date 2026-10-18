@@ -229,6 +229,24 @@ public class ViewFragment extends Fragment {
                 );
     }
 
+    private String parseLocalDate(Object timeObj) {
+        if (timeObj == null) return null;
+        String s = timeObj.toString().trim();
+        if (s.isEmpty()) return null;
+        if (s.length() <= 10) return s;
+        try {
+            SimpleDateFormat isoFmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault());
+            return dateFmt.format(isoFmt.parse(s));
+        } catch (Exception e) {
+            try {
+                SimpleDateFormat isoFmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault());
+                return dateFmt.format(isoFmt.parse(s));
+            } catch (Exception e2) {
+                return s.substring(0, 10);
+            }
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private void displayMonthView(Map<String, Object> data) {
         List<Map<String, Object>> tasks = (List<Map<String, Object>>) data.get("tasks");
@@ -247,10 +265,12 @@ public class ViewFragment extends Fragment {
             Object idObj = task.get("id");
             if (idObj == null) idObj = task.get("ID");
 
-            if (startTimeObj != null && nameObj != null) {
+            if ((startTimeObj != null || endTimeObj != null) && nameObj != null) {
                 try {
-                    String startStr = startTimeObj.toString().substring(0, 10);
-                    String endStr = endTimeObj != null ? endTimeObj.toString().substring(0, 10) : startStr;
+                    String startStr = parseLocalDate(startTimeObj != null ? startTimeObj : endTimeObj);
+                    String endStr = endTimeObj != null ? parseLocalDate(endTimeObj) : startStr;
+                    if (startStr == null) startStr = endStr;
+                    if (startStr == null) continue;
 
                     java.sql.Date startDate = java.sql.Date.valueOf(startStr);
                     java.sql.Date endDate = java.sql.Date.valueOf(endStr);
@@ -318,11 +338,12 @@ public class ViewFragment extends Fragment {
             Object endTimeObj = task.get("end_time");
             if (endTimeObj == null) endTimeObj = task.get("END_TIME");
 
-            if (startTimeObj != null) {
+            if (startTimeObj != null || endTimeObj != null) {
                 try {
-                    String startStr = startTimeObj.toString().substring(0, 10);
-                    String endStr = endTimeObj != null ? endTimeObj.toString().substring(0, 10) : startStr;
-                    if (selectedDateStr.compareTo(startStr) >= 0 && selectedDateStr.compareTo(endStr) <= 0) {
+                    String startStr = parseLocalDate(startTimeObj != null ? startTimeObj : endTimeObj);
+                    String endStr = endTimeObj != null ? parseLocalDate(endTimeObj) : startStr;
+                    if (startStr == null) startStr = endStr;
+                    if (startStr != null && selectedDateStr.compareTo(startStr) >= 0 && selectedDateStr.compareTo(endStr) <= 0) {
                         dayTasks.add(task);
                     }
                 } catch (Exception ignored) {}

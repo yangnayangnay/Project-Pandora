@@ -263,12 +263,14 @@ public class TaskCreateActivity extends AppCompatActivity {
         int assigneePos = binding.spinnerAssignee.getSelectedItemPosition();
         Long assigneeId = assigneeIds.get(assigneePos);
 
+        String todayStr = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
         Map<String, Object> request = new HashMap<>();
         request.put("name", name);
         request.put("priority", isUrgent ? "URGENT" : "MEDIUM");
         request.put("assigneeId", assigneeId);
         request.put("isImportant", isImportant);
         request.put("isUrgent", isUrgent);
+        request.put("startTime", todayStr);
         request.put("endTime", selectedEndTime);
 
         binding.btnCreateTask.setEnabled(false);

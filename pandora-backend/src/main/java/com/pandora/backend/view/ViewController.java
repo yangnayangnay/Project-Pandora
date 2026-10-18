@@ -65,6 +65,8 @@ public class ViewController {
                 "SELECT * FROM work_logs WHERE user_id = ? AND deleted = 0 AND YEAR(log_date) = ? AND MONTH(log_date) = ? ORDER BY log_date",
                 userId, currentYear, currentMonth);
 
+        sanitizeTaskDates(tasks);
+
         Map<String, Object> result = new HashMap<>();
         result.put("tasks", tasks);
         result.put("logs", logs);
@@ -93,6 +95,8 @@ public class ViewController {
                     "SELECT * FROM tasks WHERE assignee_id = ? AND deleted = 0 AND DATE(start_time) <= ? AND DATE(end_time) >= ? ORDER BY start_time",
                     userId, weekEnd, weekStart);
         }
+
+        sanitizeTaskDates(tasks);
 
         Map<String, Object> result = new HashMap<>();
         result.put("tasks", tasks);
@@ -125,6 +129,8 @@ public class ViewController {
         List<Map<String, Object>> logs = jdbcTemplate.queryForList(
                 "SELECT * FROM work_logs WHERE user_id = ? AND deleted = 0 AND log_date = ? ORDER BY created_at",
                 userId, date);
+
+        sanitizeTaskDates(tasks);
 
         Map<String, Object> result = new HashMap<>();
         result.put("tasks", tasks);
@@ -254,6 +260,19 @@ public class ViewController {
         result.put("edges", Collections.emptyList());
 
         return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    private void sanitizeTaskDates(List<Map<String, Object>> tasks) {
+        if (tasks == null) return;
+        java.text.SimpleDateFormat dateFmt = new java.text.SimpleDateFormat("yyyy-MM-dd");
+        for (Map<String, Object> task : tasks) {
+            for (String key : new String[]{"start_time", "end_time", "START_TIME", "END_TIME"}) {
+                Object val = task.get(key);
+                if (val instanceof java.util.Date) {
+                    task.put(key, dateFmt.format((java.util.Date) val));
+                }
+            }
+        }
     }
 
     private Long getCurrentUserId() {
