@@ -1,13 +1,10 @@
 package com.example.project_pandora.ui.mindmap;
 
-import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -16,37 +13,29 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
-import androidx.navigation.Navigation;
 
-import com.example.project_pandora.R;
+
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.core.network.TokenManager;
-import com.example.project_pandora.core.util.RoleDisplayUtil;
+import com.example.project_pandora.data.remote.TaskApi;
 import com.example.project_pandora.databinding.FragmentMindmapBinding;
-import com.example.project_pandora.data.remote.UserApi;
-import com.example.project_pandora.repository.LogRepository;
 import com.example.project_pandora.repository.ViewRepository;
-import com.example.project_pandora.ui.log.Top10WorkEditActivity;
-import com.example.project_pandora.ui.task.CompanyDispatchManageActivity;
-import com.example.project_pandora.ui.task.TaskDispatchActivity;
 
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class MindMapFragment extends Fragment {
 
     private FragmentMindmapBinding binding;
     private ViewRepository viewRepository;
-    private UserApi userApi;
+
     private final CompositeDisposable disposables = new CompositeDisposable();
     private String currentRole;
-    private boolean canEditCompany = false;
+    private boolean hasSubordinates = false;
 
     @Nullable
     @Override
@@ -60,77 +49,58 @@ public class MindMapFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         viewRepository = new ViewRepository(requireContext());
-        userApi = NetworkClient.getInstance(requireContext()).createService(UserApi.class);
+
         currentRole = TokenManager.getInstance(requireContext()).getRole();
-        canEditCompany = "ADMIN".equals(currentRole);
 
-        binding.quadrantBottomLeft.setOnClickListener(v -> {
-            Intent intent = new Intent(requireContext(), Top10WorkEditActivity.class);
-            intent.putExtra("workType", "PERSONAL_IMPORTANT");
-            startActivity(intent);
-        });
+        loadSubordinateStatus();
 
-        binding.quadrantBottomLeft.setOnLongClickListener(v -> {
-            showInjectDialog();
-            return true;
-        });
-
-        binding.quadrantBottomRight.setOnClickListener(v -> {
-            try {
-                Navigation.findNavController(v).navigate(R.id.logFragment);
-            } catch (Exception e) {
-                Intent intent = new Intent(requireContext(), com.example.project_pandora.ui.log.LogCreateActivity.class);
-                startActivity(intent);
-            }
-        });
-
-        binding.quadrantTopLeft.setOnClickListener(v -> {
-            if (canEditCompany) {
-                Intent intent = new Intent(requireContext(), Top10WorkEditActivity.class);
-                intent.putExtra("workType", "COMPANY_IMPORTANT");
-                startActivity(intent);
-            } else {
-                Toast.makeText(requireContext(), "权限不足，仅管理员可操作", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        binding.quadrantTopRight.setOnClickListener(v -> {
-            if (canEditCompany) {
-                startActivity(new Intent(requireContext(), CompanyDispatchManageActivity.class));
-            } else {
-                Toast.makeText(requireContext(), "权限不足，仅管理员可操作", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        binding.fabAdd.setOnClickListener(v -> {
-            String[] options = {"录入日志", "创建任务", "自动生成日志"};
-            new AlertDialog.Builder(requireContext())
-                    .setTitle("快速操作")
-                    .setItems(options, (dialog, which) -> {
-                        switch (which) {
-                            case 0:
-                                startActivity(new Intent(requireContext(), com.example.project_pandora.ui.log.LogCreateActivity.class));
-                                break;
-                            case 1:
-                                startActivity(new Intent(requireContext(), com.example.project_pandora.ui.task.TaskCreateActivity.class));
-                                break;
-                            case 2:
-                                performAutoGenerate();
-                                break;
-                        }
-                    })
-                    .show();
-        });
-
-        applyCompanyEditPermission(canEditCompany);
+        binding.fabAdd.setOnClickListener(v -> showFabMenu());
 
         loadMindMapData();
     }
 
-    private void applyCompanyEditPermission(boolean canEdit) {
-        float alpha = canEdit ? 1.0f : 0.6f;
-        binding.quadrantTopLeft.setAlpha(alpha);
-        binding.quadrantTopRight.setAlpha(alpha);
+    private void loadSubordinateStatus() {
+        TaskApi taskApi = NetworkClient.getInstance(requireContext()).createService(TaskApi.class);
+        disposables.add(taskApi.getSubordinateUsers()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        response -> {
+                            if (response.isSuccess() && response.getData() != null && !response.getData().isEmpty()) {
+                                hasSubordinates = true;
+                            }
+                        },
+                        error -> {}
+                ));
+    }
+
+    private void showFabMenu() {
+        Long currentUserId = TokenManager.getInstance(requireContext()).getUserId();
+        java.util.List<String> options = new java.util.ArrayList<>();
+        options.add("录入日志");
+        options.add("创建自己的任务");
+        final int createOtherTaskIndex;
+        if (hasSubordinates) {
+            options.add("创建他人的任务");
+            createOtherTaskIndex = options.size() - 1;
+        } else {
+            createOtherTaskIndex = -1;
+        }
+        new AlertDialog.Builder(requireContext())
+                .setTitle("快速操作")
+                .setItems(options.toArray(new String[0]), (dialog, which) -> {
+                    if (which == 0) {
+                        startActivity(new Intent(requireContext(), com.example.project_pandora.ui.log.LogCreateActivity.class));
+                    } else if (which == 1) {
+                        Intent intent = new Intent(requireContext(), com.example.project_pandora.ui.task.TaskCreateActivity.class);
+                        intent.putExtra("assigneeId", currentUserId);
+                        intent.putExtra("assigneeLocked", true);
+                        startActivity(intent);
+                    } else if (which == createOtherTaskIndex && createOtherTaskIndex > 0) {
+                        startActivity(new Intent(requireContext(), com.example.project_pandora.ui.task.TaskCreateActivity.class));
+                    }
+                })
+                .show();
     }
 
     private void loadMindMapData() {
@@ -235,137 +205,19 @@ public class MindMapFragment extends Fragment {
             return;
         }
 
-        List<Map<String, Object>> injectedList = new ArrayList<>();
-        List<Map<String, Object>> autoList = new ArrayList<>();
-        for (Map<String, Object> item : items) {
-            Object isAutoFilled = item.get("is_auto_filled");
-            if (isAutoFilled == null) isAutoFilled = item.get("IS_AUTO_FILLED");
-            if (isAutoFilled != null && Boolean.TRUE.equals(isAutoFilled)) {
-                autoList.add(item);
-            } else {
-                injectedList.add(item);
-            }
-        }
-
         int rank = 1;
-        for (Map<String, Object> item : injectedList) {
+        for (Map<String, Object> item : items) {
             Object content = item.get("content");
             if (content == null) content = item.get("CONTENT");
             String text = rank + ". " + (content != null ? content.toString() : "\u672A\u547D\u540D");
             TextView tv = createItemTextView(text);
             tv.setTextColor(0xFF333333);
-
-            Object idObj = item.get("id");
-            if (idObj == null) idObj = item.get("ID");
-            final Long itemId = idObj != null ? ((Number) idObj).longValue() : null;
-            tv.setOnLongClickListener(v -> {
-                if (itemId != null) {
-                    new AlertDialog.Builder(requireContext())
-                            .setTitle("\u5220\u9664\u6CE8\u5165\u6761\u76EE")
-                            .setMessage("\u786E\u5B9A\u5220\u9664\u8BE5\u6761\u4E2A\u4EBA\u5341\u5927\u4FE1\u606F\uFF1F")
-                            .setPositiveButton("\u5220\u9664", (d, w) -> deleteInjectedItem(itemId))
-                            .setNegativeButton("\u53D6\u6D88", null)
-                            .show();
-                }
-                return true;
-            });
-            container.addView(tv);
-            container.addView(createDivider());
-            rank++;
-        }
-
-        for (Map<String, Object> item : autoList) {
-            Object content = item.get("content");
-            if (content == null) content = item.get("CONTENT");
-            String text = rank + ". " + (content != null ? content.toString() : "\u672A\u547D\u540D");
-
-            Object sourceNote = item.get("source_note");
-            if (sourceNote == null) sourceNote = item.get("SOURCE_NOTE");
-            Object sourceLogDate = item.get("source_log_date");
-            if (sourceLogDate == null) sourceLogDate = item.get("SOURCE_LOG_DATE");
-
-            if (sourceLogDate != null && !sourceLogDate.toString().isEmpty()) {
-                text += " [\u6765\u6E90:" + sourceLogDate + "]";
-            } else if (sourceNote != null && !sourceNote.toString().isEmpty()) {
-                text += " [\u81EA\u52A8]";
-            } else {
-                text += " [\u81EA\u52A8]";
-            }
-
-            TextView tv = createItemTextView(text);
-            tv.setTextColor(0xFF6750A4);
-
-            Object autoType = item.get("auto_type");
-            if (autoType != null && "BIRTHDAY_WISH".equals(autoType.toString())) {
-                tv.setTextSize(13);
-                tv.setOnClickListener(v -> showBirthdayPicker());
-            }
             container.addView(tv);
             container.addView(createDivider());
             rank++;
         }
     }
 
-    private void showInjectDialog() {
-        LinearLayout layout = new LinearLayout(requireContext());
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(40, 20, 40, 20);
-
-        EditText etRank = new EditText(requireContext());
-        etRank.setHint("\u6392\u5E8F\u53F7(1-10)");
-        etRank.setInputType(InputType.TYPE_CLASS_NUMBER);
-        layout.addView(etRank);
-
-        EditText etContent = new EditText(requireContext());
-        etContent.setHint("\u5185\u5BB9");
-        layout.addView(etContent);
-
-        new AlertDialog.Builder(requireContext())
-                .setTitle("\u6CE8\u5165\u4E2A\u4EBA\u5341\u5927\u4FE1\u606F")
-                .setView(layout)
-                .setPositiveButton("\u6CE8\u5165", (d, w) -> {
-                    String rankStr = etRank.getText().toString().trim();
-                    String content = etContent.getText().toString().trim();
-                    if (content.isEmpty()) {
-                        Toast.makeText(requireContext(), "\u5185\u5BB9\u4E0D\u80FD\u4E3A\u7A7A", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    int rankOrder = 1;
-                    try {
-                        if (!rankStr.isEmpty()) rankOrder = Integer.parseInt(rankStr);
-                    } catch (NumberFormatException ignored) {}
-                    injectPersonalItem(rankOrder, content);
-                })
-                .setNegativeButton("\u53D6\u6D88", null)
-                .show();
-    }
-
-    private void injectPersonalItem(int rankOrder, String content) {
-        Map<String, Object> request = new HashMap<>();
-        request.put("rankOrder", rankOrder);
-        request.put("content", content);
-        disposables.add(viewRepository.injectPersonalTop10(request)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        result -> {
-                            Toast.makeText(requireContext(), "\u6CE8\u5165\u6210\u529F", Toast.LENGTH_SHORT).show();
-                            loadMindMapData();
-                        },
-                        error -> Toast.makeText(requireContext(), "\u6CE8\u5165\u5931\u8D25: " + error.getMessage(), Toast.LENGTH_SHORT).show()
-                ));
-    }
-
-    private void deleteInjectedItem(Long id) {
-        disposables.add(viewRepository.deletePersonalTop10(id)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        result -> {
-                            Toast.makeText(requireContext(), "\u5220\u9664\u6210\u529F", Toast.LENGTH_SHORT).show();
-                            loadMindMapData();
-                        },
-                        error -> Toast.makeText(requireContext(), "\u5220\u9664\u5931\u8D25: " + error.getMessage(), Toast.LENGTH_SHORT).show()
-                ));
-    }
 
     private void populatePersonalLog(LinearLayout container, List<Map<String, Object>> items) {
         container.removeAllViews();
@@ -396,30 +248,6 @@ public class MindMapFragment extends Fragment {
         }
     }
 
-    private void showBirthdayPicker() {
-        Calendar cal = Calendar.getInstance();
-        new DatePickerDialog(requireContext(),
-                (view, year, month, day) -> {
-                    String birthday = String.format("%04d-%02d-%02d", year, month + 1, day);
-                    updateBirthday(birthday);
-                },
-                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH))
-                .show();
-    }
-
-    private void updateBirthday(String birthday) {
-        Map<String, Object> request = new HashMap<>();
-        request.put("birthday", birthday);
-        disposables.add(userApi.updateBirthday(request)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        result -> {
-                            Toast.makeText(requireContext(), "\u751F\u65E5\u5DF2\u8BBE\u7F6E", Toast.LENGTH_SHORT).show();
-                            loadMindMapData();
-                        },
-                        error -> Toast.makeText(requireContext(), "\u8BBE\u7F6E\u5931\u8D25: " + error.getMessage(), Toast.LENGTH_SHORT).show()
-                ));
-    }
 
     private TextView createItemTextView(String text) {
         TextView tv = new TextView(requireContext());
@@ -453,18 +281,6 @@ public class MindMapFragment extends Fragment {
         container.addView(tv);
     }
 
-    private void performAutoGenerate() {
-        LogRepository logRepository = new LogRepository(requireContext());
-        disposables.add(logRepository.autoGenerateLogs()
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        result -> {
-                            Toast.makeText(requireContext(), "自动生成完成", Toast.LENGTH_SHORT).show();
-                            loadMindMapData();
-                        },
-                        error -> Toast.makeText(requireContext(), "生成失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
-                ));
-    }
 
     @Override
     public void onResume() {

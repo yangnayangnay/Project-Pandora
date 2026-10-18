@@ -44,7 +44,10 @@
                     android:id="@+id/edit_task_name"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="@string/hint_task_name" />
+                    android:hint="@string/hint_task_name"
+                    android:inputType="textMultiLine"
+                    android:maxLines="5"
+                    android:gravity="start|top" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <TextView

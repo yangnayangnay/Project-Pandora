@@ -59,9 +59,7 @@ public class LoginActivity extends AppCompatActivity {
         autoLogin();
 
         binding.btnLogin.setOnClickListener(v -> handleLogin());
-        binding.btnGoRegister.setOnClickListener(v -> {
-            startActivity(new Intent(this, RegisterActivity.class));
-        });
+        binding.btnGoRegister.setVisibility(android.view.View.GONE);
         binding.btnForgotPassword.setOnClickListener(v -> {
             startActivity(new Intent(this, ForgotPasswordActivity.class));
         });

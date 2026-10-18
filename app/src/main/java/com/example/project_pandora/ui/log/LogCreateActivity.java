@@ -1,6 +1,5 @@
 package com.example.project_pandora.ui.log;
 
-import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
@@ -12,21 +11,17 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.project_pandora.core.autosave.AutoSaveManager;
 import com.example.project_pandora.core.autosave.DraftRestoreDialog;
-import com.example.project_pandora.core.template.TemplateMigrationHelper;
 import com.example.project_pandora.core.util.BackToolbarHelper;
-import com.example.project_pandora.core.sync.RoutePath;
 import com.example.project_pandora.core.sync.SyncRouteResult;
 import com.example.project_pandora.databinding.ActivityLogCreateBinding;
 import com.example.project_pandora.repository.DraftRepository;
 import com.example.project_pandora.repository.LogRepository;
 import com.example.project_pandora.repository.SyncRoutingRepository;
-import com.example.project_pandora.repository.TemplateRepository;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -39,8 +34,6 @@ public class LogCreateActivity extends AppCompatActivity {
     private LogRepository logRepository;
     private SyncRoutingRepository syncRoutingRepository;
     private DraftRepository draftRepository;
-    private TemplateRepository templateRepository;
-    private TemplateMigrationHelper templateMigrationHelper;
     private AutoSaveManager autoSaveManager;
     private String selectedDate;
     private boolean isEditMode = false;
@@ -57,8 +50,6 @@ public class LogCreateActivity extends AppCompatActivity {
         logRepository = new LogRepository(this);
         syncRoutingRepository = new SyncRoutingRepository(this);
         draftRepository = new DraftRepository(this);
-        templateRepository = new TemplateRepository(this);
-        templateMigrationHelper = new TemplateMigrationHelper(this);
 
         BackToolbarHelper.setupBack(binding.toolbar, this::finish);
 
@@ -70,11 +61,8 @@ public class LogCreateActivity extends AppCompatActivity {
         });
 
         checkEditMode();
-        setupTemplateButtons();
-        setupAiDraftButton();
         setupAutoSave();
         checkDraftRestore();
-        templateMigrationHelper.migrateIfNeeded();
 
         binding.btnSave.setOnClickListener(v -> handleSave());
     }
@@ -193,127 +181,6 @@ public class LogCreateActivity extends AppCompatActivity {
         }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
     }
 
-    private void setupTemplateButtons() {
-        binding.btnSaveTemplate.setOnClickListener(v -> saveAsTemplate());
-        binding.btnUseTemplate.setOnClickListener(v -> showTemplateDialog());
-    }
-
-    private void setupAiDraftButton() {
-        binding.btnAiDraft.setOnClickListener(v -> performAiDraft());
-    }
-
-    private void performAiDraft() {
-        binding.btnAiDraft.setEnabled(false);
-        binding.btnAiDraft.setText("起草中...");
-        disposables.add(logRepository.generateDraft()
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        this::handleDraftResponse,
-                        error -> onDraftFailed(error.getMessage())
-                ));
-    }
-
-    private void handleDraftResponse(Map<String, Object> response) {
-        Object draftTextObj = response.get("drafttext");
-        String draftText = draftTextObj != null ? draftTextObj.toString() : "";
-        if (draftText.isEmpty()) {
-            onDraftFailed("草稿内容为空");
-        } else {
-            onDraftSuccess(draftText);
-        }
-    }
-
-    private void onDraftSuccess(String draftText) {
-        binding.editWorkItem.setText(draftText);
-        resetDraftButton();
-    }
-
-    private void onDraftFailed(String errorMessage) {
-        Toast.makeText(this, "起草失败: " + errorMessage, Toast.LENGTH_SHORT).show();
-        resetDraftButton();
-    }
-
-    private void resetDraftButton() {
-        binding.btnAiDraft.setEnabled(true);
-        binding.btnAiDraft.setText("AI起草");
-    }
-
-    private void saveAsTemplate() {
-        String workItem = binding.editWorkItem.getText().toString().trim();
-        if (workItem.isEmpty()) {
-            Toast.makeText(this, "请先输入工作事项", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        String timeCost = binding.editTimeCost.getText().toString().trim();
-
-        Map<String, Object> content = new HashMap<>();
-        content.put("workItem", workItem);
-        content.put("timeCost", timeCost);
-
-        disposables.add(templateRepository.saveTemplate("LOG", workItem, content)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        result -> Toast.makeText(this, "模板已保存", Toast.LENGTH_SHORT).show(),
-                        error -> Toast.makeText(this, "保存模板失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
-                ));
-    }
-
-    private void showTemplateDialog() {
-        disposables.add(templateRepository.listTemplates("LOG")
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        templates -> {
-                            if (templates == null || templates.isEmpty()) {
-                                Toast.makeText(this, "暂无模板，请先保存模板", Toast.LENGTH_SHORT).show();
-                                return;
-                            }
-                            String[] items = new String[templates.size()];
-                            for (int i = 0; i < templates.size(); i++) {
-                                items[i] = (String) templates.get(i).get("name");
-                            }
-                            new AlertDialog.Builder(this)
-                                    .setTitle("选择模板")
-                                    .setItems(items, (dialog, which) -> {
-                                        Map<String, Object> tpl = templates.get(which);
-                                        Object contentObj = tpl.get("content");
-                                        if (contentObj instanceof Map) {
-                                            Map<String, Object> content = (Map<String, Object>) contentObj;
-                                            isRestoringDraft = true;
-                                            Object wi = content.get("workItem");
-                                            if (wi != null) binding.editWorkItem.setText(wi.toString());
-                                            Object tc = content.get("timeCost");
-                                            if (tc != null) binding.editTimeCost.setText(tc.toString());
-                                            isRestoringDraft = false;
-                                        }
-                                    })
-                                    .setNeutralButton("删除模板", (dialog, which) -> showDeleteTemplateDialog(templates))
-                                    .show();
-                        },
-                        error -> Toast.makeText(this, "加载模板失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
-                ));
-    }
-
-    private void showDeleteTemplateDialog(List<Map<String, Object>> templates) {
-        String[] names = new String[templates.size()];
-        for (int i = 0; i < templates.size(); i++) {
-            names[i] = (String) templates.get(i).get("name");
-        }
-        new AlertDialog.Builder(this)
-                .setTitle("删除模板")
-                .setItems(names, (dialog, which) -> {
-                    Object idObj = templates.get(which).get("templateId");
-                    if (idObj == null) return;
-                    Long templateId = Long.parseLong(idObj.toString());
-                    disposables.add(templateRepository.deleteTemplate(templateId)
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .subscribe(
-                                    v -> Toast.makeText(this, "模板已删除", Toast.LENGTH_SHORT).show(),
-                                    error -> Toast.makeText(this, "删除失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
-                            ));
-                })
-                .show();
-    }
-
     private void handleSave() {
         String workItem = binding.editWorkItem.getText().toString().trim();
         if (workItem.isEmpty()) {
@@ -341,6 +208,8 @@ public class LogCreateActivity extends AppCompatActivity {
                     .subscribe(
                             result -> {
                                 Toast.makeText(this, result.getMessage(), Toast.LENGTH_SHORT).show();
+                                disposables.add(draftRepository.deleteDraft("LOG")
+                                        .subscribe(r -> {}, Throwable::printStackTrace));
                                 finish();
                             },
                             error -> {
@@ -355,6 +224,8 @@ public class LogCreateActivity extends AppCompatActivity {
                     .subscribe(
                             result -> {
                                 Toast.makeText(this, result.getMessage(), Toast.LENGTH_SHORT).show();
+                                disposables.add(draftRepository.deleteDraft("LOG")
+                                        .subscribe(r -> {}, Throwable::printStackTrace));
                                 finish();
                             },
                             error -> {
@@ -379,9 +250,6 @@ public class LogCreateActivity extends AppCompatActivity {
         super.onDestroy();
         if (autoSaveManager != null) {
             autoSaveManager.stop();
-        }
-        if (templateMigrationHelper != null) {
-            templateMigrationHelper.dispose();
         }
         disposables.clear();
     }

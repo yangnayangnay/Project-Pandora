@@ -219,9 +219,17 @@ public class ViewController {
     }
 
     private List<Map<String, Object>> buildPersonalLog(Long userId, String role) {
-        // B7 修复：仅查询当前用户最近 1 条日志，移除下属合并与今日+昨日过滤
-        // role 参数保留以保持方法签名不变，但不再使用
+        // 优先展示今日日志，无今日日志则展示距离今日最近的上一次日志
         try {
+            List<Map<String, Object>> todayLogs = jdbcTemplate.queryForList(
+                    "SELECT l.*, u.username, u.real_name FROM work_logs l " +
+                    "JOIN users u ON l.user_id = u.id " +
+                    "WHERE l.user_id = ? AND l.deleted = 0 AND l.log_date = CURRENT_DATE " +
+                    "ORDER BY l.created_at DESC " +
+                    "LIMIT 1", userId);
+            if (!todayLogs.isEmpty()) {
+                return todayLogs;
+            }
             return jdbcTemplate.queryForList(
                     "SELECT l.*, u.username, u.real_name FROM work_logs l " +
                     "JOIN users u ON l.user_id = u.id " +
@@ -229,10 +237,10 @@ public class ViewController {
                     "ORDER BY l.log_date DESC, l.created_at DESC " +
                     "LIMIT 1", userId);
         } catch (Exception e) {
-            // 异常时返回空列表，不抛异常
             return Collections.emptyList();
         }
     }
+
 
 
     @GetMapping("/info-map")

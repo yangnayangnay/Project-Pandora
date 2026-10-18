@@ -201,8 +201,13 @@ public class TaskCreateActivity extends AppCompatActivity {
                             if (response.isSuccess() && response.getData() != null) {
                                 for (Map<String, Object> user : response.getData()) {
                                     Object id = user.get("id");
+                                    if (id == null) id = user.get("ID");
                                     Object name = user.get("real_name");
-                                    if (name == null || name.toString().isEmpty()) name = user.get("username");
+                                    if (name == null) name = user.get("REAL_NAME");
+                                    if (name == null || name.toString().isEmpty()) {
+                                        name = user.get("username");
+                                        if (name == null) name = user.get("USERNAME");
+                                    }
                                     if (id != null) {
                                         assigneeIds.add(Long.parseLong(id.toString()));
                                         assigneeNames.add(name != null ? name.toString() : "用户" + id);
@@ -276,6 +281,8 @@ public class TaskCreateActivity extends AppCompatActivity {
                         response -> {
                             if (response.isSuccess()) {
                                 Toast.makeText(this, "任务创建成功", Toast.LENGTH_SHORT).show();
+                                disposables.add(draftRepository.deleteDraft("TASK")
+                                        .subscribe(r -> {}, Throwable::printStackTrace));
                                 finish();
                             } else {
                                 Toast.makeText(this, response.getMessage(), Toast.LENGTH_SHORT).show();
