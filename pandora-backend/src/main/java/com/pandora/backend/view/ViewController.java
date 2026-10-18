@@ -80,9 +80,10 @@ public class ViewController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getWeekView(@RequestParam(required = false) Boolean todayCoverage) {
         Long userId = getCurrentUserId();
         Calendar cal = Calendar.getInstance();
-        cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
+        int diff = (cal.get(Calendar.DAY_OF_WEEK) + 5) % 7;
+        cal.add(Calendar.DAY_OF_MONTH, -diff);
         java.sql.Date weekStart = new java.sql.Date(cal.getTimeInMillis());
-        cal.add(Calendar.DAY_OF_WEEK, 6);
+        cal.add(Calendar.DAY_OF_MONTH, 6);
         java.sql.Date weekEnd = new java.sql.Date(cal.getTimeInMillis());
 
         List<Map<String, Object>> tasks;

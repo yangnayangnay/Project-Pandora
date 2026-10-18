@@ -100,10 +100,14 @@ public class ViewFragment extends Fragment {
     private void setupMonthNavigation() {
         binding.btnPreviousMonth.setOnClickListener(v -> {
             binding.calendarView.previousMonth();
+            selectedDate.set(Calendar.DAY_OF_MONTH, 1);
+            selectedDate.add(Calendar.MONTH, -1);
             loadMonthViewData();
         });
         binding.btnNextMonth.setOnClickListener(v -> {
             binding.calendarView.nextMonth();
+            selectedDate.set(Calendar.DAY_OF_MONTH, 1);
+            selectedDate.add(Calendar.MONTH, 1);
             loadMonthViewData();
         });
     }
@@ -151,7 +155,8 @@ public class ViewFragment extends Fragment {
         container.removeAllViews();
 
         Calendar weekStart = (Calendar) selectedDate.clone();
-        weekStart.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
+        int diff = (weekStart.get(Calendar.DAY_OF_WEEK) + 5) % 7;
+        weekStart.add(Calendar.DAY_OF_MONTH, -diff);
 
         String[] dayNames = {"一", "二", "三", "四", "五", "六", "日"};
         int todayDay = selectedDate.get(Calendar.DAY_OF_MONTH);
@@ -368,9 +373,10 @@ public class ViewFragment extends Fragment {
         binding.progressBar.setVisibility(View.VISIBLE);
 
         Calendar weekStart = (Calendar) selectedDate.clone();
-        weekStart.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
+        int diff = (weekStart.get(Calendar.DAY_OF_WEEK) + 5) % 7;
+        weekStart.add(Calendar.DAY_OF_MONTH, -diff);
         Calendar weekEnd = (Calendar) weekStart.clone();
-        weekEnd.add(Calendar.DAY_OF_WEEK, 6);
+        weekEnd.add(Calendar.DAY_OF_MONTH, 6);
 
         binding.textWeekLabel.setText(weekLabelFmt.format(weekStart.getTime()) + " - " +
                 weekLabelFmt.format(weekEnd.getTime()));
@@ -463,6 +469,8 @@ public class ViewFragment extends Fragment {
         // 更新底部时间横条
         Object deadlineObj = task.get("deadline");
         if (deadlineObj == null) deadlineObj = task.get("DEADLINE");
+        if (deadlineObj == null) deadlineObj = task.get("end_time");
+        if (deadlineObj == null) deadlineObj = task.get("END_TIME");
         binding.textRemainingTime.setText(formatRemainingTime(deadlineObj));
     }
 
