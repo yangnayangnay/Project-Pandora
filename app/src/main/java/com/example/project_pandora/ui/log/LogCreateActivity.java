@@ -40,6 +40,7 @@ public class LogCreateActivity extends AppCompatActivity {
     private long editLogId = -1;
     private final CompositeDisposable disposables = new CompositeDisposable();
     private boolean isRestoringDraft = false;
+    private boolean saveCompleted = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -201,6 +202,10 @@ public class LogCreateActivity extends AppCompatActivity {
                     .subscribe(
                             result -> {
                                 Toast.makeText(this, result.getMessage(), Toast.LENGTH_SHORT).show();
+                                saveCompleted = true;
+                                if (autoSaveManager != null) {
+                                    autoSaveManager.stop();
+                                }
                                 disposables.add(draftRepository.deleteDraft("LOG")
                                         .subscribe(r -> {}, Throwable::printStackTrace));
                                 finish();
@@ -217,6 +222,10 @@ public class LogCreateActivity extends AppCompatActivity {
                     .subscribe(
                             result -> {
                                 Toast.makeText(this, result.getMessage(), Toast.LENGTH_SHORT).show();
+                                saveCompleted = true;
+                                if (autoSaveManager != null) {
+                                    autoSaveManager.stop();
+                                }
                                 disposables.add(draftRepository.deleteDraft("LOG")
                                         .subscribe(r -> {}, Throwable::printStackTrace));
                                 finish();
@@ -233,7 +242,7 @@ public class LogCreateActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        if (autoSaveManager != null) {
+        if (autoSaveManager != null && !saveCompleted) {
             autoSaveManager.triggerImmediateSave();
         }
     }
@@ -242,6 +251,7 @@ public class LogCreateActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         if (autoSaveManager != null) {
+
             autoSaveManager.stop();
         }
         disposables.clear();

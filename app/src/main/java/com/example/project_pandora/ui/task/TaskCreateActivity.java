@@ -43,6 +43,7 @@ public class TaskCreateActivity extends AppCompatActivity {
     private final List<String> assigneeNames = new ArrayList<>();
     private final CompositeDisposable disposables = new CompositeDisposable();
     private boolean isRestoringDraft = false;
+    private boolean saveCompleted = false;
     // Round19 REQ-19-03: 视图页FAB预设分配人
     private Long presetAssigneeId = null;
     private boolean assigneeLocked = false;
@@ -283,6 +284,10 @@ public class TaskCreateActivity extends AppCompatActivity {
                         response -> {
                             if (response.isSuccess()) {
                                 Toast.makeText(this, "任务创建成功", Toast.LENGTH_SHORT).show();
+                                saveCompleted = true;
+                                if (autoSaveManager != null) {
+                                    autoSaveManager.stop();
+                                }
                                 disposables.add(draftRepository.deleteDraft("TASK")
                                         .subscribe(r -> {}, Throwable::printStackTrace));
                                 finish();
@@ -303,7 +308,7 @@ public class TaskCreateActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        if (autoSaveManager != null) {
+        if (autoSaveManager != null && !saveCompleted) {
             autoSaveManager.triggerImmediateSave();
         }
     }
