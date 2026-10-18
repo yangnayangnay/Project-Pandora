@@ -70,6 +70,20 @@ public class LogAdapter extends RecyclerView.Adapter<LogAdapter.LogViewHolder> {
             Object workItem = log.get("work_item");
             binding.textWorkItem.setText(workItem != null ? workItem.toString() : "");
 
+            Object workContent = log.get("work_content");
+            if (workContent == null) workContent = log.get("WORK_CONTENT");
+            if (workContent != null) {
+                String contentStr = workContent.toString().trim();
+                if (!contentStr.isEmpty()) {
+                    binding.textWorkContent.setText(workContent.toString());
+                    binding.textWorkContent.setVisibility(android.view.View.VISIBLE);
+                } else {
+                    binding.textWorkContent.setVisibility(android.view.View.GONE);
+                }
+            } else {
+                binding.textWorkContent.setVisibility(android.view.View.GONE);
+            }
+
             // Round19 REQ-19-09: 移除时间字段展示（后端API不变）
 
             Object avatar = log.get("avatar");

@@ -379,8 +379,18 @@ public class LogFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+        if (binding == null) return;
+        String startDate = binding.editStartDate.getText().toString().trim();
+        String endDate = binding.editEndDate.getText().toString().trim();
+        String keyword = binding.editKeyword.getText().toString().trim();
+        String sDate = TextUtils.isEmpty(startDate) ? null : startDate;
+        String eDate = TextUtils.isEmpty(endDate) ? null : endDate;
+        String kw = TextUtils.isEmpty(keyword) ? null : keyword;
         if (isMyLogTab) {
-            loadMyLogs(null, null, null);
+            loadMyLogs(sDate, eDate, kw);
+        } else {
+            Long subId = getSelectedSubordinateId();
+            loadSubordinateLogs(subId, sDate, eDate, kw);
         }
     }
 
