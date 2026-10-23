@@ -1,6 +1,7 @@
 package com.example.project_pandora;
 
 import android.app.Application;
+import android.os.Build;
 import android.util.Log;
 
 import com.example.project_pandora.core.network.NetworkStateMonitor;
@@ -26,12 +27,28 @@ public class PandoraApplication extends Application {
 
         StartupTracer.begin("notificationChannel");
         TaskNotificationService.createNotificationChannel(this);
+
+        // R45 REQ-D: keep_alive 低优先级渠道（前台服务常驻通知专用，无声无横幅）
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            android.app.NotificationChannel keepAlive = new android.app.NotificationChannel(
+                    com.example.project_pandora.notification.PollingForegroundService.CHANNEL_KEEP_ALIVE,
+                    getString(com.example.project_pandora.R.string.keep_alive_channel_name),
+                    android.app.NotificationManager.IMPORTANCE_LOW);
+            keepAlive.setDescription(getString(com.example.project_pandora.R.string.keep_alive_channel_desc));
+            ((android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE))
+                    .createNotificationChannel(keepAlive);
+        }
         StartupTracer.end("notificationChannel");
 
         Completable.fromAction(() -> {
             StartupTracer.begin("enqueuePeriodicWork");
             NotificationPollWorker.enqueuePeriodicWork(this);
             StartupTracer.end("enqueuePeriodicWork");
+
+            // R44 REQ-D 规则4: 同步周期兜底任务（5min；即时链保留）
+            StartupTracer.begin("enqueueSyncPeriodicWork");
+            com.example.project_pandora.core.sync.SyncWorker.enqueuePeriodicWork(this);
+            StartupTracer.end("enqueueSyncPeriodicWork");
 
             StartupTracer.begin("networkStateRegister");
             NetworkStateMonitor.getInstance().register(this);

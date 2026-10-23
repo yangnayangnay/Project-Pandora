@@ -1,21 +1,11 @@
 package com.example.project_pandora.notification;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
-import com.example.project_pandora.core.network.NetworkClient;
-import com.example.project_pandora.data.remote.NotificationApi;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import io.reactivex.rxjava3.core.Observable;
 
@@ -54,159 +44,15 @@ public class NotificationPollWorker extends Worker {
 
     @Override
     public Result doWork() {
-        try {
-            SharedPreferences prefs = getApplicationContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-            long lastId = prefs.getLong(KEY_LAST_ID, 0);
-
-            NotificationApi api = NetworkClient.getInstance(getApplicationContext()).createService(NotificationApi.class);
-
-            // TASK-R18-015: 同步阻塞模式——CountDownLatch 等待 RxJava 回调落地再返回
-            final CountDownLatch latch = new CountDownLatch(1);
-            final AtomicReference<Result> resultRef = new AtomicReference<>(Result.success());
-
-            api.pollNotifications(lastId)
-                    .subscribe(
-                            response -> {
-                                try {
-                                    // D-33-02 修复：游标基线自适应——本地游标超前服务端全局 MAX(id)
-                                    // （单设备迁移到新库的基线差异）时重置为服务端基线，仅影响后续增量
-                                    // 拉取（不回溯弹历史通知），根治"永远拉空"
-                                    Long serverMaxId = response.getMaxNotificationId();
-                                    long effectiveLastId = lastId;
-                                    if (serverMaxId != null && effectiveLastId > serverMaxId) {
-                                        prefs.edit().putLong(KEY_LAST_ID, serverMaxId).apply();
-                                        effectiveLastId = serverMaxId;
-                                    }
-                                    if (response.isSuccess() && response.getData() != null) {
-                                        List<Map<String, Object>> notifications = response.getData();
-
-                                        // TASK-R18-015: 读取通知偏好做弹窗过滤
-                                        Set<String> disabledTypes = loadDisabledTypes(api, prefs);
-
-                                        long maxId = effectiveLastId;
-                                        for (Map<String, Object> notification : notifications) {
-                                            Object idObj = notification.get("id");
-                                            if (idObj == null) idObj = notification.get("ID");
-                                            // Round26: 通知 ID 解析统一收敛至 NumberCompat（原吞异常→0 语义保持）
-                                            long notifId = com.example.project_pandora.core.util.NumberCompat.toLongOrDefault(idObj, 0L);
-
-                                            Object typeObj = notification.get("type");
-                                            if (typeObj == null) typeObj = notification.get("TYPE");
-                                            String type = typeObj != null ? typeObj.toString() : null;
-
-                                            Object contentObj = notification.get("content");
-                                            if (contentObj == null) contentObj = notification.get("CONTENT");
-                                            Object taskIdObj = notification.get("task_id");
-                                            if (taskIdObj == null) taskIdObj = notification.get("TASK_ID");
-                                            // Round26: 任务 ID 解析统一收敛至 NumberCompat（原吞异常→null 语义保持）
-                                            Long taskId = com.example.project_pandora.core.util.NumberCompat.toLong(taskIdObj);
-
-                                            // TASK-R18-015: 被关闭类型的通知仅保留记录不弹窗
-                                            if (type == null || !disabledTypes.contains(type)) {
-                                                TaskNotificationService.showNotification(
-                                                        getApplicationContext(), notifId, type,
-                                                        "通知",
-                                                        contentObj != null ? contentObj.toString() : "",
-                                                        taskId);
-                                            }
-
-                                            if (notifId > maxId) maxId = notifId;
-                                        }
-                                        if (maxId > effectiveLastId) {
-                                            prefs.edit().putLong(KEY_LAST_ID, maxId).apply();
-                                        }
-                                    }
-                                    resultRef.set(Result.success());
-                                } finally {
-                                    latch.countDown();
-                                }
-                            },
-                            error -> {
-                                try {
-                                    resultRef.set(Result.retry());
-                                } finally {
-                                    latch.countDown();
-                                }
-                            }
-                    );
-
-            // 等待回调落地（最长 30 秒超时，避免 Worker 卡死）
-            if (!latch.await(30, TimeUnit.SECONDS)) {
-                return Result.retry();
-            }
-            return resultRef.get();
-        } catch (Exception e) {
-            return Result.retry();
-        }
+        // R45 REQ-D: 薄壳化——轮询内核迁移至 NotificationPollEngine（与前台服务共享）
+        return NotificationPollEngine.pollOnce(getApplicationContext())
+                ? Result.success() : Result.retry();
     }
 
     /**
      * TASK-R18-015: 读取被关闭的通知类型集合
      * 本地 SharedPreferences 缓存优先，缓存缺失或过期时调偏好接口拉取并写缓存，接口失败默认全部开启（返回空集合）
      */
-    private Set<String> loadDisabledTypes(NotificationApi api, SharedPreferences prefs) {
-        Set<String> disabled = new HashSet<>();
-
-        // 判断缓存是否过期
-        long cacheTimestamp = prefs.getLong(KEY_PREF_TIMESTAMP, 0);
-        boolean cacheExpired = (System.currentTimeMillis() - cacheTimestamp) > PREF_CACHE_TTL_MS;
-
-        // 缓存有效时直接读本地
-        if (!cacheExpired && cacheTimestamp > 0) {
-            for (String type : NOTIFICATION_TYPES) {
-                if (!prefs.getBoolean(KEY_PREF_PREFIX + type, true)) {
-                    disabled.add(type);
-                }
-            }
-            return disabled;
-        }
-
-        // 缓存缺失或过期，调偏好接口拉取
-        try {
-            final CountDownLatch latch = new CountDownLatch(1);
-            final boolean[] success = {false};
-            final Map<String, Object>[] prefsMap = new Map[]{null};
-
-            api.getPreferences()
-                    .subscribe(
-                            response -> {
-                                try {
-                                    if (response.isSuccess() && response.getData() != null) {
-                                        prefsMap[0] = response.getData();
-                                        success[0] = true;
-                                    }
-                                } finally {
-                                    latch.countDown();
-                                }
-                            },
-                            error -> latch.countDown()
-                    );
-
-            if (latch.await(10, TimeUnit.SECONDS) && success[0] && prefsMap[0] != null) {
-                // 写入本地缓存
-                SharedPreferences.Editor editor = prefs.edit();
-                for (String type : NOTIFICATION_TYPES) {
-                    Object value = prefsMap[0].get(type);
-                    boolean enabled = true;
-                    if (value instanceof Boolean) {
-                        enabled = (Boolean) value;
-                    } else if (value != null) {
-                        try { enabled = Boolean.parseBoolean(value.toString()); } catch (Exception ignored) {}
-                    }
-                    editor.putBoolean(KEY_PREF_PREFIX + type, enabled);
-                    if (!enabled) disabled.add(type);
-                }
-                editor.putLong(KEY_PREF_TIMESTAMP, System.currentTimeMillis());
-                editor.apply();
-            }
-            // 接口失败默认全部开启（disabled 为空集合）
-        } catch (Exception ignored) {
-            // 异常时默认全部开启
-        }
-
-        return disabled;
-    }
-
     /**
      * 周期轮询（15 分钟，WorkManager 系统下限）
      */

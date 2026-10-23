@@ -389,22 +389,12 @@ public class CalendarView extends View {
                 int laneIdx = span.getLaneIndex();
 
                 int colorIdx = span.getColorIndex() % pastelColors.length;
-                // R36 REQ-36-A1: 我布置的任务（DISPATCHED）= 直角描边样式，与我的任务（PASTEL 圆角实底）
-                // 形成色相+形状双保险视觉区分
-                boolean dispatched = span.getSource() == TaskSpan.SOURCE_DISPATCHED;
-                if (dispatched) {
-                    spanBgPaint.setStyle(Paint.Style.STROKE);
-                    spanBgPaint.setStrokeWidth(2f);
-                    spanBgPaint.setColor(getResources().getColor(
-                            com.example.project_pandora.R.color.color_task_dispatched_stroke));
-                    spanTextPaint.setColor(getResources().getColor(
-                            com.example.project_pandora.R.color.color_task_dispatched_text));
-                } else {
-                    spanBgPaint.setStyle(Paint.Style.FILL);
-                    spanBgPaint.setStrokeWidth(0f);
-                    spanBgPaint.setColor(pastelColors[colorIdx]);
-                    spanTextPaint.setColor(pastelTextColors[colorIdx]);
-                }
+                // R45 REQ-B: 移除 DISPATCHED 蓝色描边分支（用户 2.7），双源统一 PASTEL 彩色圆角实底；
+                // TaskSpan.source 字段仅存数据语义（上游双源聚合继续写入，渲染层不再区分）
+                spanBgPaint.setStyle(Paint.Style.FILL);
+                spanBgPaint.setStrokeWidth(0f);
+                spanBgPaint.setColor(pastelColors[colorIdx]);
+                spanTextPaint.setColor(pastelTextColors[colorIdx]);
 
                 for (int row = startRow; row <= endRow; row++) {
                     float rowTop = gridTop + cellHeight * row;
@@ -433,8 +423,7 @@ public class CalendarView extends View {
                     }
 
                     RectF segRect = new RectF(segLeft, lineTop, segRight, lineBottom);
-                    float drawRadius = dispatched ? 0f : cornerRadius;
-                    canvas.drawRoundRect(segRect, drawRadius, drawRadius, spanBgPaint);
+                    canvas.drawRoundRect(segRect, cornerRadius, cornerRadius, spanBgPaint);
 
                     if (row == startRow) {
                         float textMaxWidth = segRight - segLeft - 8f;

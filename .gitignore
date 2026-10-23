@@ -34,3 +34,23 @@ emulator_*.log
 
 # R44: 本地 H2 数据库不入库
 pandora-backend/data/
+
+# R45: 调试产物全集（根限定防误伤 src 资源）
+/dump*.xml
+/gboard_ui*.xml
+/ime_ui*.xml
+/kb_ui*.xml
+/trime_ui*.xml
+/trime_kb_ui.xml
+/ui*.xml
+/check-port.bat
+/START_OLLAMA_GPU.bat
+/nul
+/app/release/
+/*.zip
+/*.apk
+/*.db
+/test-results/
+/test_screenshots/
+/docx/
+/loading.html

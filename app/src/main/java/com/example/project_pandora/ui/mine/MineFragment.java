@@ -168,6 +168,7 @@ public class MineFragment extends Fragment {
     private void doLogout() {
         SyncManager.getInstance().destroy();
         TokenManager.getInstance(requireContext()).clear();
+        com.example.project_pandora.notification.PollingForegroundService.stop(requireContext());
         startActivity(new Intent(requireContext(), LoginActivity.class));
         requireActivity().finishAffinity();
     }

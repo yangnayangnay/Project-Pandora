@@ -121,7 +121,10 @@ public class SettingsActivity extends AppCompatActivity {
                 startActivity(new Intent(this, ServerConfigActivity.class)));
 
         // Round29: 首次进入刷新服务器地址摘要
+        binding.btnBatteryWhitelist.setOnClickListener(v -> requestBatteryWhitelist());
+
         refreshServerSummary();
+        refreshKeepAliveSummary();
     }
 
     @Override
@@ -131,18 +134,39 @@ public class SettingsActivity extends AppCompatActivity {
         refreshAiConfigSummary();
         // Round29: 从 ServerConfigActivity 返回后刷新服务器地址摘要
         refreshServerSummary();
+        refreshKeepAliveSummary();
     }
 
-    /** Round29: 服务器地址卡片摘要（已配置 → 当前:{归一化地址}；未配置 → 默认:{当前生效默认地址摘要}） */
+    /** R45 REQ-D: 跳转系统电池优化白名单对话框（降级链：对话框→列表页→手动路径 Toast） */
+    private void requestBatteryWhitelist() {
+        try {
+            startActivity(new android.content.Intent(
+                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    android.net.Uri.parse("package:" + getPackageName())));
+        } catch (Exception e1) {
+            try {
+                startActivity(new android.content.Intent(
+                        android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            } catch (Exception e2) {
+                android.widget.Toast.makeText(this, R.string.keep_alive_manual_path, android.widget.Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    /** R45 REQ-D: 电池优化白名单状态刷新 */
+    private void refreshKeepAliveSummary() {
+        boolean ignoring = ((android.os.PowerManager) getSystemService(POWER_SERVICE))
+                .isIgnoringBatteryOptimizations(getPackageName());
+        binding.textKeepAliveSummary.setText(ignoring
+                ? getString(R.string.keep_alive_whitelist_allowed)
+                : getString(R.string.keep_alive_whitelist_denied));
+    }
+
     private void refreshServerSummary() {
         ServerUrlManager manager = ServerUrlManager.getInstance(this);
-        String configured = manager.getConfiguredUrl();
-        String summary;
-        if (!configured.trim().isEmpty()) {
-            summary = getString(R.string.server_summary_current, configured);
-        } else {
-            summary = getString(R.string.server_summary_default, manager.getEffectiveBaseUrl());
-        }
+        // R44: 列表概要（当前:{活跃地址}（共 N 台）——列表化升级）
+        String summary = getString(R.string.server_summary_current,
+                manager.getActiveUrl() + "（" + manager.getServerList().size() + " 台）");
         binding.textServerSummary.setText(summary);
     }
 

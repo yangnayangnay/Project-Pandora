@@ -83,7 +83,7 @@ UPDATE `employee_records` SET `email` = '2120951033@qq.com' WHERE `deleted` = 0;
 UPDATE `users` SET `phone` = '19310693809' WHERE `deleted` = 0;
 UPDATE `employee_records` SET `phone` = '19310693809' WHERE `deleted` = 0;
 -- =============================================================================
--- yjl 测试账号 (密码: 123465, 邮箱: 2120951033@qq.com, 电话: 19310693809)
+-- yjl 测试账号（密码与联系方式由项目所有者另行提供）
 -- 组织架构: 创始人 → 部门老总 → 团队长 → 员工
 -- =============================================================================
 MERGE INTO `users` (`id`, `username`, `password_hash`, `role`, `department_id`, `team_id`, `email`, `real_name`, `phone`, `approval_status`) KEY(`id`) VALUES

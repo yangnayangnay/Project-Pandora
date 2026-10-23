@@ -21,6 +21,7 @@ public class SyncRoutingRepository {
     private final SyncRepository syncRepository;
     private final NetworkStateMonitor networkStateMonitor;
     private final Gson gson;
+    private final com.example.project_pandora.core.network.ServerUrlManager serverUrlManager;
 
     public SyncRoutingRepository(Context context) {
         this.logRepository = new LogRepository(context);
@@ -28,6 +29,7 @@ public class SyncRoutingRepository {
         this.syncRepository = new SyncRepository(context);
         this.networkStateMonitor = NetworkStateMonitor.getInstance();
         this.gson = new Gson();
+        this.serverUrlManager = com.example.project_pandora.core.network.ServerUrlManager.getInstance(context);
     }
 
     public Observable<SyncRouteResult> createLog(String workItem, String workContent, String completionStatus,
@@ -105,7 +107,27 @@ public class SyncRoutingRepository {
         }
 
         return operation.execute()
-                .map(result -> new SyncRouteResult(RoutePath.ONLINE_DIRECT, null, successMsg))
+                .map(result -> {
+                    // R44 REQ-C③/REQ-D 规则5: 直发非权威端成功 → 生成中继记录（RELAY_PENDING+源端 id）
+                    // fire-and-forget：不阻塞主流程返回（失败仅日志，数据仍在源端可后续补采）
+                    try {
+                        if (serverUrlManager != null && !serverUrlManager.isCloudActive()) {
+                            Long sourceId = null;
+                            if (result != null && result.get("id") != null) {
+                                sourceId = Long.parseLong(result.get("id").toString());
+                            }
+                            if (sourceId != null) {
+                                final long sid = sourceId;
+                                syncRepository.saveRelayPending(dataType, jsonContent, sid)
+                                        .subscribe(id -> android.util.Log.i("SyncRelay",
+                                                "RELAY 记录生成 dataId=" + id + " sourceId=" + sid),
+                                                e -> android.util.Log.w("SyncRelay",
+                                                        "RELAY 记录生成失败: " + e.getMessage()));
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                    return new SyncRouteResult(RoutePath.ONLINE_DIRECT, null, successMsg);
+                })
                 .onErrorResumeNext(error -> {
                     if (isBusinessError(error)) {
                         // DEF-31-01: HttpException 统一解析为 BusinessException（携带后端 code/message）

@@ -270,7 +270,7 @@ CREATE INDEX `idx_org_team` ON `user_org_affiliation` (`team_id`);
 -- =============================================================================
 -- 初始化数据：管理员账号
 -- =============================================================================
--- 密码: admin123 (BCrypt加密)
+-- 密码为 BCrypt 加密存储（明文由项目所有者另行提供）
 INSERT INTO `users` (`username`, `password_hash`, `role`) VALUES
 ('admin', '$2a$10$N.ZOn9G6/YLFixAOPHz/h.z7pCu6v2/nY6YYi5Jm7rXmJr4mZkKm', 'ADMIN');
 

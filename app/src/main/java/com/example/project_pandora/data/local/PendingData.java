@@ -32,6 +32,9 @@ public class PendingData {
 
     public int failCount;
 
+    /** R44 REQ-D: 源服务端业务 id（直发本地成功后回填；云中继时用于 UPDATE 定位映射） */
+    public Long source_server_id;
+
     public PendingData() {
         this.syncStatus = SyncStatus.PENDING.name();
         this.failCount = 0;

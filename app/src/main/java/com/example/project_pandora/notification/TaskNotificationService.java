@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.os.Build;
 
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.app.NotificationManagerCompat;
 
 import com.example.project_pandora.MainActivity;
@@ -116,7 +117,11 @@ public class TaskNotificationService {
                     .setAutoCancel(true)
                     .setContentIntent(pendingIntent);
 
-            NotificationManagerCompat.from(context).notify((int) notificationId, builder.build());
+            // R45: lint MissingPermission 显式防线（权限拒绝时静默跳过，语义与原 catch 一致）
+            if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS)
+                    == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                NotificationManagerCompat.from(context).notify((int) notificationId, builder.build());
+            }
         } catch (Exception ignored) {
             // TASK-R18-016 规则 6：未授予通知权限时不因弹通知失败而崩溃
         }

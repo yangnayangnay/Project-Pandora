@@ -4,12 +4,16 @@ import android.os.Bundle;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.project_pandora.R;
+import com.example.project_pandora.core.network.ServerEntry;
 import com.example.project_pandora.core.network.ServerUrlManager;
 import com.example.project_pandora.core.util.BackToolbarHelper;
 import com.example.project_pandora.databinding.ActivityServerConfigBinding;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
@@ -21,14 +25,15 @@ import okhttp3.Response;
 
 /**
  * Round29: 服务器地址（BaseUrl）配置页。
- * 单字段编辑 + 测试连接（当前输入值即测，与保存解耦）+ 保存 + 恢复默认。
- * 地址明文回显（非敏感数据，区别于 AI Key 掩码处理）。
- * 保存归一化后持久化，NetworkClient 经 BaseUrlInterceptor 全局即时生效。
+ * R44 REQ-A: 升级为服务端列表管理——RecyclerView 条目（生效徽标/启停/上移下移/单条测试/删除）
+ * + 底部添加区（校验/归一化/去重/上限）+ 删除守卫（空列表回退默认预置）。
+ * 保存经 ServerUrlManager.saveServerList，BaseUrlInterceptor 次请求即生效。
  */
-public class ServerConfigActivity extends AppCompatActivity {
+public class ServerConfigActivity extends AppCompatActivity implements ServerListAdapter.Listener {
 
     private ActivityServerConfigBinding binding;
     private ServerUrlManager serverUrlManager;
+    private ServerListAdapter adapter;
     private final CompositeDisposable disposables = new CompositeDisposable();
     private boolean isTesting = false;
 
@@ -42,11 +47,13 @@ public class ServerConfigActivity extends AppCompatActivity {
 
         BackToolbarHelper.setupBack(binding.toolbar, this::finish);
 
-        loadCurrentConfig();
+        adapter = new ServerListAdapter(serverUrlManager, this);
+        binding.recyclerServerList.setLayoutManager(new LinearLayoutManager(this));
+        binding.recyclerServerList.setAdapter(adapter);
+        reloadList();
 
         binding.btnTest.setOnClickListener(v -> testConnection());
-        binding.btnSave.setOnClickListener(v -> saveConfig());
-        binding.btnReset.setOnClickListener(v -> resetConfig());
+        binding.btnAdd.setOnClickListener(v -> addServer());
     }
 
     @Override
@@ -55,48 +62,102 @@ public class ServerConfigActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
-    /** 回显当前持久化配置（地址明文，存储时已归一化） */
-    private void loadCurrentConfig() {
-        binding.editServerUrl.setText(serverUrlManager.getConfiguredUrl());
+    private void reloadList() {
+        adapter.submit(serverUrlManager.getServerList());
     }
 
-    /** 保存：校验 http/https 前缀 → 归一化 → 持久化 */
-    private void saveConfig() {
+    /** 添加：校验前缀 → 归一化 → 去重 → 上限 → 入列表整表保存 */
+    private void addServer() {
         String raw = binding.editServerUrl.getText().toString().trim();
-
-        if (!raw.isEmpty() && !(raw.startsWith("http://") || raw.startsWith("https://"))) {
-            Toast.makeText(this, R.string.toast_server_url_invalid, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        serverUrlManager.saveUrl(raw);
-        // 归一化后回写输入框（让用户看到生效形态）
-        binding.editServerUrl.setText(serverUrlManager.getConfiguredUrl());
-        Toast.makeText(this, R.string.toast_server_saved, Toast.LENGTH_SHORT).show();
-    }
-
-    /** 恢复默认：清空配置 = 回退默认双轨地址 */
-    private void resetConfig() {
-        serverUrlManager.clear();
-        binding.editServerUrl.setText("");
-        Toast.makeText(this, R.string.toast_server_reset, Toast.LENGTH_SHORT).show();
-    }
-
-    /** 测试连接：当前输入值（未保存也可测），对归一化地址发 GET /actuator/health */
-    private void testConnection() {
-        if (isTesting) return;
-        String raw = binding.editServerUrl.getText().toString().trim();
-
         if (!(raw.startsWith("http://") || raw.startsWith("https://"))) {
             Toast.makeText(this, R.string.toast_server_url_invalid, Toast.LENGTH_SHORT).show();
             return;
         }
+        String normalized = ServerUrlManager.normalizeBaseUrl(raw);
+        if (normalized.isEmpty()) {
+            Toast.makeText(this, R.string.toast_server_url_invalid, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        List<ServerEntry> list = new ArrayList<>(serverUrlManager.getServerList());
+        if (list.size() >= ServerUrlManager.MAX_SERVERS) {
+            Toast.makeText(this, R.string.toast_server_limit, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        for (ServerEntry e : list) {
+            if (e.getUrl().equals(normalized)) {
+                Toast.makeText(this, R.string.toast_server_duplicate, Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+        list.add(new ServerEntry(normalized, true));
+        try {
+            serverUrlManager.saveServerList(list);
+        } catch (ServerUrlManager.ServerListException ex) {
+            Toast.makeText(this, ex.getMessage(), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        binding.editServerUrl.setText("");
+        reloadList();
+        Toast.makeText(this, R.string.toast_server_saved, Toast.LENGTH_SHORT).show();
+    }
 
+    // ==================== ServerListAdapter.Listener ====================
+
+    @Override
+    public void onListChanged(List<ServerEntry> newList) {
+        reloadList();
+    }
+
+    @Override
+    public void onItemTest(String url) {
+        runProbe(url);
+    }
+
+    @Override
+    public void onDelete(int position) {
+        List<ServerEntry> list = new ArrayList<>(serverUrlManager.getServerList());
+        if (position < 0 || position >= list.size()) return;
+        list.remove(position);
+        if (list.isEmpty()) {
+            // 删除守卫：空列表回退默认预置（REQ-A 规则 7）
+            list.add(new ServerEntry(serverUrlManager.getEffectiveBaseUrl(), true));
+            serverUrlManager.clear();
+            Toast.makeText(this, R.string.toast_server_reset, Toast.LENGTH_SHORT).show();
+        } else {
+            try {
+                serverUrlManager.saveServerList(list);
+            } catch (ServerUrlManager.ServerListException ex) {
+                Toast.makeText(this, ex.getMessage(), Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+        reloadList();
+    }
+
+    @Override
+    public void onError(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        reloadList();
+    }
+
+    // ==================== 测试连接（添加区，与保存解耦） ====================
+
+    private void testConnection() {
+        if (isTesting) return;
+        String raw = binding.editServerUrl.getText().toString().trim();
+        if (!(raw.startsWith("http://") || raw.startsWith("https://"))) {
+            Toast.makeText(this, R.string.toast_server_url_invalid, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        runProbe(ServerUrlManager.normalizeBaseUrl(raw));
+    }
+
+    private void runProbe(String normalized) {
+        if (isTesting || normalized == null || normalized.isEmpty()) return;
         isTesting = true;
         binding.btnTest.setEnabled(false);
         binding.btnTest.setText(R.string.server_testing);
 
-        final String normalized = ServerUrlManager.normalizeBaseUrl(raw);
         disposables.add(io.reactivex.rxjava3.core.Single.<String>fromCallable(() -> probe(normalized))
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -119,20 +180,18 @@ public class ServerConfigActivity extends AppCompatActivity {
     }
 
     /**
-     * 同步探测（io 线程执行）：GET {归一化地址}/actuator/health，HTTP 2xx 即连通。
-     * 独立 OkHttpClient（不经 NetworkClient，防 BaseUrlInterceptor 重写自环——沿 Round28 独立探测模式）。
+     * 同步探测（io 线程）：GET {归一化地址}/actuator/health，2xx 即连通。
+     * 独立 OkHttpClient（防 BaseUrlInterceptor 自环——沿 Round28 模式）。
      */
     private String probe(String normalizedBaseUrl) throws Exception {
         OkHttpClient client = new OkHttpClient.Builder()
                 .connectTimeout(3, TimeUnit.SECONDS)
                 .readTimeout(5, TimeUnit.SECONDS)
                 .build();
-
         Request request = new Request.Builder()
                 .url(normalizedBaseUrl + "actuator/health")
                 .get()
                 .build();
-
         try (Response response = client.newCall(request).execute()) {
             if (response.isSuccessful()) {
                 return getString(R.string.toast_server_test_ok, response.code());

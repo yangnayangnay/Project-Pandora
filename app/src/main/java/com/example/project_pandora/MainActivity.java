@@ -170,6 +170,7 @@ public class MainActivity extends AppCompatActivity {
         super.onStart();
         if (TokenManager.getInstance(this).isLoggedIn()) {
             NotificationPollWorker.enqueueOneTimeWork(this);
+            com.example.project_pandora.notification.PollingForegroundService.startIfLoggedIn(this);
             NotificationPermissionHelper.requestOnce(this);
         }
     }

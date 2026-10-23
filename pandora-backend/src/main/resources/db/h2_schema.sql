@@ -202,7 +202,7 @@ CREATE INDEX IF NOT EXISTS `idx_org_dept` ON `user_org_affiliation` (`department
 CREATE INDEX IF NOT EXISTS `idx_org_team` ON `user_org_affiliation` (`team_id`);
 
 -- =============================================================================
--- 初始化数据：管理员账号 (密码: admin123, BCrypt加密, 用户名统一使用编号后缀)
+-- 初始化数据：管理员账号（BCrypt 加密，密码由项目所有者另行提供）
 -- =============================================================================
 MERGE INTO `users` (`id`, `username`, `password_hash`, `role`) KEY(`id`) VALUES
 (1, 'admin0', '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'ADMIN');
@@ -389,3 +389,15 @@ CREATE TABLE IF NOT EXISTS `divination_records` (
 
 -- R39 REQ-C01: 任务正文列（幂等迁移，存量 NULL 占位）
 ALTER TABLE `tasks` ADD COLUMN IF NOT EXISTS `content` CLOB DEFAULT NULL;
+
+-- R44 REQ-D: 中继幂等映射表（clientKey 唯一索引去重+sourceId→cloudId 跨库 id 映射）
+CREATE TABLE IF NOT EXISTS `sync_relay_keys` (
+    `id`           BIGINT       NOT NULL AUTO_INCREMENT,
+    `client_key`    VARCHAR(128) NOT NULL,
+    `entity_type`   VARCHAR(16)  NOT NULL,
+    `source_id`     BIGINT       DEFAULT NULL,
+    `cloud_id`      BIGINT       DEFAULT NULL,
+    `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_sync_client_key` (`client_key`)
+);

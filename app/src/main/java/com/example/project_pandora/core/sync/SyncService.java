@@ -25,6 +25,8 @@ public class SyncService {
     private final SyncRepository syncRepository;
     private final LogApi logApi;
     private final TaskApi taskApi;
+    private final com.example.project_pandora.data.remote.SyncApi syncApi;
+    private final com.example.project_pandora.core.network.ServerUrlManager serverUrlManager;
     private final TokenManager tokenManager;
     private final Gson gson;
 
@@ -32,12 +34,19 @@ public class SyncService {
         this.syncRepository = new SyncRepository(context);
         this.logApi = NetworkClient.getInstance(context).createService(LogApi.class);
         this.taskApi = NetworkClient.getInstance(context).createService(TaskApi.class);
+        this.syncApi = NetworkClient.getInstance(context).createService(com.example.project_pandora.data.remote.SyncApi.class);
+        this.serverUrlManager = com.example.project_pandora.core.network.ServerUrlManager.getInstance(context);
         this.tokenManager = TokenManager.getInstance(context);
         this.gson = new Gson();
     }
 
     public Observable<SyncProgress> syncAll() {
-        return syncRepository.queryPendingByOrder()
+        // R44 REQ-D: 分层推送——活跃端=云 → 批量中继（PENDING+RELAY_PENDING+SYNC_FAILED 全量）；
+        // 活跃端=本地 → 既有逐条业务端点重放（PENDING+SYNC_FAILED），成功置 RELAY_PENDING
+        if (serverUrlManager.isCloudActive()) {
+            return relayPushBatch();
+        }
+        return syncRepository.queryPendingForLocal()
                 .firstOrError()
                 .toObservable()
                 .flatMap(pendingList -> {
@@ -71,6 +80,107 @@ public class SyncService {
                             new SyncProgress(total, successCount[0], failedCount[0], true))));
                 })
                 .subscribeOn(Schedulers.io());
+    }
+
+
+    /**
+     * R44 REQ-D: 云中继批量推送（活跃端=云时）。
+     * clientKey=p{userId}-{dataId}（云端 sync_relay_keys 幂等键）；
+     * 响应逐条 status：SYNCED/SKIPPED → 置 SYNCED（幂等命中同样终态）；NO_MAPPING → SYNC_FAILED。
+     * 空批跳过（EMPTY_BATCH）。
+     */
+    @SuppressWarnings("unchecked")
+    private Observable<SyncProgress> relayPushBatch() {
+        return syncRepository.queryPendingAndRelayPending()
+                .firstOrError()
+                .toObservable()
+                .flatMap(pendingList -> {
+                    if (pendingList == null || pendingList.isEmpty()) {
+                        android.util.Log.d("SyncService", "EMPTY_BATCH（无待中继条目）");
+                        return Observable.just(SyncProgress.empty());
+                    }
+                    long uid = tokenManager.getUserId() != null ? tokenManager.getUserId() : 0L;
+                    List<Map<String, Object>> items = new java.util.ArrayList<>();
+                    for (PendingData d : pendingList) {
+                        Map<String, Object> item = new HashMap<>();
+                        item.put("clientKey", "p" + uid + "-" + d.dataId);
+                        item.put("type", mapType(d.dataType));
+                        item.put("sourceId", d.source_server_id);
+                        item.put("content", d.content);
+                        items.add(item);
+                    }
+                    android.util.Log.i("SyncService", "RELAY_BATCH size=" + items.size());
+                    return syncApi.relaySync(com.example.project_pandora.data.remote.SyncApi.buildRequest(items))
+                            .flatMap(response -> {
+                                if (!response.isSuccess() || response.getData() == null) {
+                                    return Observable.error(new RuntimeException(
+                                            response.getMessage() != null ? response.getMessage() : "中继推送失败"));
+                                }
+                                Map<String, Object> data = response.getData();
+                                List<Map<String, Object>> synced = (List<Map<String, Object>>) data.get("synced");
+                                int ok = 0;
+                                int fail = 0;
+                                if (synced != null) {
+                                    for (Map<String, Object> r : synced) {
+                                        String clientKey = r.get("clientId") != null ? r.get("clientId").toString() : "";
+                                        String status = r.get("status") != null ? r.get("status").toString() : "";
+                                        Long dataId = parseDataIdFromKey(clientKey);
+                                        if (dataId == null) continue;
+                                        if ("SYNCED".equals(status) || "SKIPPED".equals(status)) {
+                                            syncRepository.updateSynced(dataId, System.currentTimeMillis())
+                                                    .subscribe(v -> {}, e -> {});
+                                            ok++;
+                                        } else {
+                                            syncRepository.updateFailed(dataId, "NO_MAPPING", System.currentTimeMillis())
+                                                    .subscribe(v -> {}, e -> {});
+                                            fail++;
+                                        }
+                                    }
+                                }
+                                return Observable.just(new SyncProgress(items.size(), ok, fail, true));
+                            });
+                })
+                .subscribeOn(Schedulers.io());
+    }
+
+    private String mapType(String dataType) {
+        if ("LOG".equals(dataType)) return "log";
+        if ("TASK_STATUS".equals(dataType) || "TASK_PROGRESS".equals(dataType)) return "task";
+        return dataType != null ? dataType.toLowerCase() : "";
+    }
+
+    private Long parseDataIdFromKey(String clientKey) {
+        if (clientKey == null) return null;
+        int idx = clientKey.lastIndexOf('-');
+        if (idx < 0 || idx + 1 >= clientKey.length()) return null;
+        try {
+            return Long.parseLong(clientKey.substring(idx + 1));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * R44: 上传成功终态判定——活跃端=云 → SYNCED；活跃端=本地 → RELAY_PENDING（回填源端 id）。
+     * 源端 id 取不到时降级 SYNCED（防条目永卡队列）。
+     */
+    private Observable<UploadResult> markUploaded(PendingData data, Map<String, Object> result) {
+        if (serverUrlManager.isCloudActive()) {
+            return syncRepository.updateSynced(data.dataId)
+                    .toObservable().map(r -> UploadResult.success(data.dataId));
+        }
+        Long sourceId = null;
+        if (result != null && result.get("id") != null) {
+            try {
+                sourceId = Long.parseLong(result.get("id").toString());
+            } catch (NumberFormatException ignored) {}
+        }
+        if (sourceId == null) {
+            return syncRepository.updateSynced(data.dataId)
+                    .toObservable().map(r -> UploadResult.success(data.dataId));
+        }
+        return syncRepository.markRelayed(data.dataId, sourceId, System.currentTimeMillis())
+                .toObservable().map(r -> UploadResult.success(data.dataId));
     }
 
     @SuppressWarnings("unchecked")
@@ -151,8 +261,7 @@ public class SyncService {
         }
 
         return apiCall
-                .flatMap(result -> syncRepository.updateSynced(data.dataId)
-                        .toObservable().map(r -> UploadResult.success(data.dataId)))
+                .flatMap(result -> markUploaded(data, result))
                 .onErrorResumeNext(error -> {
                     if (isTokenExpired(error)) {
                         return Observable.just(UploadResult.tokenExpired(data.dataId));
@@ -203,8 +312,7 @@ public class SyncService {
         return taskApi.transitionStatus(taskId, request)
                 .flatMap(response -> {
                     if (response.isSuccess()) {
-                        return syncRepository.updateSynced(data.dataId)
-                                .toObservable().map(r -> UploadResult.success(data.dataId));
+                        return markUploaded(data, response.getData());
                     }
                     throw new RuntimeException(response.getMessage());
                 })
@@ -241,8 +349,7 @@ public class SyncService {
         return taskApi.updateProgress(taskId, request)
                 .flatMap(response -> {
                     if (response.isSuccess()) {
-                        return syncRepository.updateSynced(data.dataId)
-                                .toObservable().map(r -> UploadResult.success(data.dataId));
+                        return markUploaded(data, response.getData());
                     }
                     throw new RuntimeException(response.getMessage());
                 })

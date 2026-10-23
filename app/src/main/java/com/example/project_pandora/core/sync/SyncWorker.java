@@ -2,8 +2,10 @@ package com.example.project_pandora.core.sync;
 
 import android.content.Context;
 
+import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.ExistingWorkPolicy;
 import androidx.work.OneTimeWorkRequest;
+import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
@@ -84,6 +86,20 @@ public class SyncWorker extends Worker {
         WorkManager.getInstance(context).enqueueUniqueWork(
                 UNIQUE_WORK_NAME,
                 ExistingWorkPolicy.KEEP,
+                workRequest
+        );
+    }
+
+    /**
+     * R44 REQ-D 规则4: 周期兜底任务（5 分钟上限；沿 NotificationPollWorker 既有模式）。
+     * 既有一次性触发（联网/恢复联动）保留——周期任务仅兜底，不取代即时链。
+     */
+    public static void enqueuePeriodicWork(Context context) {
+        PeriodicWorkRequest workRequest = new PeriodicWorkRequest.Builder(
+                SyncWorker.class, 5, java.util.concurrent.TimeUnit.MINUTES).build();
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                "sync_periodic",
+                ExistingPeriodicWorkPolicy.KEEP,
                 workRequest
         );
     }

@@ -205,7 +205,64 @@
             </com.google.android.material.card.MaterialCardView>
 
             <!-- Round29: 服务器地址配置入口（置于 AI 模型配置卡片之后） -->
-            <com.google.android.material.card.MaterialCardView
+            
+        <!-- R45 REQ-D: 息屏通知保活引导卡片（电池优化白名单+ColorOS 自启动说明） -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/keep_alive_card_title"
+                    android:textSize="16sp"
+                    android:textColor="@color/color_text_primary" />
+
+                <TextView
+                    android:id="@+id/text_keep_alive_summary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textSize="13sp"
+                    android:textColor="@color/color_text_secondary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_battery_whitelist"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/keep_alive_btn_whitelist" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/keep_alive_coloros_note"
+                    android:textSize="12sp"
+                    android:textColor="@color/color_text_secondary" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/keep_alive_manual_path"
+                    android:textSize="11sp"
+                    android:textColor="@color/color_text_secondary" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+<com.google.android.material.card.MaterialCardView
                 android:id="@+id/card_server_config"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

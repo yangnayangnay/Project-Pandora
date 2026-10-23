@@ -190,6 +190,7 @@ public class LoginActivity extends AppCompatActivity {
                                 NetworkStateMonitor.getInstance().onServerConnectivityChanged(conn);
 
                                 startActivity(new Intent(this, MainActivity.class));
+        com.example.project_pandora.notification.PollingForegroundService.startIfLoggedIn(this);
                                 finish();
                             } else {
                                 String msg = response.getMessage();
@@ -242,6 +243,7 @@ public class LoginActivity extends AppCompatActivity {
                         response -> {
                             if (response.isSuccess()) {
                                 startActivity(new Intent(this, MainActivity.class));
+        com.example.project_pandora.notification.PollingForegroundService.startIfLoggedIn(this);
                                 finish();
                             }
                         },
