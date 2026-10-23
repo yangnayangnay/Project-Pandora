@@ -46,7 +46,7 @@ public class TaskCreateActivity extends AppCompatActivity {
     private boolean saveCompleted = false;
     // Round19 REQ-19-03: 视图页FAB预设分配人
     private Long presetAssigneeId = null;
-    private boolean assigneeLocked = false;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,10 +60,12 @@ public class TaskCreateActivity extends AppCompatActivity {
         BackToolbarHelper.setupBack(binding.toolbar, this::finish);
 
         // Round19 REQ-19-03: 读取 Intent 预设分配人参数
+        // Round23 REQ-23-04: 废止锁定语义，仅保留预设定位（默认自己、可选改）
         presetAssigneeId = getIntent().getLongExtra("assigneeId", -1);
         if (presetAssigneeId <= 0) presetAssigneeId = null;
-        assigneeLocked = getIntent().getBooleanExtra("assigneeLocked", false);
 
+        // Round23 REQ-23-07: 候选加载期间禁用 Spinner，避免误导性下拉
+        binding.spinnerAssignee.setEnabled(false);
         loadAssigneeOptions();
 
         binding.textEndTime.setOnClickListener(v -> {
@@ -82,6 +84,7 @@ public class TaskCreateActivity extends AppCompatActivity {
                 () -> {
                     Map<String, Object> content = new HashMap<>();
                     content.put("name", binding.editTaskName.getText().toString());
+                    content.put("content", binding.editTaskContent.getText().toString()); // R39 REQ-C07: 草稿覆盖正文
                     content.put("endTime", selectedEndTime);
                     boolean isUrgent = binding.rgUrgency.getCheckedRadioButtonId() == R.id.rb_urgent;
                     content.put("isUrgent", isUrgent);
@@ -156,6 +159,9 @@ public class TaskCreateActivity extends AppCompatActivity {
         if (content == null) return;
         Object name = content.get("name");
         if (name != null) binding.editTaskName.setText(name.toString());
+        // R39 REQ-C07: 草稿恢复回显正文（旧草稿无 content 键 null 守卫天然兼容）
+        Object draftContent = content.get("content");
+        if (draftContent != null) binding.editTaskContent.setText(draftContent.toString());
         Object endTime = content.get("endTime");
         if (endTime != null) {
             selectedEndTime = endTime.toString();
@@ -179,9 +185,12 @@ public class TaskCreateActivity extends AppCompatActivity {
         }
         Object assigneeIdObj = content.get("assigneeId");
         if (assigneeIdObj != null) {
-            Long assigneeId = Long.parseLong(assigneeIdObj.toString());
-            int idx = assigneeIds.indexOf(assigneeId);
-            if (idx >= 0) binding.spinnerAssignee.setSelection(idx);
+            // Round25 缺陷⑫: 草稿 JSON 数字反序列化为 Double（"5.0"）——Round26 统一收敛至 NumberCompat
+            Long assigneeId = com.example.project_pandora.core.util.NumberCompat.toLong(assigneeIdObj);
+            if (assigneeId != null) {
+                int idx = assigneeIds.indexOf(assigneeId);
+                if (idx >= 0) binding.spinnerAssignee.setSelection(idx);
+            }
         }
     }
 
@@ -210,8 +219,12 @@ public class TaskCreateActivity extends AppCompatActivity {
                                         if (name == null) name = user.get("USERNAME");
                                     }
                                     if (id != null) {
-                                        assigneeIds.add(Long.parseLong(id.toString()));
-                                        assigneeNames.add(name != null ? name.toString() : "用户" + id);
+                                        // Round26: Gson 数字串统一收敛至 NumberCompat（原 parseDouble 裸调无捕获）
+                                        Long idLong = com.example.project_pandora.core.util.NumberCompat.toLong(id);
+                                        if (idLong != null) {
+                                            assigneeIds.add(idLong);
+                                            assigneeNames.add(name != null ? name.toString() : "用户" + idLong);
+                                        }
                                     }
                                 }
                             }
@@ -226,18 +239,19 @@ public class TaskCreateActivity extends AppCompatActivity {
                 this, android.R.layout.simple_spinner_dropdown_item, assigneeNames);
         binding.spinnerAssignee.setAdapter(adapter);
 
-        // Round19 REQ-19-03: 预设分配人定位与锁定
+        // Round19 REQ-19-03: 预设分配人定位（Round23 REQ-23-04 起不再锁定）
         if (presetAssigneeId != null) {
             int idx = assigneeIds.indexOf(presetAssigneeId);
             if (idx >= 0) {
                 binding.spinnerAssignee.setSelection(idx);
             }
         }
-        if (assigneeLocked) {
-            // 锁定分配人，禁用 Spinner 选择
-            binding.spinnerAssignee.setEnabled(false);
-            binding.spinnerAssignee.setAlpha(0.6f);
-        }
+
+        // Round23 REQ-23-07: 候选仅"自己"（无下属或加载失败）时禁用选择器并降透明度提示
+        boolean single = assigneeIds.size() <= 1;
+        binding.spinnerAssignee.setEnabled(!single);
+        binding.spinnerAssignee.setClickable(!single);
+        binding.spinnerAssignee.setAlpha(single ? 0.6f : 1.0f);
     }
 
     private void showDatePicker() {
@@ -254,6 +268,20 @@ public class TaskCreateActivity extends AppCompatActivity {
             Toast.makeText(this, "请输入任务名称", Toast.LENGTH_SHORT).show();
             return;
         }
+        if (name.length() > 256) {
+            Toast.makeText(this, "任务名称长度不能超过256字符", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        // R39 REQ-C05/C10: 正文必填+长度防呆
+        String content = binding.editTaskContent.getText().toString().trim();
+        if (content.isEmpty()) {
+            Toast.makeText(this, getString(com.example.project_pandora.R.string.task_content_empty), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (content.length() > 5000) {
+            Toast.makeText(this, getString(com.example.project_pandora.R.string.task_content_too_long), Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (selectedEndTime == null) {
             Toast.makeText(this, "请选择截止日期", Toast.LENGTH_SHORT).show();
             return;
@@ -267,6 +295,7 @@ public class TaskCreateActivity extends AppCompatActivity {
         String todayStr = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
         Map<String, Object> request = new HashMap<>();
         request.put("name", name);
+        request.put("content", content); // R39 REQ-C06: 正文落库
         request.put("priority", isUrgent ? "URGENT" : "MEDIUM");
         request.put("assigneeId", assigneeId);
         request.put("isImportant", isImportant);

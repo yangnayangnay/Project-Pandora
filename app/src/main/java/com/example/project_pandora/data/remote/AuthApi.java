@@ -14,8 +14,6 @@ public interface AuthApi {
     @POST("auth/login")
     Observable<ApiResponse<Map<String, Object>>> login(@Body Map<String, String> request);
 
-    @POST("auth/register")
-    Observable<ApiResponse<Map<String, Object>>> register(@Body Map<String, Object> request);
 
     @POST("auth/logout")
     Observable<ApiResponse<Void>> logout();

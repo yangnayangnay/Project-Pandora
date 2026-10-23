@@ -71,13 +71,13 @@ const routes = [
         path: 'user/dept-team',
         name: 'DeptTeam',
         component: () => import('@/views/user/DeptTeamView.vue'),
-        meta: { title: '部门团队', removed: true }
+        meta: { title: '部门团队', requiresAuth: true }
       },
       {
         path: 'user/hierarchy-relation',
         name: 'HierarchyRelation',
         component: () => import('@/views/user/HierarchyRelationView.vue'),
-        meta: { title: '人员关系', removed: true }
+        meta: { title: '人员关系', requiresAuth: true }
       },
       {
         path: 'ai',
@@ -146,12 +146,7 @@ const routes = [
         meta: { title: '功能权限', removed: true }
       },
       {
-        path: 'config/ai',
-        name: 'AiConfig',
-        component: () => import('@/views/config/AiConfigView.vue'),
-        meta: { title: 'AI配置', removed: true }
-      },
-      {
+
         path: 'template',
         name: 'TemplateManage',
         component: () => import('@/views/template/TemplateManageView.vue'),

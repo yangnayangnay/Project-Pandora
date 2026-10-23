@@ -37,6 +37,17 @@ public class TaskController {
         if (name == null || name.trim().isEmpty()) {
             throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "任务名称不能为空");
         }
+        if (name.trim().length() > 256) {
+            throw new BusinessException(ErrorCode.INVALID_PARAM_LENGTH, "任务名称长度不能超过256字符");
+        }
+        // R39 REQ-C02: 任务正文必填（服务端强制防线）+长度防呆
+        String content = (String) taskRequest.get("content");
+        if (content == null || content.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "任务正文不能为空");
+        }
+        if (content.length() > 5000) {
+            throw new BusinessException(ErrorCode.INVALID_PARAM_LENGTH, "任务正文长度不能超过5000字符");
+        }
 
         String priority = (String) taskRequest.getOrDefault("priority", "MEDIUM");
         String assigneeStr = taskRequest.get("assigneeId") != null ? taskRequest.get("assigneeId").toString() : null;
@@ -59,16 +70,17 @@ public class TaskController {
             startTimeObj = new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date());
         }
 
-        String sql = "INSERT INTO tasks (name, priority, status, assignee_id, dispatcher_id, is_important, is_urgent" +
+        String sql = "INSERT INTO tasks (name, content, priority, status, assignee_id, dispatcher_id, is_important, is_urgent" +
                 (endTimeObj != null ? ", end_time" : "") +
                 ", start_time" +
-                ") VALUES (?, ?, 'PENDING', ?, ?, ?, ?" +
+                ") VALUES (?, ?, ?, 'PENDING', ?, ?, ?, ?" +
                 (endTimeObj != null ? ", ?" : "") +
                 ", ?" +
                 ")";
 
         List<Object> params = new ArrayList<>();
         params.add(name);
+        params.add(content); // R39 REQ-C03: 正文落库
         params.add(priority);
         params.add(assigneeId);
         params.add(dispatcherId);
@@ -84,6 +96,7 @@ public class TaskController {
         Map<String, Object> result = new HashMap<>();
         result.put("id", taskId);
         result.put("name", name);
+        result.put("content", content);
         result.put("priority", priority);
         result.put("status", "PENDING");
         result.put("assigneeId", assigneeId);
@@ -139,7 +152,11 @@ public class TaskController {
     @GetMapping("/{taskId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getTask(@PathVariable Long taskId) {
         try {
-            Map<String, Object> task = jdbcTemplate.queryForMap("SELECT * FROM tasks WHERE id = ? AND deleted = 0", taskId);
+            Map<String, Object> task = jdbcTemplate.queryForMap(
+                "SELECT t.*, u.username AS assignee_name, u.real_name AS assignee_real_name, " +
+                "d.username AS dispatcher_name, d.real_name AS dispatcher_real_name " +
+                "FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id " +
+                "LEFT JOIN users d ON t.dispatcher_id = d.id WHERE t.id = ? AND t.deleted = 0", taskId);
             return ResponseEntity.ok(ApiResponse.success(task));
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "任务不存在");

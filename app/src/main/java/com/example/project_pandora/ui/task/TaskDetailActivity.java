@@ -87,19 +87,17 @@ public class TaskDetailActivity extends AppCompatActivity {
         Object endTime = task.get("end_time");
         binding.textSummaryDeadline.setText(formatDateTime(endTime));
 
-        String priority = (String) task.get("priority");
-        boolean isUrgent = "URGENT".equals(priority) || "HIGH".equals(priority);
+        // Round26 观察K: 摘要位判定口径由 priority 改为 is_urgent（与象限判定/手动调整区统一，消除双口径）
+        boolean isUrgent = com.example.project_pandora.core.util.NumberCompat.toBool(task.get("is_urgent"));
         binding.textSummaryUrgency.setText(isUrgent ? "紧急" : "不紧急");
-        binding.textSummaryUrgency.setBackgroundColor(isUrgent ? 0xFFF44336 : 0xFF4CAF50);
+        binding.textSummaryUrgency.setBackgroundColor(androidx.core.content.ContextCompat.getColor(this, isUrgent ? com.example.project_pandora.R.color.color_urgent_bg : com.example.project_pandora.R.color.color_not_urgent_bg));
 
         String status = (String) task.get("status");
         boolean isCompleted = "COMPLETED".equals(status) || "CONFIRMED".equals(status);
         binding.textSummaryCompletion.setText(isCompleted ? "已完成" : "未完成");
-        binding.textSummaryCompletion.setBackgroundColor(isCompleted ? 0xFF2196F3 : 0xFFFFEB3B);
-        binding.textSummaryCompletion.setTextColor(isCompleted ? 0xFFFFFFFF : 0xFF333333);
+        binding.textSummaryCompletion.setBackgroundColor(androidx.core.content.ContextCompat.getColor(this, isCompleted ? com.example.project_pandora.R.color.color_status_completed_bg : com.example.project_pandora.R.color.color_status_pending_bg));
+        binding.textSummaryCompletion.setTextColor(androidx.core.content.ContextCompat.getColor(this, isCompleted ? com.example.project_pandora.R.color.color_status_completed_text : com.example.project_pandora.R.color.color_status_pending_text));
 
-        Object progressNote = task.get("progress_note");
-        binding.textSummaryProgress.setText(progressNote != null ? progressNote.toString() : "-");
 
         Object assigneeName = task.get("assignee_name");
         if (assigneeName == null) assigneeName = task.get("assigneeName");
@@ -107,12 +105,15 @@ public class TaskDetailActivity extends AppCompatActivity {
 
         binding.textStatus.setText(getStatusDisplayName(status));
 
+        // Round26 观察K: priority 保留字段区展示（摘要位已改 is_urgent）
+        String priority = (String) task.get("priority");
         binding.textPriority.setText(getPriorityDisplayName(priority));
 
         Object isImportantObj = task.get("is_important");
         Object isUrgentObj = task.get("is_urgent");
-        boolean isImportant = toBool(isImportantObj);
-        boolean urgentFlag = toBool(isUrgentObj);
+        // Round26: toBool 收敛至 NumberCompat（原私有方法语义一致：Boolean 直取/Number 非零/其余 false）
+        boolean isImportant = com.example.project_pandora.core.util.NumberCompat.toBool(isImportantObj);
+        boolean urgentFlag = com.example.project_pandora.core.util.NumberCompat.toBool(isUrgentObj);
         String quadrant;
         if (isImportant && urgentFlag) quadrant = "重要且紧急";
         else if (isImportant) quadrant = "重要不紧急";
@@ -126,14 +127,19 @@ public class TaskDetailActivity extends AppCompatActivity {
 
         setupUrgencyAdjustment(task);
 
-        binding.textProgressNote.setText(progressNote != null ? progressNote.toString() : "暂无进度备注");
+
+        // R39 REQ-C08: 正文展示（存量任务 null 占位）
+        Object taskContent = task.get("content");
+        binding.textTaskContent.setText(taskContent != null && !taskContent.toString().trim().isEmpty()
+                ? taskContent.toString() : getString(com.example.project_pandora.R.string.task_content_placeholder));
 
         updateButtonVisibility(status);
     }
 
     private void setupUrgencyAdjustment(Map<String, Object> task) {
         Object isUrgentObj = task.get("is_urgent");
-        boolean defaultUrgent = toBool(isUrgentObj);
+        // Round26: toBool 收敛至 NumberCompat（原私有方法语义一致）
+        boolean defaultUrgent = com.example.project_pandora.core.util.NumberCompat.toBool(isUrgentObj);
 
         boolean savedOverride = urgencyPrefs.getBoolean("task_" + taskId, defaultUrgent);
         boolean hasOverride = urgencyPrefs.contains("task_" + taskId);
@@ -156,29 +162,26 @@ public class TaskDetailActivity extends AppCompatActivity {
     }
 
     private String formatDateTime(Object dateTime) {
-        if (dateTime == null) return "未设置";
-        String raw = dateTime.toString();
-        if (raw.length() >= 16) {
-            return raw.substring(0, 10) + " " + raw.substring(11, 16);
-        }
-        if (raw.length() >= 10) {
-            return raw.substring(0, 10);
-        }
-        return raw;
+        // Round25 R25-02: UTC ISO 串按本地时区解析（原 substring 会把 00:00 截成前一天）
+        String local = com.example.project_pandora.core.util.DateCompat.toLocalDateTime(dateTime);
+        return local != null ? local : "未设置";
     }
 
     private void updateButtonVisibility(String status) {
         Long currentUserId = TokenManager.getInstance(this).getUserId();
-        Long assigneeId = currentTask != null && currentTask.get("assignee_id") != null
-                ? ((Number) currentTask.get("assignee_id")).longValue() : null;
-        Long dispatcherId = currentTask != null && currentTask.get("dispatcher_id") != null
-                ? ((Number) currentTask.get("dispatcher_id")).longValue() : null;
+        // Round26: 解析统一收敛至 NumberCompat（原裸强转 (Number)，串形态会 ClassCastException）
+        Long assigneeId = currentTask != null
+                ? com.example.project_pandora.core.util.NumberCompat.toLong(currentTask.get("assignee_id")) : null;
+        Long dispatcherId = currentTask != null
+                ? com.example.project_pandora.core.util.NumberCompat.toLong(currentTask.get("dispatcher_id")) : null;
 
         boolean isAssignee = currentUserId.equals(assigneeId);
         boolean isDispatcher = currentUserId.equals(dispatcherId);
 
         binding.btnStart.setVisibility(isAssignee && "PENDING".equals(status) ? View.VISIBLE : View.GONE);
         binding.btnComplete.setVisibility(isAssignee && "IN_PROGRESS".equals(status) ? View.VISIBLE : View.GONE);
+        // R39 REQ-B02: 切回未完成（责任人+COMPLETED；二元口径）
+        binding.btnReopen.setVisibility(isAssignee && "COMPLETED".equals(status) ? View.VISIBLE : View.GONE);
         binding.btnConfirm.setVisibility(isDispatcher && "COMPLETED".equals(status) ? View.VISIBLE : View.GONE);
         binding.btnReject.setVisibility(isDispatcher && "COMPLETED".equals(status) ? View.VISIBLE : View.GONE);
 
@@ -190,8 +193,20 @@ public class TaskDetailActivity extends AppCompatActivity {
     private void setupButtons() {
         binding.btnStart.setOnClickListener(v -> transitionStatus("IN_PROGRESS"));
         binding.btnComplete.setOnClickListener(v -> {
-            String progressNote = binding.editProgressNote.getText().toString().trim();
-            updateProgress(progressNote, "COMPLETED");
+            // REQ-31-01: 完成按钮二次确认（取消/框外不发起请求）
+            String taskName = currentTask != null && currentTask.get("name") != null
+                    ? currentTask.get("name").toString() : "";
+            com.example.project_pandora.ui.common.StatusConfirmDialog.show(this, taskName, "已完成",
+                    () -> transitionStatus("COMPLETED"), // R39 REQ-B01/B06: 二元化收敛至 transition 端点
+                    null);
+        });
+        // R39 REQ-B02: 切回未完成——确认弹窗沿用，transition 收敛
+        binding.btnReopen.setOnClickListener(v -> {
+            String taskName = currentTask != null && currentTask.get("name") != null
+                    ? currentTask.get("name").toString() : "";
+            com.example.project_pandora.ui.common.StatusConfirmDialog.show(this, taskName, "未完成",
+                    () -> transitionStatus("IN_PROGRESS"),
+                    null);
         });
         binding.btnConfirm.setOnClickListener(v -> transitionStatus("CONFIRMED"));
         binding.btnReject.setOnClickListener(v -> transitionStatus("REJECTED"));
@@ -239,23 +254,6 @@ public class TaskDetailActivity extends AppCompatActivity {
                 );
     }
 
-    private void updateProgress(String progressNote, String status) {
-        binding.progressBar.setVisibility(View.VISIBLE);
-        syncRoutingRepository.updateTaskProgress(taskId, progressNote, status)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        result -> {
-                            binding.progressBar.setVisibility(View.GONE);
-                            Toast.makeText(this, result.getMessage(), Toast.LENGTH_SHORT).show();
-                            loadTaskDetail();
-                        },
-                        error -> {
-                            binding.progressBar.setVisibility(View.GONE);
-                            Toast.makeText(this, error.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                );
-    }
-
     private String getStatusDisplayName(String status) {
         if (status == null) return "待接收";
         switch (status) {
@@ -279,10 +277,4 @@ public class TaskDetailActivity extends AppCompatActivity {
         }
     }
 
-    private static boolean toBool(Object obj) {
-        if (obj == null) return false;
-        if (obj instanceof Boolean) return (Boolean) obj;
-        if (obj instanceof Number) return ((Number) obj).intValue() != 0;
-        return false;
-    }
 }

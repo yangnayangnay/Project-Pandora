@@ -1,8 +1,15 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.Project_Pandora" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <!-- REQ-31-05: 亮色主题基座显式化（Material3 默认值等价，保证行为确定） -->
+        <item name="colorPrimary">@color/color_calendar_today</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSurface">@color/color_bg_page</item>
+        <item name="colorOnSurface">@color/color_text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/color_text_secondary</item>
+        <item name="android:colorBackground">@color/color_bg_page</item>
+        <item name="android:textColorPrimary">@color/color_text_primary</item>
+        <item name="android:textColorSecondary">@color/color_text_secondary</item>
     </style>
 
     <style name="Theme.Project_Pandora" parent="Base.Theme.Project_Pandora" />

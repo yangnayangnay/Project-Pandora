@@ -24,7 +24,7 @@ import com.example.project_pandora.data.remote.UserApi;
 import com.example.project_pandora.databinding.FragmentMineBinding;
 import com.example.project_pandora.repository.SyncRepository;
 import com.example.project_pandora.ui.ai.BirthdayWishActivity;
-import com.example.project_pandora.ui.divination.DivinationActivity;
+
 import com.example.project_pandora.ui.login.LoginActivity;
 
 import java.util.Map;
@@ -59,9 +59,6 @@ public class MineFragment extends Fragment {
         // Round19 REQ-19-10: 移除专注模式入口（保留FocusActivity源码）
         binding.btnFocus.setVisibility(View.GONE);
 
-        // Round19 REQ-19-12: 新增梅花易数入口
-        binding.btnDivination.setOnClickListener(v ->
-                startActivity(new Intent(requireContext(), DivinationActivity.class)));
 
         binding.btnBirthdayWish.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), BirthdayWishActivity.class)));
@@ -78,6 +75,9 @@ public class MineFragment extends Fragment {
 
         binding.btnSettings.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), SettingsActivity.class)));
+
+        // R37 REQ-37-B: 主题三选一（点选即全局生效+持久化；无记录默认跟随系统）
+        setupThemeToggle();
 
         TokenManager tm = TokenManager.getInstance(requireContext());
         if (tm.isLoggedIn()) {
@@ -178,6 +178,7 @@ public class MineFragment extends Fragment {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         response -> {
+                            if (binding == null) return;
                             if (response.isSuccess() && response.getData() != null) {
                                 Map<String, Object> data = response.getData();
                                 String realName = getStr(data, "realName");
@@ -198,7 +199,10 @@ public class MineFragment extends Fragment {
                                 }
                             }
                         },
-                        error -> binding.textUsername.setText("加载失败")
+                        error -> {
+                            if (binding == null) return;
+                            binding.textUsername.setText("加载失败");
+                        }
                 ));
     }
 
@@ -213,4 +217,31 @@ public class MineFragment extends Fragment {
         disposables.clear();
         binding = null;
     }
+    /**
+     * R37 REQ-37-B2/B3/B6: 主题三态单选绑定——回显持久值+点选保存并即时应用。
+     */
+    private void setupThemeToggle() {
+        int mode = com.example.project_pandora.core.config.ThemePrefs.getMode(requireContext());
+        if (mode == com.example.project_pandora.core.config.ThemePrefs.MODE_ALWAYS_DAY) {
+            binding.toggleThemeMode.check(binding.btnThemeDay.getId());
+        } else if (mode == com.example.project_pandora.core.config.ThemePrefs.MODE_ALWAYS_NIGHT) {
+            binding.toggleThemeMode.check(binding.btnThemeNight.getId());
+        } else {
+            binding.toggleThemeMode.check(binding.btnThemeSystem.getId());
+        }
+        binding.toggleThemeMode.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
+            if (!isChecked) return;
+            int newMode;
+            if (checkedId == binding.btnThemeDay.getId()) {
+                newMode = com.example.project_pandora.core.config.ThemePrefs.MODE_ALWAYS_DAY;
+            } else if (checkedId == binding.btnThemeNight.getId()) {
+                newMode = com.example.project_pandora.core.config.ThemePrefs.MODE_ALWAYS_NIGHT;
+            } else {
+                newMode = com.example.project_pandora.core.config.ThemePrefs.MODE_FOLLOW_SYSTEM;
+            }
+            com.example.project_pandora.core.config.ThemePrefs.saveMode(requireContext(), newMode);
+            com.example.project_pandora.core.config.ThemePrefs.applyTheme(requireContext());
+        });
+    }
+
 }

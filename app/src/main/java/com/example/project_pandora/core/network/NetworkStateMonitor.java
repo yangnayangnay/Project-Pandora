@@ -116,6 +116,9 @@ public class NetworkStateMonitor {
 
     public void onServerConnectivityChanged(ServerConnectivity connectivity) {
         if (connectivity == ServerConnectivity.CONNECTED) {
+            if (!networkAvailable) {
+                reevaluateNetworkAvailable();
+            }
             if (networkAvailable) {
                 if (currentMode != NetworkMode.ONLINE) {
                     currentMode = NetworkMode.ONLINE;
@@ -128,6 +131,19 @@ public class NetworkStateMonitor {
                 modeSubject.onNext(NetworkMode.OFFLINE);
             }
         }
+    }
+
+    private void reevaluateNetworkAvailable() {
+        try {
+            if (connectivityManager == null) return;
+            Network activeNetwork = connectivityManager.getActiveNetwork();
+            if (activeNetwork != null) {
+                NetworkCapabilities caps = connectivityManager.getNetworkCapabilities(activeNetwork);
+                networkAvailable = caps != null && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+            } else {
+                networkAvailable = false;
+            }
+        } catch (Exception ignored) {}
     }
 
     public boolean isNetworkAvailable() {

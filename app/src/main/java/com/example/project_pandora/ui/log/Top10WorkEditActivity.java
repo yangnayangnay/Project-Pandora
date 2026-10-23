@@ -6,6 +6,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.example.project_pandora.core.util.BackToolbarHelper;
 import com.example.project_pandora.databinding.ActivityTop10WorkEditBinding;
 import com.example.project_pandora.repository.LogRepository;
 
@@ -15,13 +16,18 @@ import java.util.List;
 import java.util.Map;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
-import com.example.project_pandora.core.util.BackToolbarHelper;
+import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
 
 public class Top10WorkEditActivity extends AppCompatActivity {
 
     private ActivityTop10WorkEditBinding binding;
     private LogRepository logRepository;
     private final List<Map<String, Object>> top10List = new ArrayList<>();
+    // Round26 B1（4.3 定稿方案）：加载完成后的原始快照（逐项独立拷贝，TextWatcher 回写只改 top10List），
+    // 保存时逐槽位 diff 快照计算增/删/改操作
+    private final List<Map<String, Object>> originalSnapshot = new ArrayList<>();
+    private final CompositeDisposable disposable = new CompositeDisposable();
     private String workType = "PERSONAL_IMPORTANT";
 
     @Override
@@ -41,12 +47,24 @@ public class Top10WorkEditActivity extends AppCompatActivity {
         binding.toolbar.setTitle("COMPANY_IMPORTANT".equals(workType) ? "公司十大重要工作" : "个人十大重要工作");
         binding.recyclerTop10.setLayoutManager(new LinearLayoutManager(this));
 
+        // Round26 B1：保存链走 /view/personal-top10/*（后端固定 work_type=PERSONAL_IMPORTANT），
+        // 非个人类型仅允许查看加载，禁存防误写
+        if (!"PERSONAL_IMPORTANT".equals(workType)) {
+            binding.btnSave.setEnabled(false);
+        }
+
         loadTop10();
         binding.btnSave.setOnClickListener(v -> handleSave());
     }
 
+    @Override
+    protected void onDestroy() {
+        disposable.clear();
+        super.onDestroy();
+    }
+
     private void loadTop10() {
-        logRepository.getTop10(workType)
+        disposable.add(logRepository.getTop10(workType)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         list -> {
@@ -66,40 +84,77 @@ public class Top10WorkEditActivity extends AppCompatActivity {
                                 item.put("content", "");
                                 top10List.add(item);
                             }
-                            Top10Adapter adapter = new Top10Adapter(top10List);
-                            binding.recyclerTop10.setAdapter(adapter);
+                            takeSnapshot();
+                            binding.recyclerTop10.setAdapter(new Top10Adapter(top10List));
                         },
                         error -> {
+                            top10List.clear();
                             for (int i = 0; i < 10; i++) {
                                 Map<String, Object> item = new HashMap<>();
                                 item.put("rankOrder", i + 1);
                                 item.put("content", "");
                                 top10List.add(item);
                             }
-                            Top10Adapter adapter = new Top10Adapter(top10List);
-                            binding.recyclerTop10.setAdapter(adapter);
+                            takeSnapshot();
+                            binding.recyclerTop10.setAdapter(new Top10Adapter(top10List));
                         }
-                );
+                ));
     }
 
-    private void handleSave() {
-        List<Map<String, Object>> saveList = new ArrayList<>();
+    private void takeSnapshot() {
+        originalSnapshot.clear();
         for (Map<String, Object> item : top10List) {
-            String content = (String) item.get("content");
-            if (content != null && !content.trim().isEmpty()) {
-                Map<String, Object> saveItem = new HashMap<>();
-                saveItem.put("workType", workType);
-                saveItem.put("rankOrder", item.get("rankOrder"));
-                saveItem.put("content", content);
-                saveList.add(saveItem);
+            originalSnapshot.add(new HashMap<>(item));
+        }
+    }
+
+    private static String contentOf(Map<String, Object> item) {
+        Object content = item.get("content");
+        return content instanceof String ? ((String) content).trim() : "";
+    }
+
+    private static Long idOf(Map<String, Object> item) {
+        Object id = item.get("id");
+        return id instanceof Number ? ((Number) id).longValue() : null;
+    }
+
+    // Round26 B1（4.3 定稿方案）：老 PUT log/top10 批量保存因 top10_works 无复合唯一键已破（ON DUPLICATE
+    // 永不触发，纯 INSERT 累积重复行），弃用。改为逐槽位 diff 原始快照：
+    // 原空现非空 → POST inject（content + rankOrder=槽位号）；原非空现空 → DELETE inject/{id}（软删）；
+    // 内容变更 → PUT inject/{id}（仅 content）。排序（内容跨槽位移动）由槽位级 diff 消解为对位操作；
+    // Observable.concat 串行执行避免并发写。
+    private void handleSave() {
+        List<Observable<?>> operations = new ArrayList<>();
+        for (int i = 0; i < top10List.size() && i < 10; i++) {
+            Map<String, Object> current = top10List.get(i);
+            Map<String, Object> original = i < originalSnapshot.size() ? originalSnapshot.get(i) : null;
+            String currentContent = contentOf(current);
+            String originalContent = original != null ? contentOf(original) : "";
+            Long originalId = original != null ? idOf(original) : null;
+
+            if (originalId == null || originalContent.isEmpty()) {
+                if (!currentContent.isEmpty()) {
+                    operations.add(logRepository.injectTop10(currentContent, i + 1));
+                }
+            } else if (currentContent.isEmpty()) {
+                operations.add(logRepository.deleteTop10(originalId));
+            } else if (!currentContent.equals(originalContent)) {
+                operations.add(logRepository.updateTop10Content(originalId, currentContent));
             }
         }
 
+        if (operations.isEmpty()) {
+            Toast.makeText(this, "保存成功", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
         binding.btnSave.setEnabled(false);
-        logRepository.updateTop10(saveList)
+        disposable.add(Observable.concat(operations)
+                .ignoreElements()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
-                        ignored -> {
+                        () -> {
                             Toast.makeText(this, "保存成功", Toast.LENGTH_SHORT).show();
                             finish();
                         },
@@ -115,6 +170,6 @@ public class Top10WorkEditActivity extends AppCompatActivity {
                             Toast.makeText(this, errorMsg, Toast.LENGTH_SHORT).show();
                             binding.btnSave.setEnabled(true);
                         }
-                );
+                ));
     }
 }

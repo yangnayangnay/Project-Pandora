@@ -19,6 +19,10 @@ public class EmployeeRecordController {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    // Round28 REQ-28-12: 职位/部门等档案变更后失效绑定用户的个人十大 AI 点评缓存
+    @Autowired
+    private com.pandora.backend.view.PersonalTop10Generator personalTop10Generator;
+
     @GetMapping
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> list(
             @RequestParam(required = false) String status) {
@@ -106,6 +110,11 @@ public class EmployeeRecordController {
 
         jdbcTemplate.update(sql.toString(), params.toArray());
         Map<String, Object> record = jdbcTemplate.queryForMap("SELECT * FROM employee_records WHERE id = ?", id);
+
+        // Round28 REQ-28-12: 职位/部门等档案写路径存在（PUT /employee-records/{id}），
+        // 对该记录绑定的注册用户失效个人十大（未绑定注册用户则按日失效兜底）
+        invalidateByRegisteredUser(record.get("registered_user_id"));
+
         return ResponseEntity.ok(ApiResponse.success(record));
     }
 
@@ -113,7 +122,22 @@ public class EmployeeRecordController {
     @Auditable(operationType = "EMPLOYEE_RECORD_DELETE", targetType = "EMPLOYEE_RECORD")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         jdbcTemplate.update("UPDATE employee_records SET deleted = 1 WHERE id = ?", id);
+
+        // Round28 REQ-28-12: 档案软删后失效绑定用户个人十大（保守挂点）
+        try {
+            Map<String, Object> record = jdbcTemplate.queryForMap(
+                    "SELECT registered_user_id FROM employee_records WHERE id = ?", id);
+            invalidateByRegisteredUser(record.get("registered_user_id"));
+        } catch (Exception ignored) {}
+
         return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    private void invalidateByRegisteredUser(Object registeredUserIdObj) {
+        if (registeredUserIdObj == null) return;
+        try {
+            personalTop10Generator.invalidateUser(((Number) registeredUserIdObj).longValue());
+        } catch (Exception ignored) {}
     }
 
     @GetMapping("/{id}")

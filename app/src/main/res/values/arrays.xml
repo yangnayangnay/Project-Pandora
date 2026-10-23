@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- R37 REQ-37-E: 月视图任务横线昼间色板（浅底+深字，8 色相家族区分） -->
+    <string-array name="calendar_span_colors">
+        <item>#FFF9C4</item>
+        <item>#FFCDD2</item>
+        <item>#E1BEE7</item>
+        <item>#BBDEFB</item>
+        <item>#C8E6C9</item>
+        <item>#FFE0B2</item>
+        <item>#B2DFDB</item>
+        <item>#F8BBD0</item>
+    </string-array>
+    <string-array name="calendar_span_text_colors">
+        <item>#795548</item>
+        <item>#C62828</item>
+        <item>#6A1B9A</item>
+        <item>#1565C0</item>
+        <item>#2E7D32</item>
+        <item>#E65100</item>
+        <item>#00695C</item>
+        <item>#AD1457</item>
+    </string-array>
+</resources>

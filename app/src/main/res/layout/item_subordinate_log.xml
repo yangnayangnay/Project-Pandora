@@ -27,7 +27,7 @@
             android:layout_height="wrap_content"
             android:textSize="14sp"
             android:textStyle="bold"
-            android:textColor="#333333"
+            android:textColor="@color/color_text_primary"
             android:maxLines="1"
             android:ellipsize="end" />
 
@@ -35,17 +35,29 @@
             android:id="@+id/textWorkItem"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="15sp"
             android:layout_marginTop="4dp"
+            android:textSize="16sp"
+            android:textStyle="bold"
             android:maxLines="2"
             android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/textWorkContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="13sp"
+            android:textColor="#FF666666"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/textDate"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="13sp"
-            android:textColor="#888888"
+            android:textColor="@color/color_text_secondary"
             android:layout_marginTop="2dp" />
 
     </LinearLayout>

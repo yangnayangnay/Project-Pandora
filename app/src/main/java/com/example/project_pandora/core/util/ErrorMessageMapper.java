@@ -17,6 +17,8 @@ public final class ErrorMessageMapper {
      */
     public static String map(int errorCode, String serverMessage) {
         switch (errorCode) {
+            case 4030:
+                return "当日已存在日志，请编辑已有日志";
             case 4040:
                 return "十大事项数量已满（10/10），请先删除已有事项再添加";
             case 4041:

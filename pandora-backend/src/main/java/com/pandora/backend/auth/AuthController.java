@@ -194,10 +194,9 @@ public class AuthController {
         }
 
         String userRole = (String) user.get("role");
+        // Round25 决策A: 放开 ADMIN 的 App 端登录（原 APP+ADMIN 互斥 403 分支已删除），
+        // Web 端分流（非 APP 端仅 ADMIN 可登录）保持不变
         if (!"APP".equals(clientType) && !"ADMIN".equals(userRole)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN);
-        }
-        if ("APP".equals(clientType) && "ADMIN".equals(userRole)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
 

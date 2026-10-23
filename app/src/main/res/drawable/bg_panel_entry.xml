@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R36 REQ-36-B: 面板入口按钮胶囊底（昼夜双套由 values-night 同名覆盖） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#22000000" />
+    <corners android:radius="18dp" />
+</shape>

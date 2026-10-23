@@ -12,7 +12,7 @@
         android:layout_width="120dp"
         android:layout_height="wrap_content"
         android:textSize="12sp"
-        android:textColor="#212529"
+        android:textColor="@color/color_text_primary"
         android:maxLines="2"
         android:ellipsize="end" />
 
@@ -21,7 +21,7 @@
         android:layout_width="80dp"
         android:layout_height="wrap_content"
         android:textSize="11sp"
-        android:textColor="#6c757d"
+        android:textColor="@color/color_text_secondary"
         android:gravity="center" />
 
     <TextView
@@ -45,20 +45,11 @@
         android:paddingVertical="2dp" />
 
     <TextView
-        android:id="@+id/textColProgress"
-        android:layout_width="80dp"
-        android:layout_height="wrap_content"
-        android:textSize="11sp"
-        android:textColor="#6c757d"
-        android:maxLines="2"
-        android:ellipsize="end" />
-
-    <TextView
         android:id="@+id/textColAssignee"
         android:layout_width="70dp"
         android:layout_height="wrap_content"
         android:textSize="10sp"
-        android:textColor="#6c757d"
+        android:textColor="@color/color_text_secondary"
         android:gravity="center"
         android:maxLines="2"
         android:ellipsize="end" />

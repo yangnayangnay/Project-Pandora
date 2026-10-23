@@ -75,16 +75,7 @@ public class Top10Controller {
             throw new BusinessException(ErrorCode.TOP10_RANK_OUT_OF_RANGE);
         }
 
-        // Round19 REQ-19-07: 紧急度等级与截止时间字段
-        String urgencyLevel = (String) request.get("urgencyLevel");
-        if (urgencyLevel != null && !urgencyLevel.isEmpty()
-                && !urgencyLevel.equals("高") && !urgencyLevel.equals("中") && !urgencyLevel.equals("低")
-                && !urgencyLevel.equalsIgnoreCase("HIGH") && !urgencyLevel.equalsIgnoreCase("MEDIUM")
-                && !urgencyLevel.equalsIgnoreCase("MID") && !urgencyLevel.equalsIgnoreCase("LOW")) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "紧急度等级非法，必须为高/中/低");
-        }
-        String deadline = (String) request.get("deadline");
-        if (deadline != null && deadline.trim().isEmpty()) deadline = null;
+        // REQ-31-09: urgencyLevel/deadline 不再接收不再写入（旧客户端传字段忽略；存储列保留，存量行数据不动）
 
         // 内容唯一性校验（B3）
         Integer dupCount = jdbcTemplate.queryForObject(
@@ -102,11 +93,9 @@ public class Top10Controller {
         }
 
         jdbcTemplate.update(
-                "INSERT INTO top10_works (user_id, work_type, rank_order, content, urgency_level, deadline) " +
-                        "VALUES (?, 'COMPANY_IMPORTANT', ?, ?, ?, ?)",
-                userId, rankOrder, content.trim(),
-                (urgencyLevel != null && !urgencyLevel.isEmpty()) ? urgencyLevel : null,
-                deadline);
+                "INSERT INTO top10_works (user_id, work_type, rank_order, content) " +
+                        "VALUES (?, 'COMPANY_IMPORTANT', ?, ?)",
+                userId, rankOrder, content.trim());
 
         Long id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
 
@@ -157,16 +146,7 @@ public class Top10Controller {
             throw new BusinessException(ErrorCode.TOP10_RANK_OUT_OF_RANGE);
         }
 
-        // Round19 REQ-19-07: 紧急度等级与截止时间字段
-        String urgencyLevel = (String) request.get("urgencyLevel");
-        if (urgencyLevel != null && !urgencyLevel.isEmpty()
-                && !urgencyLevel.equals("高") && !urgencyLevel.equals("中") && !urgencyLevel.equals("低")
-                && !urgencyLevel.equalsIgnoreCase("HIGH") && !urgencyLevel.equalsIgnoreCase("MEDIUM")
-                && !urgencyLevel.equalsIgnoreCase("MID") && !urgencyLevel.equalsIgnoreCase("LOW")) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "紧急度等级非法，必须为高/中/低");
-        }
-        String deadline = (String) request.get("deadline");
-        if (deadline != null && deadline.trim().isEmpty()) deadline = null;
+        // REQ-31-09: urgencyLevel/deadline 不再接收不再写入（存量行的 urgency_level/deadline 原值保留不破坏）
 
         // 内容唯一性校验（排除自身）（B4）
         Integer dupCount = jdbcTemplate.queryForObject(
@@ -177,10 +157,8 @@ public class Top10Controller {
         }
 
         jdbcTemplate.update(
-                "UPDATE top10_works SET content = ?, rank_order = ?, urgency_level = ?, deadline = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                content.trim(), rankOrder,
-                (urgencyLevel != null && !urgencyLevel.isEmpty()) ? urgencyLevel : null,
-                deadline, id);
+                "UPDATE top10_works SET content = ?, rank_order = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                content.trim(), rankOrder, id);
 
         // 保存后验证（B4）
         List<Map<String, Object>> verify = jdbcTemplate.queryForList(

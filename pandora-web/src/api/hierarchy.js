@@ -13,3 +13,17 @@ export function getRelations() {
 export function getTree() {
   return request.get('/hierarchy/tree')
 }
+
+/**
+ * R38: 添加人员关系（superiorId 的下属为 subordinateId；forceReplace=下属已有上级时替换）
+ */
+export function addRelation(superiorId, subordinateId, forceReplace = false) {
+  return request.post('/hierarchy/relation', { superiorId, subordinateId, forceReplace })
+}
+
+/**
+ * R38: 删除人员关系
+ */
+export function removeRelation(superiorId, subordinateId) {
+  return request.delete('/hierarchy/relation', { params: { superiorId, subordinateId } })
+}

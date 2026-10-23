@@ -9,7 +9,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#F5F5F5">
+        android:background="@color/color_bg_page">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -21,13 +21,20 @@
             app:navigationIcon="@drawable/ic_back"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <LinearLayout
+        <!-- Round26 观察E: 内容超一屏被屏幕底边裁切，包入 ScrollView 使设置页可滚动 -->
+        <ScrollView
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:orientation="vertical"
-            android:padding="16dp"
+            android:fillViewport="true"
+            android:scrollbars="none"
             app:layout_constraintTop_toBottomOf="@id/toolbar"
             app:layout_constraintBottom_toBottomOf="parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
@@ -49,7 +56,7 @@
                         android:layout_weight="1"
                         android:text="已完成的任务是否显示"
                         android:textSize="16sp"
-                        android:textColor="#333333" />
+                        android:textColor="@color/color_text_primary" />
 
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switch_show_completed"
@@ -79,7 +86,7 @@
                         android:layout_weight="1"
                         android:text="展示前一天日志"
                         android:textSize="16sp"
-                        android:textColor="#333333" />
+                        android:textColor="@color/color_text_primary" />
 
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switch_show_yesterday_log"
@@ -110,14 +117,14 @@
                         android:layout_weight="1"
                         android:text="直接展示的日志限制时间"
                         android:textSize="16sp"
-                        android:textColor="#333333" />
+                        android:textColor="@color/color_text_primary" />
 
                     <TextView
                         android:id="@+id/text_log_time_limit_value"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textSize="16sp"
-                        android:textColor="#666666" />
+                        android:textColor="@color/color_text_secondary" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -143,14 +150,98 @@
                         android:layout_weight="1"
                         android:text="直接展示的日志限制数量"
                         android:textSize="16sp"
-                        android:textColor="#333333" />
+                        android:textColor="@color/color_text_primary" />
 
                     <TextView
                         android:id="@+id/text_log_count_limit_value"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textSize="16sp"
-                        android:textColor="#666666" />
+                        android:textColor="@color/color_text_secondary" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_ai_config"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_weight="1">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="AI 模型配置"
+                            android:textSize="16sp"
+                            android:textColor="@color/color_text_primary" />
+
+                        <TextView
+                            android:id="@+id/text_ai_config_summary"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="未配置"
+                            android:textSize="12sp"
+                            android:textColor="@color/color_text_secondary" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Round29: 服务器地址配置入口（置于 AI 模型配置卡片之后） -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_server_config"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_weight="1">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/settings_server_card_title"
+                            android:textSize="16sp"
+                            android:textColor="@color/color_text_primary" />
+
+                        <TextView
+                            android:id="@+id/text_server_summary"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:textSize="12sp"
+                            android:textColor="@color/color_text_secondary" />
+
+                    </LinearLayout>
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -174,7 +265,7 @@
                         android:layout_height="wrap_content"
                         android:text="数据同步"
                         android:textSize="16sp"
-                        android:textColor="#333333"
+                        android:textColor="@color/color_text_primary"
                         android:textStyle="bold"
                         android:layout_marginBottom="8dp" />
 
@@ -183,7 +274,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:textSize="14sp"
-                        android:textColor="#666666"
+                        android:textColor="@color/color_text_secondary"
                         android:layout_marginBottom="8dp" />
 
                     <TextView
@@ -191,7 +282,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:textSize="14sp"
-                        android:textColor="#666666"
+                        android:textColor="@color/color_text_secondary"
                         android:layout_marginBottom="8dp"
                         android:visibility="gone" />
 
@@ -224,7 +315,7 @@
                         android:layout_height="wrap_content"
                         android:text="通知设置"
                         android:textSize="16sp"
-                        android:textColor="#333333"
+                        android:textColor="@color/color_text_primary"
                         android:textStyle="bold"
                         android:layout_marginBottom="12dp" />
 
@@ -241,7 +332,7 @@
                             android:layout_weight="1"
                             android:text="新任务通知"
                             android:textSize="15sp"
-                            android:textColor="#333333" />
+                            android:textColor="@color/color_text_primary" />
 
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switch_notif_new_task"
@@ -263,7 +354,7 @@
                             android:layout_weight="1"
                             android:text="任务完成通知"
                             android:textSize="15sp"
-                            android:textColor="#333333" />
+                            android:textColor="@color/color_text_primary" />
 
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switch_notif_status_change"
@@ -285,7 +376,7 @@
                             android:layout_weight="1"
                             android:text="下属完成日志通知"
                             android:textSize="15sp"
-                            android:textColor="#333333" />
+                            android:textColor="@color/color_text_primary" />
 
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switch_notif_log_completed"
@@ -307,7 +398,7 @@
                             android:layout_weight="1"
                             android:text="十大任务派发变更通知"
                             android:textSize="15sp"
-                            android:textColor="#333333" />
+                            android:textColor="@color/color_text_primary" />
 
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switch_notif_top10_dispatch"
@@ -328,7 +419,7 @@
                             android:layout_weight="1"
                             android:text="十大重要事项变更通知"
                             android:textSize="15sp"
-                            android:textColor="#333333" />
+                            android:textColor="@color/color_text_primary" />
 
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switch_notif_top10_important"
@@ -340,7 +431,8 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-        </LinearLayout>
+            </LinearLayout>
+        </ScrollView>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </layout>

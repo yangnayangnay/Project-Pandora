@@ -1,5 +1,6 @@
 package com.example.project_pandora.ui.mindmap;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,6 +17,7 @@ import androidx.fragment.app.Fragment;
 import com.example.project_pandora.core.network.TokenManager;
 import com.example.project_pandora.databinding.FragmentMindmapBinding;
 import com.example.project_pandora.repository.ViewRepository;
+import com.example.project_pandora.ui.log.Top10WorkEditActivity;
 
 import java.util.List;
 import java.util.Map;
@@ -46,6 +48,13 @@ public class MindMapFragment extends Fragment {
 
         currentRole = TokenManager.getInstance(requireContext()).getRole();
 
+        // Round26 B1：个人十大编辑入口（跳转恢复页，编辑对象恒为本人条目，越权由后端 4046 兜底）
+        binding.btnEditPersonalTop10.setOnClickListener(v -> {
+            Intent intent = new Intent(requireContext(), Top10WorkEditActivity.class);
+            intent.putExtra("workType", "PERSONAL_IMPORTANT");
+            startActivity(intent);
+        });
+
         loadMindMapData();
     }
 
@@ -55,6 +64,7 @@ public class MindMapFragment extends Fragment {
                 .subscribe(
                         this::displayMindMap,
                         error -> {
+                            if (binding == null) return;
                             String errorMsg;
                             if (error instanceof com.example.project_pandora.core.exception.BusinessException) {
                                 com.example.project_pandora.core.exception.BusinessException be =
@@ -73,6 +83,7 @@ public class MindMapFragment extends Fragment {
 
     @SuppressWarnings("unchecked")
     private void displayMindMap(Map<String, Object> data) {
+        if (binding == null) return;
         List<Map<String, Object>> companyImportant = (List<Map<String, Object>>) data.get("companyImportant");
         List<Map<String, Object>> companyDispatch = (List<Map<String, Object>>) data.get("companyDispatch");
         List<Map<String, Object>> personalImportant = (List<Map<String, Object>>) data.get("personalImportant");
@@ -155,9 +166,17 @@ public class MindMapFragment extends Fragment {
         for (Map<String, Object> item : items) {
             Object content = item.get("content");
             if (content == null) content = item.get("CONTENT");
+            Object workType = item.get("work_type");
+            if (workType == null) workType = item.get("WORK_TYPE");
+            Object sourceNote = item.get("source_note");
+            if (sourceNote == null) sourceNote = item.get("SOURCE_NOTE");
             String text = rank + ". " + (content != null ? content.toString() : "\u672A\u547D\u540D");
+            String label = Top10TypeLabelMapper.resolveLabel(
+                    workType != null ? workType.toString() : null,
+                    sourceNote != null ? sourceNote.toString() : null);
+            if (label != null) text += "\uFF08" + label + "\uFF09";
             TextView tv = createItemTextView(text);
-            tv.setTextColor(0xFF333333);
+            tv.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), com.example.project_pandora.R.color.color_text_primary));
             container.addView(tv);
             container.addView(createDivider());
             rank++;
@@ -185,22 +204,55 @@ public class MindMapFragment extends Fragment {
             Object logDate = item.get("log_date");
             if (logDate == null) logDate = item.get("LOG_DATE");
 
-            String text = (workItem != null ? workItem.toString() : "\u672A\u547D\u540D");
+            String title = (workItem != null ? workItem.toString() : "\u672A\u547D\u540D");
+            // Round27 REQ-27-14: 他人日志"人名:"独立成行，标题+日期换行排列（本人日志保持单行）
+            String authorPrefix = null;
             if (showAuthor) {
                 String author = realName != null ? realName.toString() : (username != null ? username.toString() : "");
-                if (!author.isEmpty()) text = author + ": " + text;
+                if (!author.isEmpty()) authorPrefix = author + ":";
             }
-            if (logDate != null) text += " [" + logDate + "]";
-            if (workContent != null) {
-                String contentStr = workContent.toString().trim();
-                if (!contentStr.isEmpty()) {
-                    String summary = contentStr.length() > 40 ? contentStr.substring(0, 40) + "..." : contentStr;
-                    text += "\n" + summary;
-                }
+            String titleLine = title;
+            if (logDate != null) titleLine += " [" + logDate + "]";
+            if (authorPrefix != null) {
+                container.addView(createLogTitleTextView(authorPrefix));
+                container.addView(createLogTitleTextView(titleLine));
+            } else {
+                container.addView(createLogTitleTextView(titleLine));
             }
-            container.addView(createItemTextView(text));
+
+            String contentStr = workContent != null ? workContent.toString().trim() : "";
+            if (!contentStr.isEmpty()) {
+                container.addView(createLogContentTextView(contentStr));
+            }
             if (i < items.size() - 1) container.addView(createDivider());
         }
+    }
+
+    /**
+     * Round24 REQ-24-03: 日志象限标题行——13sp 加粗，无行数上限，
+     * 文本规则（作者前缀 + [log_date]）与 Round18 既有行为保持一致
+     */
+    private TextView createLogTitleTextView(String text) {
+        TextView tv = new TextView(requireContext());
+        tv.setText(text);
+        tv.setTextSize(13);
+        tv.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        tv.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), com.example.project_pandora.R.color.color_text_primary));
+        tv.setPadding(8, 6, 8, 6);
+        return tv;
+    }
+
+    /**
+     * Round24 REQ-24-03: 日志象限内容行——12sp 深棕，
+     * 不设 maxLines/ellipsize、不做字数截断（全文完整展示，滚动由外层 NestedScrollView 承载）
+     */
+    private TextView createLogContentTextView(String text) {
+        TextView tv = new TextView(requireContext());
+        tv.setText(text);
+        tv.setTextSize(12);
+        tv.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), com.example.project_pandora.R.color.color_text_primary));
+        tv.setPadding(8, 0, 8, 6);
+        return tv;
     }
 
 
@@ -208,7 +260,7 @@ public class MindMapFragment extends Fragment {
         TextView tv = new TextView(requireContext());
         tv.setText(text);
         tv.setTextSize(12);
-        tv.setTextColor(0xFF333333);
+        tv.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), com.example.project_pandora.R.color.color_text_primary));
         tv.setPadding(8, 6, 8, 6);
         tv.setMaxLines(2);
         return tv;
@@ -222,7 +274,7 @@ public class MindMapFragment extends Fragment {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 1);
         divider.setLayoutParams(lp);
-        divider.setBackgroundColor(0xFFE0E0E0);
+        divider.setBackgroundColor(androidx.core.content.ContextCompat.getColor(requireContext(), com.example.project_pandora.R.color.color_divider));
         return divider;
     }
 
@@ -231,7 +283,7 @@ public class MindMapFragment extends Fragment {
         TextView tv = new TextView(requireContext());
         tv.setText(text);
         tv.setTextSize(11);
-        tv.setTextColor(0xFF999999);
+        tv.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), com.example.project_pandora.R.color.color_text_secondary));
         tv.setPadding(8, 16, 8, 16);
         container.addView(tv);
     }

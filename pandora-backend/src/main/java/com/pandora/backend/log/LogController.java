@@ -4,6 +4,8 @@ import com.pandora.backend.common.ApiResponse;
 import com.pandora.backend.common.BusinessException;
 import com.pandora.backend.common.ErrorCode;
 import com.pandora.backend.audit.Auditable;
+import com.pandora.backend.ai.AiTransmitConfig;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
@@ -46,11 +48,14 @@ public class LogController {
 
     @PostMapping
     @Auditable(operationType = "LOG_CREATE", targetType = "WORK_LOG")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> createLog(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createLog(@RequestBody Map<String, Object> request, HttpServletRequest servletRequest) {
         Long userId = getCurrentUserId();
         String workItem = (String) request.get("workItem");
         if (workItem == null || workItem.trim().isEmpty()) {
             throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "工作事项不能为空");
+        }
+        if (workItem.trim().length() > 512) {
+            throw new BusinessException(ErrorCode.INVALID_PARAM_LENGTH, "工作事项长度不能超过512字符");
         }
 
         String completionStatus = (String) request.getOrDefault("completionStatus", "PENDING");
@@ -90,7 +95,9 @@ public class LogController {
         result.put("id", logId);
 
         try {
-            logAnalysisTriggerService.triggerAutoAnalysis(logId, userId);
+            // Round28 REQ-28-02: 同步段解析透传配置传入自动分析链（异步线程不可用请求上下文）
+            AiTransmitConfig aiConfig = AiTransmitConfig.fromHeaders(servletRequest);
+            logAnalysisTriggerService.triggerAutoAnalysis(logId, userId, aiConfig);
         } catch (Exception ignored) {}
 
         try {
@@ -253,6 +260,20 @@ public class LogController {
                 "SELECT DATE(log_date) as date, COUNT(*) as total, " +
                 "SUM(CASE WHEN completion_status = 'COMPLETED' THEN 1 ELSE 0 END) as completed " +
                 "FROM work_logs WHERE user_id = ? AND deleted = 0 GROUP BY DATE(log_date) ORDER BY log_date DESC LIMIT 30", userId);
+
+        // Round25 L7 修复: 补齐 App 统计弹窗期望的四个顶层键（total/pending/completed/totalTime）。
+        // 口径与 completionRate 一致（user_id=当前用户 AND deleted=0）；
+        // pending 含 NOT_STARTED+IN_PROGRESS（"待完成"语义）；COALESCE 防 null 透传（全 NULL 时归 0）
+        Map<String, Object> summary = jdbcTemplate.queryForMap(
+                "SELECT COUNT(*) AS total, " +
+                "COALESCE(SUM(CASE WHEN completion_status = 'COMPLETED' THEN 1 ELSE 0 END), 0) AS completed, " +
+                "COALESCE(SUM(CASE WHEN completion_status <> 'COMPLETED' THEN 1 ELSE 0 END), 0) AS pending, " +
+                "COALESCE(SUM(time_cost), 0) AS totalTime " +
+                "FROM work_logs WHERE user_id = ? AND deleted = 0", userId);
+        stats.put("total", summary.get("total"));
+        stats.put("pending", summary.get("pending"));
+        stats.put("completed", summary.get("completed"));
+        stats.put("totalTime", summary.get("totalTime"));
 
         stats.put("completionRate", completionRate);
         stats.put("importantRatio", Collections.emptyList());

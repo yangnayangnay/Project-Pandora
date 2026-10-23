@@ -103,6 +103,13 @@ public class ServerConnectivityMonitor {
 
         ServerConnectivity newState = connected ? ServerConnectivity.CONNECTED : ServerConnectivity.DISCONNECTED;
         updateState(newState);
+
+        // DEF-36-01 修复：每轮检测后无条件通知 NetworkStateMonitor（幂等）。
+        // 根因：ConnectivityManager 的 onAvailable 回调可能在 ColorOS 冻结/网络切换期间丢失，
+        // networkAvailable 卡 false → 假离线横幅；而 updateState 仅状态变化才发事件，
+        // CONNECTED→CONNECTED 不通知 → 自愈入口（onServerConnectivityChanged 内的
+        // reevaluateNetworkAvailable）永不触发。此兜底使假离线每轮询周期自动恢复。
+        NetworkStateMonitor.getInstance().onServerConnectivityChanged(newState);
     }
 
     private void updateState(ServerConnectivity newState) {

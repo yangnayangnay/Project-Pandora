@@ -22,7 +22,7 @@
         android:padding="4dp"
         android:textAlignment="center"
         android:textSize="12sp"
-        android:textColor="#888888"
+        android:textColor="@color/color_text_secondary"
         android:visibility="gone" />
 
     <ScrollView
@@ -48,6 +48,26 @@
                     android:hint="@string/hint_task_name"
                     android:inputType="textMultiLine"
                     android:maxLines="5"
+                    android:textColor="@color/color_text_edit_content"
+                    android:gravity="start|top" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- R39 REQ-C05: 任务正文（必填，多行） -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/edit_task_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/hint_task_content"
+                    android:inputType="textMultiLine"
+                    android:minLines="4"
+                    android:maxLines="10"
+                    android:textColor="@color/color_text_edit_content"
                     android:gravity="start|top" />
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -121,7 +141,7 @@
                 android:layout_height="wrap_content"
                 android:text="点击选择日期"
                 android:padding="12dp"
-                android:background="@android:color/white"
+                android:background="?attr/colorSurface"
                 android:layout_marginBottom="16dp"
                 android:clickable="true"
                 android:focusable="true" />
@@ -136,6 +156,7 @@
                 android:id="@+id/spinner_assignee"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:spinnerMode="dialog"
                 android:layout_marginBottom="16dp" />
 
             <com.google.android.material.button.MaterialButton

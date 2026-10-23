@@ -39,7 +39,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="13sp"
-            android:textColor="#666666"
+            android:textColor="@color/color_text_secondary"
             android:layout_marginTop="4dp" />
 
         <TextView
@@ -47,7 +47,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="13sp"
-            android:textColor="#555555"
+            android:textColor="@color/color_text_primary"
             android:layout_marginTop="4dp" />
 
         <TextView
@@ -55,7 +55,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="11sp"
-            android:textColor="#999999"
+            android:textColor="@color/color_text_secondary"
             android:layout_marginTop="4dp" />
 
         <LinearLayout

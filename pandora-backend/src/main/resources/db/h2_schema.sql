@@ -217,6 +217,10 @@ ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `phone` VARCHAR(20) DEFAULT NULL;
 CREATE INDEX IF NOT EXISTS `idx_users_email` ON `users` (`email`);
 CREATE INDEX IF NOT EXISTS `idx_users_id_card` ON `users` (`id_card`);
 CREATE INDEX IF NOT EXISTS `idx_users_approval` ON `users` (`approval_status`);
+-- Round26 E4: admin0 real_name 永久基线。
+-- 注意：上方 L207 MERGE 执行时 real_name 列尚未由 ALTER 创建（建表语句无此列），
+-- 故 admin0 基线值在此处以列建成后的幂等 UPDATE 落库（空值才写，重放不覆盖人工修改）。
+UPDATE `users` SET `real_name` = '管理员' WHERE `id` = 1 AND (`real_name` IS NULL OR `real_name` = '');
 
 -- =============================================================================
 -- 员工预登记表 (管理员预录入员工信息, 注册时自动匹配)
@@ -310,38 +314,11 @@ CREATE TABLE IF NOT EXISTS `function_permissions` (
 CREATE INDEX IF NOT EXISTS `idx_func_perm_code` ON `function_permissions` (`function_code`, `deleted`);
 CREATE INDEX IF NOT EXISTS `idx_func_perm_subject` ON `function_permissions` (`subject_user_id`, `deleted`);
 
-CREATE TABLE IF NOT EXISTS `ai_config` (
-    `id`               BIGINT       NOT NULL AUTO_INCREMENT,
-    `api_name`         VARCHAR(100) NOT NULL,
-    `api_url`          VARCHAR(512) NOT NULL,
-    `api_key`          VARCHAR(256) NOT NULL,
-    `model`            VARCHAR(100) NOT NULL DEFAULT 'deepseek-chat',
-    `provider`         VARCHAR(30)  NOT NULL DEFAULT 'DEEPSEEK',
-    `quota_threshold`  INT          NOT NULL DEFAULT 100,
-    `timeout_ms`       INT          NOT NULL DEFAULT 30000,
-    `enabled`          TINYINT      NOT NULL DEFAULT 1,
-    `fallback_url`     VARCHAR(512) NOT NULL DEFAULT 'http://localhost:8081',
-    `fallback_enabled` TINYINT      NOT NULL DEFAULT 1,
-    `updated_at`       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`)
- );
+-- Round28 REQ-28-03: 删除服务端 AI 本地配置表（AI 配置迁移至客户端透传），
+-- DROP IF EXISTS 兼容已初始化的存量库文件（幂等清理）
+DROP TABLE IF EXISTS `ai_config`;
+DROP TABLE IF EXISTS `ai_quota_events`;
 
-ALTER TABLE `ai_config` ADD COLUMN IF NOT EXISTS `model` VARCHAR(100) NOT NULL DEFAULT 'deepseek-chat';
-ALTER TABLE `ai_config` ADD COLUMN IF NOT EXISTS `provider` VARCHAR(30) NOT NULL DEFAULT 'DEEPSEEK';
-
-CREATE TABLE IF NOT EXISTS `ai_quota_events` (
-    `id`                BIGINT       NOT NULL AUTO_INCREMENT,
-    `event_time`        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `api_name`          VARCHAR(100) NOT NULL,
-    `remaining_quota`   BIGINT       DEFAULT NULL,
-    `trigger_threshold` INT          NOT NULL,
-    `action_taken`      VARCHAR(50)  NOT NULL,
-    `notify_status`     VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
-    `recorded_at`       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`)
-);
-CREATE INDEX IF NOT EXISTS `idx_ai_quota_event_time` ON `ai_quota_events` (`event_time`);
-CREATE INDEX IF NOT EXISTS `idx_ai_quota_notify` ON `ai_quota_events` (`notify_status`);
 ALTER TABLE `ai_analyses` ADD COLUMN IF NOT EXISTS `trigger_log_id` BIGINT DEFAULT NULL;
 ALTER TABLE `ai_analyses` ADD COLUMN IF NOT EXISTS `keywords` CLOB DEFAULT NULL;
 ALTER TABLE `ai_analyses` ADD COLUMN IF NOT EXISTS `mbti_type` VARCHAR(4) DEFAULT NULL;
@@ -384,3 +361,31 @@ CREATE INDEX IF NOT EXISTS `idx_template_user_type` ON `templates` (`user_id`, `
 -- =============================================================================
 ALTER TABLE `top10_works` ADD COLUMN IF NOT EXISTS `urgency_level` VARCHAR(4) DEFAULT NULL;
 ALTER TABLE `top10_works` ADD COLUMN IF NOT EXISTS `deadline` DATE DEFAULT NULL;
+-- =============================================================================
+-- Round23 REQ-23-01: top10_works 表新增手动条目分类列（幂等）
+-- PERSONAL_INFO=个人信息类（进入个人十大信息象限候选）
+-- WORK_ITEM=工作事项类（默认，保守不展示，存量数据自然归入此类）
+-- =============================================================================
+ALTER TABLE `top10_works` ADD COLUMN IF NOT EXISTS `category` VARCHAR(20) DEFAULT 'WORK_ITEM';
+-- =============================================================================
+-- Round24 REQ-24-06: 梅花易数每日一次记录表（每用户每自然日至多一条）
+-- 服务端先查后插 + UNIQUE(user_id, divination_date) 兜底并发窗口；
+-- 跨天重置为日期比较语义（0 点后 CURRENT_DATE 变化，昨日记录自然失效），无物理删除
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `divination_records` (
+    `id`              BIGINT       NOT NULL AUTO_INCREMENT,
+    `user_id`         BIGINT       NOT NULL,
+    `divination_date` DATE         NOT NULL,
+    `original_name`   VARCHAR(16)  NOT NULL,
+    `mutual_name`     VARCHAR(16)  DEFAULT NULL,
+    `changed_name`    VARCHAR(16)  DEFAULT NULL,
+    `moving_line`     INT          DEFAULT NULL,
+    `analysis`        CLOB         NOT NULL,
+    `source`          VARCHAR(16)  NOT NULL,
+    `created_at`      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_divination_user_date` (`user_id`, `divination_date`)
+);
+
+-- R39 REQ-C01: 任务正文列（幂等迁移，存量 NULL 占位）
+ALTER TABLE `tasks` ADD COLUMN IF NOT EXISTS `content` CLOB DEFAULT NULL;

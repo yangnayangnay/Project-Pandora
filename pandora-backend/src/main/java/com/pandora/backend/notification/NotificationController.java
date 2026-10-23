@@ -59,7 +59,11 @@ public class NotificationController {
         }
         sql.append(" ORDER BY created_at DESC");
         List<Map<String, Object>> notifications = jdbcTemplate.queryForList(sql.toString(), params.toArray());
-        return ResponseEntity.ok(ApiResponse.success(notifications));
+        ApiResponse<List<Map<String, Object>>> response = ApiResponse.success(notifications);
+        // D-33-02 修复：填充全局通知 MAX(id) 基线，App 端游标超前时自适应重置（迁移基线差异防拉空）
+        Long globalMaxId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM notifications", Long.class);
+        response.setMaxNotificationId(globalMaxId != null ? globalMaxId : 0L);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}/read")

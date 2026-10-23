@@ -5,6 +5,7 @@ import com.pandora.backend.common.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -21,7 +22,11 @@ public class ExternalAIClient {
 
     public String call(String prompt, String analysisType, String apiUrl, String apiKey, int timeoutMs, String model) {
         try {
-            RestTemplate restTemplate = new RestTemplate();
+            // Round24 T2.2: 显式设置连接/读取超时，使 timeoutMs 形参真正生效（替代默认无限等待）
+            SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+            factory.setConnectTimeout(Math.min(3000, timeoutMs));
+            factory.setReadTimeout(timeoutMs);
+            RestTemplate restTemplate = new RestTemplate(factory);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -34,7 +39,8 @@ public class ExternalAIClient {
             Map<String, Object> body = new HashMap<>();
             body.put("model", model != null && !model.isEmpty() ? model : "deepseek-chat");
             body.put("messages", Collections.singletonList(message));
-            body.put("max_tokens", 1000);
+            // Round24 T2.3: max_tokens 按 analysisType 分型收敛（DIVINATION=280/SUGGESTION=500/MBTI_REPORT=700/其余=500）
+            body.put("max_tokens", resolveMaxTokens(analysisType));
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
             ResponseEntity<Map> response = restTemplate.exchange(apiUrl, HttpMethod.POST, entity, Map.class);
@@ -66,12 +72,20 @@ public class ExternalAIClient {
         }
     }
 
-    public boolean probe(String apiUrl, String apiKey) {
-        try {
-            call("ping", "probe", apiUrl, apiKey, 5000);
-            return true;
-        } catch (Exception e) {
-            return false;
+    // Round24 T2.3: max_tokens 分型映射（封闭逻辑，未知类型落 500）
+    private int resolveMaxTokens(String analysisType) {
+        if (analysisType == null) {
+            return 500;
+        }
+        switch (analysisType) {
+            case "DIVINATION":
+                return 280;
+            case "MBTI_REPORT":
+                return 700;
+            case "SUGGESTION":
+            default:
+                return 500;
         }
     }
+
 }

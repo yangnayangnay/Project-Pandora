@@ -107,6 +107,7 @@ public class SyncService {
 
         String operation = content.get("operation") != null ? content.get("operation").toString() : "CREATE";
         String workItem = content.get("workItem") != null ? content.get("workItem").toString() : "";
+        String workContent = content.get("workContent") != null ? content.get("workContent").toString() : "";
         String completionStatus = content.get("completionStatus") != null ? content.get("completionStatus").toString() : "PENDING";
         Double timeCost = null;
         Object timeCostObj = content.get("timeCost");
@@ -119,17 +120,15 @@ public class SyncService {
 
         Map<String, Object> request = new HashMap<>();
         request.put("workItem", workItem);
+        request.put("workContent", workContent);
         request.put("completionStatus", completionStatus);
         request.put("timeCost", timeCost);
         request.put("logDate", logDate);
 
         Observable<Map<String, Object>> apiCall;
         if ("EDIT".equals(operation)) {
-            Long logId = null;
-            Object logIdObj = content.get("logId");
-            if (logIdObj != null) {
-                try { logId = Long.parseLong(logIdObj.toString()); } catch (NumberFormatException ignored) {}
-            }
+            // Round26: 草稿 logId 解析统一收敛至 NumberCompat（原吞异常→null 语义保持）
+            Long logId = com.example.project_pandora.core.util.NumberCompat.toLong(content.get("logId"));
             if (logId == null) {
                 return Observable.defer(() -> syncRepository.updateFailed(data.dataId, "编辑日志缺少ID")
                         .toObservable().map(r -> UploadResult.failed(data.dataId, "编辑日志缺少ID")));
@@ -266,8 +265,8 @@ public class SyncService {
     }
 
     private Long extractLong(Object obj) {
-        if (obj == null) return null;
-        try { return Long.parseLong(obj.toString()); } catch (NumberFormatException e) { return null; }
+        // Round26: 解析统一收敛至 NumberCompat（原 parseLong 吞异常→null 语义保持）
+        return com.example.project_pandora.core.util.NumberCompat.toLong(obj);
     }
 
     private boolean isNetworkError(Throwable error) {

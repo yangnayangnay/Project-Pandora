@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fitsSystemWindows="true"
-        android:background="@android:color/white">
+        android:background="?attr/colorSurface">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -29,8 +29,8 @@
             android:padding="4dp"
             android:textAlignment="center"
             android:textSize="12sp"
-            android:textColor="#888888"
-            android:visibility="gone"
+            android:textColor="@color/color_text_secondary"
+            android:visibility="invisible"
             app:layout_constraintTop_toBottomOf="@id/toolbar" />
 
         <ScrollView
@@ -49,7 +49,7 @@
                 <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="工作事项">
+                    android:hint="日志标题">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/editWorkItem"
@@ -57,6 +57,7 @@
                         android:layout_height="wrap_content"
                         android:inputType="textMultiLine"
                         android:maxLines="5"
+                        android:textColor="@color/color_text_edit_content"
                         android:gravity="start|top" />
 
                 </com.google.android.material.textfield.TextInputLayout>
@@ -75,6 +76,7 @@
                         android:inputType="textMultiLine"
                         android:minLines="4"
                         android:maxLines="8"
+                        android:textColor="@color/color_text_edit_content"
                         android:gravity="start|top" />
 
                 </com.google.android.material.textfield.TextInputLayout>
@@ -107,7 +109,7 @@
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
             android:layout_marginTop="16dp"
-            android:layout_marginBottom="120dp"
+            android:layout_marginBottom="16dp"
             android:text="保存"
             app:layout_constraintBottom_toBottomOf="parent" />
 

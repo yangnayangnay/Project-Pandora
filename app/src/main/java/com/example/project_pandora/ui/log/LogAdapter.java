@@ -22,14 +22,16 @@ public class LogAdapter extends RecyclerView.Adapter<LogAdapter.LogViewHolder> {
 
     private final List<Map<String, Object>> logs = new ArrayList<>();
     private final OnLogClickListener listener;
+    private final long currentUserId;
 
     public interface OnLogClickListener {
         void onLogClick(Map<String, Object> log);
         void onLogLongClick(Map<String, Object> log);
     }
 
-    public LogAdapter(OnLogClickListener listener) {
+    public LogAdapter(OnLogClickListener listener, long currentUserId) {
         this.listener = listener;
+        this.currentUserId = currentUserId;
     }
 
     public void setLogs(List<Map<String, Object>> newLogs) {
@@ -67,6 +69,14 @@ public class LogAdapter extends RecyclerView.Adapter<LogAdapter.LogViewHolder> {
         }
 
         void bind(Map<String, Object> log) {
+            // REQ-23-06：本人日志隐藏创建人标记，他人日志显示创建人（数据源混合时规则自动成立）
+            if (LogAuthorDisplay.isOwnLog(log, currentUserId)) {
+                binding.textAuthor.setVisibility(android.view.View.GONE);
+            } else {
+                binding.textAuthor.setText(LogAuthorDisplay.resolveAuthorName(log));
+                binding.textAuthor.setVisibility(android.view.View.VISIBLE);
+            }
+
             Object workItem = log.get("work_item");
             binding.textWorkItem.setText(workItem != null ? workItem.toString() : "");
 

@@ -11,14 +11,22 @@
         android:layout_height="match_parent"
         android:fitsSystemWindows="true">
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
+        <!-- REQ-31-06: AppBarLayout 包裹 toolbar 使 appbar_scrolling_view_behavior 生效，内容区排在 AppBar 下方不遮挡返回键 -->
+        <com.google.android.material.appbar.AppBarLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
-            app:title="日志详情"
-            app:titleTextColor="@android:color/white"
-            app:navigationIcon="@drawable/ic_back" />
+            android:theme="?attr/actionBarTheme">
+
+            <com.google.android.material.appbar.MaterialToolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/colorPrimary"
+                app:title="日志详情"
+                app:titleTextColor="@android:color/white"
+                app:navigationIcon="@drawable/ic_back" />
+
+        </com.google.android.material.appbar.AppBarLayout>
 
         <ScrollView
             android:layout_width="match_parent"
@@ -45,7 +53,7 @@
                     android:layout_height="wrap_content"
                     android:textSize="20sp"
                     android:textStyle="bold"
-                    android:textColor="#333333"
+                    android:textColor="@color/color_text_primary"
                     android:layout_marginBottom="12dp" />
 
                 <TextView
@@ -53,7 +61,7 @@
                     android:layout_height="wrap_content"
                     android:text="日志内容"
                     android:textSize="14sp"
-                    android:textColor="#888888"
+                    android:textColor="@color/color_text_secondary"
                     android:layout_marginBottom="4dp" />
 
                 <TextView
@@ -61,7 +69,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textSize="15sp"
-                    android:textColor="#333333"
+                    android:textColor="@color/color_text_primary"
                     android:lineSpacingExtra="4dp"
                     android:layout_marginBottom="12dp" />
 
@@ -83,7 +91,7 @@
 
                         android:text="完成状态"
                         android:textSize="14sp"
-                        android:textColor="#888888" />
+                        android:textColor="@color/color_text_secondary" />
 
                     <TextView
                         android:id="@+id/textStatus"
@@ -91,7 +99,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:textSize="14sp"
-                        android:textColor="#333333" />
+                        android:textColor="@color/color_text_primary" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -106,7 +114,7 @@
 
                         android:text="创建人"
                         android:textSize="14sp"
-                        android:textColor="#888888" />
+                        android:textColor="@color/color_text_secondary" />
 
                     <TextView
                         android:id="@+id/textUsername"
@@ -114,7 +122,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:textSize="14sp"
-                        android:textColor="#333333" />
+                        android:textColor="@color/color_text_primary" />
                 </LinearLayout>
 
 

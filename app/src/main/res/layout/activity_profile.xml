@@ -9,7 +9,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@android:color/white">
+        android:background="?attr/colorSurface">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -50,7 +50,7 @@
                     android:layout_marginTop="4dp"
                     android:text="点击头像修改"
                     android:textSize="12sp"
-                    android:textColor="#999999" />
+                    android:textColor="@color/color_text_secondary" />
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/layoutUsername"
@@ -62,7 +62,8 @@
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/editUsername"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/color_text_edit_content" />
 
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -76,7 +77,8 @@
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/editRealName"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/color_text_edit_content" />
 
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -91,7 +93,8 @@
                         android:id="@+id/editEmail"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:inputType="textEmailAddress" />
+                        android:inputType="textEmailAddress"
+                        android:textColor="@color/color_text_edit_content" />
 
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -106,7 +109,8 @@
                         android:id="@+id/editPhone"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:inputType="phone" />
+                        android:inputType="phone"
+                        android:textColor="@color/color_text_edit_content" />
 
                 </com.google.android.material.textfield.TextInputLayout>
 

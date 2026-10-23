@@ -6,13 +6,14 @@
 -- =============================================================================
 
 -- 用户数据 (admin0已存在, 补充4个用户, 用户名统一使用编号后缀)
-MERGE INTO `users` (`id`, `username`, `password_hash`, `role`, `department_id`, `team_id`) KEY(`id`) VALUES
-(2, 'founder1',      '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'FOUNDER',     1, 1),
-(3, 'dept_head2',    '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'DEPT_HEAD',   1, 1),
-(4, 'team_leader3',  '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'TEAM_LEADER', 1, 2),
-(5, 'employee4',     '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'EMPLOYEE',    1, 2),
-(6, 'zhang_san4',    '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'EMPLOYEE',    2, 3),
-(7, 'li_si3',        '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'TEAM_LEADER', 2, 3);
+-- Round26 E4: 追加 real_name 永久基线（uid5 RegTestEmployee 为 R25 巡检基线保留；uid6~7 无基线保持 NULL）
+MERGE INTO `users` (`id`, `username`, `password_hash`, `role`, `department_id`, `team_id`, `real_name`) KEY(`id`) VALUES
+(2, 'founder1',      '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'FOUNDER',     1, 1, '创始人'),
+(3, 'dept_head2',    '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'DEPT_HEAD',   1, 1, '部门负责人'),
+(4, 'team_leader3',  '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'TEAM_LEADER', 1, 2, '组长'),
+(5, 'employee4',     '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'EMPLOYEE',    1, 2, 'RegTestEmployee'),
+(6, 'zhang_san4',    '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'EMPLOYEE',    2, 3, NULL),
+(7, 'li_si3',        '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'TEAM_LEADER', 2, 3, NULL);
 
 -- 部门数据
 MERGE INTO `departments` (`id`, `name`, `head_user_id`, `parent_id`) KEY(`id`) VALUES
@@ -120,9 +121,8 @@ MERGE INTO `work_logs` (`id`, `user_id`, `work_item`, `completion_status`, `time
 (105, 103, 'YJL-竞品分析报告',           'IN_PROGRESS', 4.00, '2026-10-21'),
 (106, 104, 'YJL-数据清洗脚本编写',       'COMPLETED',   5.00, '2026-10-20'),
 (107, 104, 'YJL-运营指标看板搭建',       'IN_PROGRESS', 3.50, '2026-10-21');
--- AI配置种子数据
-MERGE INTO `ai_config` (`id`, `api_name`, `api_url`, `api_key`, `model`, `provider`, `quota_threshold`, `timeout_ms`, `enabled`, `fallback_url`, `fallback_enabled`) KEY(`id`) VALUES
-(1, 'Ollama', 'http://localhost:11434/v1/chat/completions', 'ollama', 'qwen2.5-coder:7b', 'OLLAMA', 999999, 120000, 1, 'http://localhost:8081', 1);
+
+-- Round28 REQ-28-03: AI 配置种子数据已删除（AI 配置迁移至客户端透传，服务端不再持有）
 
 -- =============================================================================
 -- 组织归属迁移 (从users表department_id/team_id迁移至user_org_affiliation)

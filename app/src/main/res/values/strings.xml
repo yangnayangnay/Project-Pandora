@@ -3,22 +3,12 @@
     <string name="action_settings">设置</string>
 
     <!-- 注册登录 -->
-    <string name="register_title">用户注册</string>
     <string name="login_title">潘多拉 - 智能掌上工作系统</string>
     <string name="server_checking">服务器检测中...</string>
     <string name="hint_username">用户名</string>
     <string name="hint_username_or_email">用户名或邮箱</string>
     <string name="hint_password">密码</string>
-    <string name="hint_confirm_password">确认密码</string>
-    <string name="hint_email">邮箱</string>
-    <string name="hint_real_name">真实姓名</string>
-    <string name="hint_id_card">身份证号</string>
-    <string name="hint_phone">手机号</string>
-    <string name="hint_role">选择角色</string>
     <string name="btn_login">登 录</string>
-    <string name="btn_register">注 册</string>
-    <string name="btn_go_login">已有账号？去登录</string>
-    <string name="btn_go_register">没有账号？去注册</string>
     <string name="btn_forgot_password">忘记密码？</string>
     <string name="forgot_password_title">忘记密码</string>
     <string name="forgot_password_hint">请输入您的用户名或邮箱</string>
@@ -28,14 +18,7 @@
     <string name="reset_request_approve">批准重置</string>
     <string name="reset_request_reject">拒绝</string>
     <string name="reset_request_custom_pwd">新密码（留空则重置为 pandora123）</string>
-    <string name="register_real_name_hint">填写真实姓名和身份证号可自动匹配预登记员工，免审批直接登录</string>
-    <string name="register_empty_input">用户名和密码不能为空</string>
-    <string name="password_too_short">密码长度不能少于6位</string>
-    <string name="register_password_mismatch">两次输入的密码不一致</string>
-    <string name="register_loading">提交中...</string>
-    <string name="register_pending">注册申请已提交，等待管理员审批</string>
-    <string name="register_approved">注册成功，已自动登录</string>
-    <string name="register_failed">注册失败: %1$s</string>
+
     <string name="login_empty_input">用户名和密码不能为空</string>
     <string name="login_failed">登录失败: %1$s</string>
     <string name="login_loading">登录中...</string>
@@ -101,7 +84,6 @@
 
     <!-- 日志管理 -->
     <string name="log_create">添加日志</string>
-    <string name="log_work_item">工作事项</string>
     <string name="log_completion">完成情况</string>
     <string name="log_time_cost">时间花费</string>
     <string name="log_date">日志日期</string>
@@ -142,4 +124,49 @@
     <string name="birthday_days_left">距离生日还有 %1$d 天</string>
     <string name="birthday_passed">生日已过，明年再见！\n距离下次生日还有 %1$d 天</string>
     <string name="birthday_saved">生日已保存</string>
+
+    <!-- Round29: 服务器地址（BaseUrl）可配置化 -->
+    <string name="server_config_title">服务器地址</string>
+    <string name="server_config_card_title">启用服务器地址配置</string>
+    <string name="server_config_card_desc">配置 App 连接的后端服务器地址（如 http://192.168.1.100:8080），保存后立即生效；未配置时使用默认地址</string>
+    <string name="server_url_input_hint">服务器地址（如 http://192.168.1.100:8080）</string>
+    <string name="server_url_input_helper">地址须以 http:// 或 https:// 开头；路径后缀 /api 自动补全，无需填写</string>
+    <string name="btn_test_server">测试连接</string>
+    <string name="btn_save_server">保存</string>
+    <string name="btn_reset_server">恢复默认</string>
+    <string name="server_config_note">未配置时使用默认地址：模拟器 10.0.2.2 / 真机局域网。配置仅保存在本设备。测试连接使用当前输入值直接探测，与保存操作互不影响。</string>
+    <string name="settings_server_card_title">服务器地址</string>
+    <string name="server_summary_current">当前：%1$s</string>
+    <string name="server_summary_default">默认：%1$s</string>
+    <string name="server_testing">测试中...</string>
+    <string name="toast_server_url_invalid">地址须以 http:// 或 https:// 开头</string>
+    <string name="toast_server_saved">已保存</string>
+    <string name="toast_server_reset">已恢复默认地址</string>
+    <string name="toast_server_test_ok">连接成功（HTTP %1$d）</string>
+    <string name="toast_server_test_fail">连接失败：%1$s</string>
+    <string name="err_server_timeout">连接超时</string>
+    <string name="err_server_unknown_host">域名无法解析</string>
+    <string name="err_server_connect">无法建立连接</string>
+    <string name="btn_login_server_config">配置服务器地址</string>
+    <string name="confirm_status_title">确认变更任务状态</string>
+    <string name="confirm_status_message">将任务『%1$s』标记为%2$s？</string>
+    <string name="confirm_status_confirm">确认</string>
+    <string name="confirm_status_cancel">取消</string>
+    <string name="mindmap_dispatch_empty">暂无公司未完成任务</string>
+    <string name="log_save_retrying_hint">网络异常，正在重试，请稍候…</string>
+    <string name="panel_entry_hint">查看所有任务</string>
+    <string name="mindmap_dispatched_tag">派</string>
+    <string name="theme_mode_label">主题模式</string>
+    <string name="theme_mode_system">系统</string>
+    <string name="theme_mode_day">白天</string>
+    <string name="theme_mode_night">黑夜</string>
+    <string name="reset_zoom_label">恢复缩放</string>
+    <string name="btn_reopen_task">切回未完成</string>
+    <string name="hint_task_content">任务正文（必填）</string>
+    <string name="task_content_empty">请输入任务正文</string>
+    <string name="task_content_too_long">任务正文长度不能超过5000字符</string>
+    <string name="task_content_label">任务正文</string>
+    <string name="task_content_placeholder">暂无正文</string>
+    <string name="session_expired_title">会话已过期</string>
+    <string name="session_expired_content">登录状态已失效，请重新登录以恢复消息接收</string>
 </resources>

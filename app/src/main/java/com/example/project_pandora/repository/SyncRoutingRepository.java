@@ -108,7 +108,8 @@ public class SyncRoutingRepository {
                 .map(result -> new SyncRouteResult(RoutePath.ONLINE_DIRECT, null, successMsg))
                 .onErrorResumeNext(error -> {
                     if (isBusinessError(error)) {
-                        return Observable.error(error);
+                        // DEF-31-01: HttpException 统一解析为 BusinessException（携带后端 code/message）
+                        return Observable.error(com.example.project_pandora.core.network.HttpErrorParser.parse(error));
                     }
                     return syncRepository.savePending(dataType, jsonContent)
                             .toObservable()

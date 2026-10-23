@@ -9,7 +9,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#F5F5F5">
+        android:background="@color/color_bg_page">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -73,14 +73,14 @@
                             android:text="AI 个性化建议"
                             android:textSize="17sp"
                             android:textStyle="bold"
-                            android:textColor="#333333" />
+                            android:textColor="@color/color_text_primary" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="根据角色与任务数据生成工作建议、职业建议与发展计划"
                             android:textSize="13sp"
-                            android:textColor="#888888"
+                            android:textColor="@color/color_text_secondary"
                             android:layout_marginTop="4dp" />
 
                     </LinearLayout>
@@ -90,7 +90,7 @@
                         android:layout_height="wrap_content"
                         android:text="›"
                         android:textSize="24sp"
-                        android:textColor="#CCCCCC" />
+                        android:textColor="@color/color_text_secondary" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -139,14 +139,14 @@
                             android:text="MBTI 职业性格测试"
                             android:textSize="17sp"
                             android:textStyle="bold"
-                            android:textColor="#333333" />
+                            android:textColor="@color/color_text_primary" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="通过性格偏好测量，匹配16种性格类型与适合的职业方向"
                             android:textSize="13sp"
-                            android:textColor="#888888"
+                            android:textColor="@color/color_text_secondary"
                             android:layout_marginTop="4dp" />
 
                     </LinearLayout>
@@ -156,7 +156,74 @@
                         android:layout_height="wrap_content"
                         android:text="›"
                         android:textSize="24sp"
-                        android:textColor="#CCCCCC" />
+                        android:textColor="@color/color_text_secondary" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Round23 REQ-23-08: 梅花易数入口 -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btnDivination"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="#E8F5E9"
+                        android:gravity="center"
+                        android:layout_marginEnd="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="&#x1F52E;"
+                            android:textSize="24sp" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="梅花易数"
+                            android:textSize="17sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/color_text_primary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="随机起卦，AI 积极解读卦象"
+                            android:textSize="13sp"
+                            android:textColor="@color/color_text_secondary"
+                            android:layout_marginTop="4dp" />
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="›"
+                        android:textSize="24sp"
+                        android:textColor="@color/color_text_secondary" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

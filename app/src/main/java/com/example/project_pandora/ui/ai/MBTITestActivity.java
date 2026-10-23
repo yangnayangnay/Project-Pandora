@@ -43,7 +43,45 @@ public class MBTITestActivity extends AppCompatActivity {
         binding.btnOptionB.setOnClickListener(v -> selectAnswer(0));
         binding.btnRetry.setOnClickListener(v -> restartTest());
 
-        showQuestion();
+        loadExistingReport();
+    }
+
+    /**
+     * Round24 REQ-24-08: 进入先查 GET /ai/mbti/report 分流——
+     * 已测账号直达结果页（btnRetry 复用既有 restartTest 语义，文案"重新测试"）；
+     * NOT_FOUND("暂无MBTI报告")进答题；其他网络异常 Toast 提示后进答题（不白屏、给出路）
+     */
+    private void loadExistingReport() {
+        binding.layoutQuestion.setVisibility(View.GONE);
+        binding.layoutLoading.setVisibility(View.VISIBLE);
+        binding.layoutResult.setVisibility(View.GONE);
+
+        aiApi.getMbtiReport()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        response -> {
+                            if (isDestroyed() || isFinishing()) return;
+                            if (response.isSuccess() && response.getData() != null) {
+                                // 直达回显态：GET /ai/mbti/report 响应无 source 字段，
+                                // 为禁止伪装为 AI 生成，此态省略来源标识展示
+                                displayResult(response.getData());
+                                binding.textAiSource.setVisibility(View.GONE);
+                            } else {
+                                Toast.makeText(this, "报告加载失败，可直接测试", Toast.LENGTH_SHORT).show();
+                                showQuestion();
+                            }
+                        },
+                        error -> {
+                            if (isDestroyed() || isFinishing()) return;
+                            if (error instanceof retrofit2.HttpException
+                                    && ((retrofit2.HttpException) error).code() == 404) {
+                                showQuestion();
+                            } else {
+                                Toast.makeText(this, "报告加载失败，可直接测试", Toast.LENGTH_SHORT).show();
+                                showQuestion();
+                            }
+                        });
     }
 
     private void showQuestion() {
@@ -96,6 +134,7 @@ public class MBTITestActivity extends AppCompatActivity {
                         response -> {
                             if (response.isSuccess() && response.getData() != null) {
                                 displayResult(response.getData());
+                                bindReportSource(response.getData().get("source"));
                             } else {
                                 Toast.makeText(this, response.getMessage(), Toast.LENGTH_SHORT).show();
                                 Map<String, Object> localResult = new java.util.HashMap<>();
@@ -105,6 +144,7 @@ public class MBTITestActivity extends AppCompatActivity {
                                         "类型描述：" + getTypeDescription(personalityType) + "\n\n" +
                                         "如需详细AI分析报告，请检查网络连接后重新测试。");
                                 displayResult(localResult);
+                                bindReportSource("LOCAL_FALLBACK");
                             }
                         },
                         error -> {
@@ -116,6 +156,7 @@ public class MBTITestActivity extends AppCompatActivity {
                                     "类型描述：" + getTypeDescription(personalityType) + "\n\n" +
                                     "如需详细AI分析报告，请检查网络连接后重新测试。");
                             displayResult(localResult);
+                            bindReportSource("LOCAL_FALLBACK");
                         }
                 );
     }
@@ -147,6 +188,20 @@ public class MBTITestActivity extends AppCompatActivity {
         answers.clear();
         currentIndex = 0;
         showQuestion();
+    }
+
+    /**
+     * Round24 REQ-24-07: MBTI 报告来源标识——严格按响应 source 字段驱动（禁止固定文案）：
+     * EXTERNAL → "— AI 生成 —"；LOCAL（generate 既有取值）/LOCAL_FALLBACK/网络失败本地兜底 → "— 本地兜底生成 —"
+     */
+    private void bindReportSource(Object source) {
+        String s = source != null ? source.toString() : null;
+        if ("EXTERNAL".equals(s)) {
+            binding.textAiSource.setText("— AI 生成 —");
+        } else {
+            binding.textAiSource.setText("— 本地兜底生成 —");
+        }
+        binding.textAiSource.setVisibility(View.VISIBLE);
     }
 
     public static String getTypeDescription(String type) {

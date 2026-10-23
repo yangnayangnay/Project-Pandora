@@ -102,10 +102,10 @@ public class LogDetailActivity extends AppCompatActivity {
         String contentStr = workContent != null ? workContent.toString().trim() : "";
         if (contentStr.isEmpty()) {
             binding.textWorkContent.setText("暂无详细内容");
-            binding.textWorkContent.setTextColor(0xFF999999);
+            binding.textWorkContent.setTextColor(androidx.core.content.ContextCompat.getColor(this, com.example.project_pandora.R.color.color_text_secondary));
         } else {
             binding.textWorkContent.setText(workContent.toString());
-            binding.textWorkContent.setTextColor(0xFF333333);
+            binding.textWorkContent.setTextColor(androidx.core.content.ContextCompat.getColor(this, com.example.project_pandora.R.color.color_text_primary));
         }
         editWorkContent = workContent != null ? workContent.toString() : null;
 
@@ -131,7 +131,8 @@ public class LogDetailActivity extends AppCompatActivity {
         binding.textUsername.setText(nameStr);
 
         Object logUserIdObj = log.get("user_id");
-        Long logUserId = logUserIdObj instanceof Number ? ((Number) logUserIdObj).longValue() : null;
+        // Round26: 解析统一收敛至 NumberCompat（原 instanceof Number 判定语义保持）
+        Long logUserId = com.example.project_pandora.core.util.NumberCompat.toLong(logUserIdObj);
         boolean isOwner = logUserId != null && logUserId.equals(currentUserId);
         boolean canManage = isOwner;
         if (!canManage) {

@@ -29,5 +29,9 @@ public class AIAnalysisActivity extends AppCompatActivity {
         binding.btnMbtiTest.setOnClickListener(v ->
                 startActivity(new Intent(this, MBTITestActivity.class)));
 
+        // Round23 REQ-23-08: 梅花易数入口（自"我的"页迁移而来）
+        binding.btnDivination.setOnClickListener(v ->
+                startActivity(new Intent(this, DivinationActivity.class)));
+
     }
 }

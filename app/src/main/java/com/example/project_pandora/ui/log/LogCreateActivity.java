@@ -42,6 +42,12 @@ public class LogCreateActivity extends AppCompatActivity {
     private boolean isRestoringDraft = false;
     private boolean saveCompleted = false;
 
+    /** DEF-32-02 修复：提交超 5s 的中间反馈定时器（成功/失败回调取消，onDestroy 兜底清理） */
+    private final android.os.Handler saveHintHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable saveHintRunnable = () ->
+            Toast.makeText(this, getString(com.example.project_pandora.R.string.log_save_retrying_hint),
+                    Toast.LENGTH_LONG).show();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -80,17 +86,14 @@ public class LogCreateActivity extends AppCompatActivity {
                 status -> {
                     switch (status) {
                         case SAVING:
-                            binding.textAutoSaveStatus.setVisibility(android.view.View.VISIBLE);
-                            binding.textAutoSaveStatus.setText("保存中...");
+                            showAutoSaveStatus("保存中...");
                             break;
                         case SAVED:
-                            binding.textAutoSaveStatus.setVisibility(android.view.View.VISIBLE);
                             String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
-                            binding.textAutoSaveStatus.setText("已保存 " + time);
+                            showAutoSaveStatus("已保存 " + time);
                             break;
                         case SAVE_FAILED:
-                            binding.textAutoSaveStatus.setVisibility(android.view.View.VISIBLE);
-                            binding.textAutoSaveStatus.setText("保存失败");
+                            showAutoSaveStatus("保存失败");
                             break;
                         default:
                             break;
@@ -115,6 +118,15 @@ public class LogCreateActivity extends AppCompatActivity {
     public void onContentChanged() {
         if (autoSaveManager != null) {
             autoSaveManager.onContentChanged();
+        }
+    }
+
+    private void showAutoSaveStatus(String text) {
+        binding.textAutoSaveStatus.setText(text);
+        if (binding.textAutoSaveStatus.getVisibility() != android.view.View.VISIBLE) {
+            binding.textAutoSaveStatus.setAlpha(0f);
+            binding.textAutoSaveStatus.setVisibility(android.view.View.VISIBLE);
+            binding.textAutoSaveStatus.animate().alpha(1f).setDuration(200).start();
         }
     }
 
@@ -188,7 +200,7 @@ public class LogCreateActivity extends AppCompatActivity {
     private void handleSave() {
         String workItem = binding.editWorkItem.getText().toString().trim();
         if (workItem.isEmpty()) {
-            Toast.makeText(this, "请输入工作事项", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "请输入日志标题", Toast.LENGTH_SHORT).show();
             return;
         }
         String workContent = binding.editWorkContent.getText().toString();
@@ -196,11 +208,16 @@ public class LogCreateActivity extends AppCompatActivity {
         binding.btnSave.setEnabled(false);
         binding.btnSave.setText("保存中...");
 
+        // DEF-32-02 修复：提交 5s 未完成给出中间反馈（不可达/重试窗口不再无声锁死）
+        saveHintHandler.removeCallbacks(saveHintRunnable);
+        saveHintHandler.postDelayed(saveHintRunnable, 5000);
+
         if (isEditMode && editLogId > 0) {
             disposables.add(syncRoutingRepository.editLog(editLogId, workItem, workContent, "PENDING", null, selectedDate)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                             result -> {
+                                saveHintHandler.removeCallbacks(saveHintRunnable);
                                 Toast.makeText(this, result.getMessage(), Toast.LENGTH_SHORT).show();
                                 saveCompleted = true;
                                 if (autoSaveManager != null) {
@@ -211,7 +228,8 @@ public class LogCreateActivity extends AppCompatActivity {
                                 finish();
                             },
                             error -> {
-                                Toast.makeText(this, "更新失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                saveHintHandler.removeCallbacks(saveHintRunnable);
+                                Toast.makeText(this, "更新失败: " + mapError(error), Toast.LENGTH_SHORT).show();
                                 binding.btnSave.setEnabled(true);
                                 binding.btnSave.setText("更新");
                             }
@@ -221,6 +239,7 @@ public class LogCreateActivity extends AppCompatActivity {
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                             result -> {
+                                saveHintHandler.removeCallbacks(saveHintRunnable);
                                 Toast.makeText(this, result.getMessage(), Toast.LENGTH_SHORT).show();
                                 saveCompleted = true;
                                 if (autoSaveManager != null) {
@@ -231,12 +250,26 @@ public class LogCreateActivity extends AppCompatActivity {
                                 finish();
                             },
                             error -> {
-                                Toast.makeText(this, "保存失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                saveHintHandler.removeCallbacks(saveHintRunnable);
+                                Toast.makeText(this, "保存失败: " + mapError(error), Toast.LENGTH_SHORT).show();
                                 binding.btnSave.setEnabled(true);
                                 binding.btnSave.setText("保存");
                             }
                     ));
         }
+    }
+
+    /**
+     * DEF-31-01: 错误文案统一走 ErrorMessageMapper 映射。
+     * BusinessException（含 HttpErrorParser 转换产物）按 code 精确映射，其余保留原始信息。
+     */
+    private String mapError(Throwable error) {
+        if (error instanceof com.example.project_pandora.core.exception.BusinessException) {
+            com.example.project_pandora.core.exception.BusinessException be =
+                    (com.example.project_pandora.core.exception.BusinessException) error;
+            return com.example.project_pandora.core.util.ErrorMessageMapper.map(be.getCode(), be.getMessage());
+        }
+        return error.getMessage() != null ? error.getMessage() : "未知错误";
     }
 
     @Override
@@ -250,6 +283,7 @@ public class LogCreateActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        saveHintHandler.removeCallbacks(saveHintRunnable);
         if (autoSaveManager != null) {
 
             autoSaveManager.stop();

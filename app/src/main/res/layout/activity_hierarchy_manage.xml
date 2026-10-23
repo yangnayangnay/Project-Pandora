@@ -9,7 +9,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#F5F5F5">
+        android:background="@color/color_bg_page">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -39,7 +39,7 @@
                     android:text="当前层级关系"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="#333333"
+                    android:textColor="@color/color_text_primary"
                     android:layout_marginBottom="8dp" />
 
                 <androidx.recyclerview.widget.RecyclerView
@@ -53,7 +53,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="暂无层级关系"
-                    android:textColor="#888888"
+                    android:textColor="@color/color_text_secondary"
                     android:gravity="center"
                     android:padding="16dp"
                     android:visibility="gone" />
@@ -70,7 +70,7 @@
                     android:text="添加层级关系"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="#333333"
+                    android:textColor="@color/color_text_primary"
                     android:layout_marginBottom="8dp" />
 
                 <TextView
@@ -78,7 +78,7 @@
                     android:layout_height="wrap_content"
                     android:text="上级："
                     android:textSize="14sp"
-                    android:textColor="#555555" />
+                    android:textColor="@color/color_text_primary" />
 
                 <Spinner
                     android:id="@+id/spinnerSuperior"
@@ -91,7 +91,7 @@
                     android:layout_height="wrap_content"
                     android:text="下级："
                     android:textSize="14sp"
-                    android:textColor="#555555" />
+                    android:textColor="@color/color_text_primary" />
 
                 <Spinner
                     android:id="@+id/spinnerSubordinate"

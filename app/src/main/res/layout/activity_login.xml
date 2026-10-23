@@ -32,8 +32,19 @@
         android:text="@string/btn_refresh_server"
         android:textSize="13sp"
         android:visibility="gone"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="8dp"
         style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+    <!-- Round29 T7 修复: 生效地址不可达时的自救入口（冷启动登录页可达，避免恢复路径断裂） -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_login_server_config"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/btn_login_server_config"
+        android:textSize="13sp"
+        android:visibility="gone"
+        android:layout_marginBottom="16dp"
+        style="@style/Widget.MaterialComponents.Button.TextButton" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
@@ -46,7 +57,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/hint_username_or_email"
-            android:inputType="text" />
+            android:inputType="text"
+            android:textColor="@color/color_text_edit_content" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.textfield.TextInputLayout
@@ -60,7 +72,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/hint_password"
-            android:inputType="textPassword" />
+            android:inputType="textPassword"
+            android:textColor="@color/color_text_edit_content" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.button.MaterialButton
@@ -71,14 +84,7 @@
         android:textSize="16sp" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_go_register"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/btn_go_register"
-        android:textSize="14sp"
-        style="@style/Widget.MaterialComponents.Button.TextButton" />
 
-    <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_forgot_password"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

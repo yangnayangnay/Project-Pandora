@@ -5,6 +5,7 @@ import android.util.Log;
 
 import com.example.project_pandora.core.network.NetworkStateMonitor;
 import com.example.project_pandora.core.network.ServerConnectivityMonitor;
+import com.example.project_pandora.core.network.ServerUrlManager;
 import com.example.project_pandora.core.sync.SyncManager;
 import com.example.project_pandora.core.util.StartupTracer;
 import com.example.project_pandora.notification.NotificationPollWorker;
@@ -20,6 +21,9 @@ public class PandoraApplication extends Application {
     public void onCreate() {
         super.onCreate();
 
+        // R37 REQ-37-B5: 主题首帧前应用（三态持久化；无记录=跟随系统，升级无感）
+        com.example.project_pandora.core.config.ThemePrefs.applyTheme(this);
+
         StartupTracer.begin("notificationChannel");
         TaskNotificationService.createNotificationChannel(this);
         StartupTracer.end("notificationChannel");
@@ -32,6 +36,11 @@ public class PandoraApplication extends Application {
             StartupTracer.begin("networkStateRegister");
             NetworkStateMonitor.getInstance().register(this);
             StartupTracer.end("networkStateRegister");
+
+            // Round29: 服务器地址配置预热（先于健康检查启动，保证首轮即读到生效地址）
+            StartupTracer.begin("serverUrlInit");
+            ServerUrlManager.getInstance(this);
+            StartupTracer.end("serverUrlInit");
 
             StartupTracer.begin("serverConnStart");
             ServerConnectivityMonitor.getInstance().startMonitoring(this);

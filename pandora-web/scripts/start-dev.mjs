@@ -36,6 +36,21 @@ function waitForPort(port, timeoutMs = 30000) {
 }
 
 async function main() {
+  // R43 REQ-C: 云端模式（默认）不依赖本地后端——直接起 Vite（/api 代理指云）；
+  // --local 参数或 VITE_API_TARGET=local 环境变量切回本地模式（自启本地 JAR）
+  const useLocal = process.env.VITE_API_TARGET === 'local' || process.argv.includes('--local')
+  process.env.VITE_API_TARGET = useLocal ? 'local' : ''
+  if (!useLocal) {
+    console.log('[启动脚本] 云端数据链路模式（/api -> http://123.56.153.138:8080），跳过本地后端')
+    const vite = spawn('npx', ['vite'], {
+      cwd: resolve(__dirname, '..'),
+      stdio: 'inherit',
+      shell: true
+    })
+    vite.on('exit', (code) => process.exit(code ?? 0))
+    return
+  }
+
   const backendRunning = await isPortListening(BACKEND_PORT)
 
   if (!backendRunning) {

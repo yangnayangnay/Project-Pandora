@@ -47,9 +47,18 @@ public class PersonalTop10Controller {
             throw new BusinessException(ErrorCode.TOP10_LIMIT_EXCEEDED);
         }
 
+        // Round23 REQ-23-01: 可选 category 入参——PERSONAL_INFO(个人信息类，进入个人十大信息象限) /
+        // WORK_ITEM(工作事项类，默认，不展示)。
+        // 非法值处理策略：按缺省 WORK_ITEM 处理（宽容策略，旧客户端不带该参数时行为与旧版完全一致）
+        Object categoryObj = request.get("category");
+        String category = categoryObj != null ? categoryObj.toString().trim() : "";
+        if (!"PERSONAL_INFO".equals(category) && !"WORK_ITEM".equals(category)) {
+            category = "WORK_ITEM";
+        }
+
         jdbcTemplate.update(
-                "INSERT INTO top10_works (user_id, work_type, rank_order, content, is_auto_filled) VALUES (?, 'PERSONAL_IMPORTANT', ?, ?, 0)",
-                userId, rankOrder, content.trim());
+                "INSERT INTO top10_works (user_id, work_type, rank_order, content, is_auto_filled, category) VALUES (?, 'PERSONAL_IMPORTANT', ?, ?, 0, ?)",
+                userId, rankOrder, content.trim(), category);
 
         Long id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         Map<String, Object> result = new HashMap<>();

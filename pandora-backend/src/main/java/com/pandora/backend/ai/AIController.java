@@ -11,6 +11,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import com.pandora.backend.audit.Auditable;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -18,18 +21,27 @@ import java.util.*;
 @RequestMapping("/ai")
 public class AIController {
 
+    private static final Logger log = LoggerFactory.getLogger(AIController.class);
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private AIGatewayService aiGatewayService;
 
+    @Autowired
+    private LocalFallbackAIClient localFallbackAIClient;
+
+    // Round28 REQ-28-12: MBTI 新报告后失效个人十大 AI 点评缓存
+    @Autowired
+    private com.pandora.backend.view.PersonalTop10Generator personalTop10Generator;
+
     @Value("${deepseek.api-url:}")
     private String deepseekApiUrl;
 
     @PostMapping("/mbti/submit")
     @Auditable(operationType = "AI_MBTI_SUBMIT", targetType = "AI_ANALYSIS")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> submitMbti(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> submitMbti(@RequestBody Map<String, Object> request, HttpServletRequest servletRequest) {
         Long userId = getCurrentUserId();
         List<Integer> answers = (List<Integer>) request.get("answers");
         if (answers == null || answers.isEmpty()) {
@@ -40,10 +52,16 @@ public class AIController {
         String reportContent;
         String aiSource;
 
+        // Round28 REQ-28-02: 同步段解析透传配置，final 捕获传入异步 lambda（异步段不可用请求上下文）
+        final AiTransmitConfig aiConfig = AiTransmitConfig.fromHeaders(servletRequest);
+
         try {
-            Map<String, Object> aiResult = aiGatewayService.invoke(
-                    "请为MBTI性格类型 " + personalityType + " 生成一份详细的性格分析报告，包括性格特点、优势劣势和适合的职业方向。",
-                    "MBTI_REPORT");
+            // Round24 T2.4: 15 秒限时（消灭无限等待；超时走本地报告兜底）
+            java.util.concurrent.CompletableFuture<Map<String, Object>> aiFuture =
+                    java.util.concurrent.CompletableFuture.supplyAsync(() -> aiGatewayService.invoke(
+                            "请为MBTI性格类型 " + personalityType + " 生成一份详细的性格分析报告，包括性格特点、优势劣势和适合的职业方向。",
+                            "MBTI_REPORT", aiConfig));
+            Map<String, Object> aiResult = aiFuture.get(15, java.util.concurrent.TimeUnit.SECONDS);
             if ("EXTERNAL".equals(aiResult.get("source"))) {
                 reportContent = (String) aiResult.get("result");
                 aiSource = "EXTERNAL";
@@ -60,6 +78,11 @@ public class AIController {
                 "INSERT INTO mbti_reports (user_id, personality_type, answer_data, report_content) VALUES (?, ?, ?, ?)",
                 userId, personalityType, answers.toString(), reportContent
         );
+
+        // Round28 REQ-28-12: 新 MBTI 报告落库后失效个人十大（下次查看重新生成点评）
+        try {
+            personalTop10Generator.invalidateUser(userId);
+        } catch (Exception ignored) {}
 
         Long reportId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
 
@@ -78,15 +101,42 @@ public class AIController {
         try {
             Map<String, Object> report = jdbcTemplate.queryForMap(
                     "SELECT * FROM mbti_reports WHERE user_id = ? AND deleted = 0 ORDER BY generated_at DESC LIMIT 1", userId);
-            return ResponseEntity.ok(ApiResponse.success(report));
+            // Round24 T5.1: 响应键驼峰化（与 /ai/mbti/report/generate 响应键对齐，App 端无需双键兜底）
+            return ResponseEntity.ok(ApiResponse.success(formatReport(report)));
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "暂无MBTI报告");
         }
     }
 
+    /**
+     * Round24 T5.1: mbti_reports 原始行（大写下划线键）→ 驼峰单键结构。
+     */
+    private Map<String, Object> formatReport(Map<String, Object> row) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("reportId", getRowValue(row, "id", "ID"));
+        result.put("personalityType", getRowValue(row, "personality_type", "PERSONALITY_TYPE"));
+        result.put("reportContent", getRowValue(row, "report_content", "REPORT_CONTENT"));
+        result.put("generatedAt", formatTimestamp(getRowValue(row, "generated_at", "GENERATED_AT")));
+        return result;
+    }
+
+    private Object getRowValue(Map<String, Object> row, String lower, String upper) {
+        Object val = row.get(lower);
+        if (val == null) val = row.get(upper);
+        return val;
+    }
+
+    private String formatTimestamp(Object val) {
+        if (val == null) return null;
+        if (val instanceof java.sql.Timestamp) {
+            return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format((java.sql.Timestamp) val);
+        }
+        return val.toString();
+    }
+
     @PostMapping("/mbti/report/generate")
     @Auditable(operationType = "AI_MBTI_REPORT_GENERATE", targetType = "AI_ANALYSIS")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> generateMbtiReport(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> generateMbtiReport(@RequestBody Map<String, Object> request, HttpServletRequest servletRequest) {
         Long userId = getCurrentUserId();
         String personalityType = request.get("personalityType") != null ? request.get("personalityType").toString() : null;
         if (personalityType == null || !personalityType.matches("^[EI][SN][TF][JP]$")) {
@@ -99,10 +149,16 @@ public class AIController {
         String reportContent;
         String aiSource;
 
+        // Round28 REQ-28-02: 同步段解析透传配置，final 捕获传入异步 lambda
+        final AiTransmitConfig aiConfig = AiTransmitConfig.fromHeaders(servletRequest);
+
         try {
-            Map<String, Object> aiResult = aiGatewayService.invoke(
-                    "请为MBTI性格类型 " + personalityType + " 生成一份详细的性格分析报告，包括性格特点、优势劣势和适合的职业方向。",
-                    "MBTI_REPORT");
+            // Round24 T2.4: 15 秒限时（消灭无限等待；超时走本地报告兜底）
+            java.util.concurrent.CompletableFuture<Map<String, Object>> aiFuture =
+                    java.util.concurrent.CompletableFuture.supplyAsync(() -> aiGatewayService.invoke(
+                            "请为MBTI性格类型 " + personalityType + " 生成一份详细的性格分析报告，包括性格特点、优势劣势和适合的职业方向。",
+                            "MBTI_REPORT", aiConfig));
+            Map<String, Object> aiResult = aiFuture.get(15, java.util.concurrent.TimeUnit.SECONDS);
             if ("EXTERNAL".equals(aiResult.get("source"))) {
                 reportContent = (String) aiResult.get("result");
                 aiSource = "EXTERNAL";
@@ -120,6 +176,11 @@ public class AIController {
                 userId, personalityType, answersStr, reportContent
         );
 
+        // Round28 REQ-28-12: 新 MBTI 报告落库后失效个人十大（下次查看重新生成点评）
+        try {
+            personalTop10Generator.invalidateUser(userId);
+        } catch (Exception ignored) {}
+
         Long reportId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
 
         Map<String, Object> result = new HashMap<>();
@@ -134,7 +195,7 @@ public class AIController {
 
     @PostMapping("/keyword")
     @Auditable(operationType = "AI_KEYWORD_ANALYSIS", targetType = "AI_ANALYSIS")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> keywordAnalysis(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> keywordAnalysis(@RequestBody Map<String, Object> request, HttpServletRequest servletRequest) {
         String text = (String) request.get("text");
         if (text == null || text.trim().isEmpty()) {
             throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "分析文本不能为空");
@@ -143,10 +204,13 @@ public class AIController {
         List<Map<String, Object>> keywords;
         String aiSource;
 
+        // Round28 REQ-28-02: 同步调用直接透传
+        AiTransmitConfig aiConfig = AiTransmitConfig.fromHeaders(servletRequest);
+
         try {
             Map<String, Object> aiResult = aiGatewayService.invoke(
                     "分析以下文本的10个关键词及其出现次数，以JSON数组格式返回：\n" + text,
-                    "KEYWORD_ANALYSIS");
+                    "KEYWORD_ANALYSIS", aiConfig);
             if ("EXTERNAL".equals(aiResult.get("source"))) {
                 keywords = parseExternalKeywords((String) aiResult.get("result"));
                 aiSource = "EXTERNAL";
@@ -166,7 +230,7 @@ public class AIController {
     }
 
     @GetMapping("/suggestion")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getSuggestion() {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSuggestion(HttpServletRequest servletRequest) {
         Long userId = getCurrentUserId();
 
         Map<String, Object> suggestion = new HashMap<>();
@@ -231,14 +295,18 @@ public class AIController {
         try {
             final String fRoleDisplay = roleDisplay;
             final int fTotalTasks = totalTasks, fCompletedTasks = completedTasks, fInProgressTasks = inProgressTasks, fOverdueTasks = overdueTasks, fLogCount = logCount;
+            // Round28 REQ-28-02: 同步段解析透传配置，final 捕获传入异步 lambda
+            final AiTransmitConfig aiConfig = AiTransmitConfig.fromHeaders(servletRequest);
             java.util.concurrent.CompletableFuture<Map<String, Object>> aiFuture =
                     java.util.concurrent.CompletableFuture.supplyAsync(() ->
                             aiGatewayService.invoke(
                                     "用户角色：" + fRoleDisplay + "，任务总数：" + fTotalTasks + "，已完成：" + fCompletedTasks +
                                     "，进行中：" + fInProgressTasks + "，逾期：" + fOverdueTasks + "，日志数：" + fLogCount +
                                     "。请生成工作建议、职业发展建议和发展计划。",
-                                    "SUGGESTION"));
-            Map<String, Object> aiResult = aiFuture.get(5, java.util.concurrent.TimeUnit.SECONDS);
+                                    "SUGGESTION", aiConfig));
+            // SUGGESTION max_tokens=500，本地 GPU 推理需 8~10 秒，5 秒限时会导致永远走本地兜底（实测推翻设计假设）；
+            // 与 MBTI（2.4.5-D）同理放宽至 15 秒，保证 REQ-24-07"建议真实 AI 生成"可达；App 端已有加载态承载等待
+            Map<String, Object> aiResult = aiFuture.get(15, java.util.concurrent.TimeUnit.SECONDS);
             if ("EXTERNAL".equals(aiResult.get("source"))) {
                 workAdvice = (String) aiResult.get("result");
                 aiSource = "EXTERNAL";
@@ -251,6 +319,231 @@ public class AIController {
         suggestion.put("source", aiSource);
 
         return ResponseEntity.ok(ApiResponse.success(suggestion));
+    }
+
+    /**
+     * Round23 REQ-23-08: 梅花易数卦象 AI 解读接口。
+     * 入参: {originalName(必填), mutualName/changedName(可选), movingLine(1~6, 可选)}
+     * 出参: {analysis(非空), source: EXTERNAL|LOCAL_FALLBACK}
+     * AI 不可用（含 5 秒超时）时降级为本地兜底文案返回 200，不向上抛 AI_UNAVAILABLE。
+     * Round24 T4.2: 解读生成逻辑提取为 generateDivinationAnalysis 公共方法（与 /ai/divination/record 共用）。
+     */
+    @PostMapping("/divination")
+    @Auditable(operationType = "AI_DIVINATION_ANALYSIS", targetType = "AI_ANALYSIS")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> divinationAnalysis(@RequestBody Map<String, Object> request, HttpServletRequest servletRequest) {
+        String originalName = (String) request.get("originalName");
+        if (originalName == null || originalName.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "本卦名称不能为空");
+        }
+
+        String mutualName = strOrEmpty(request.get("mutualName"));
+        String changedName = strOrEmpty(request.get("changedName"));
+        Integer movingLine = parseMovingLine(request.get("movingLine"));
+
+        // Round28 REQ-28-07: 入口解析透传配置传入共用生成方法（起卦后 AI 分析展示）
+        AiTransmitConfig aiConfig = AiTransmitConfig.fromHeaders(servletRequest);
+        Map<String, Object> result = generateDivinationAnalysis(originalName, mutualName, changedName, movingLine, aiConfig);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    /**
+     * Round24 T4.3: 查询当前用户当日梅花易数记录（每日一次约束的回显入口）。
+     * 有记录: {exists:true, record:{originalName, mutualName, changedName, movingLine, analysis, source, divinationDate}}
+     * 无记录/查询异常: {exists:false}（200 不抛 404——宁可放行不可误拦）
+     */
+    @GetMapping("/divination/today")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDivinationToday() {
+        Long userId = getCurrentUserId();
+        Map<String, Object> result = new HashMap<>();
+        result.put("exists", false);
+        try {
+            Map<String, Object> row = findTodayDivinationRecord(userId);
+            if (row != null) {
+                result.put("exists", true);
+                result.put("record", formatDivinationRecord(row));
+            }
+        } catch (Exception ignored) {}
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    /**
+     * Round24 T4.4: 起卦收口接口（服务端生成解读并落库，每日一次幂等锁定）。
+     * 入参: {originalName(必填), mutualName/changedName/movingLine(可选, 仅 1~6 整数)}
+     * 出参: {alreadyToday, record{...含 analysis/source/divinationDate}}
+     * 先查当日记录（有→alreadyToday=true+已存记录）→ 无→generateDivinationAnalysis→INSERT→alreadyToday=false+新记录。
+     * UNIQUE 冲突（并发窗口）→ catch 后改查当日记录返回 alreadyToday=true；
+     * 非 UNIQUE 落库失败 → 记日志 + 仍返回当次解读（alreadyToday=false 放行语义，下次可重试）。
+     */
+    @PostMapping("/divination/record")
+    @Auditable(operationType = "AI_DIVINATION_RECORD", targetType = "AI_ANALYSIS")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> recordDivination(@RequestBody Map<String, Object> request, HttpServletRequest servletRequest) {
+        Long userId = getCurrentUserId();
+        String originalName = request.get("originalName") != null ? request.get("originalName").toString().trim() : "";
+        if (originalName.isEmpty()) {
+            throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "本卦名称不能为空");
+        }
+        String mutualName = strOrEmpty(request.get("mutualName"));
+        String changedName = strOrEmpty(request.get("changedName"));
+        Integer movingLine = parseMovingLine(request.get("movingLine"));
+
+        // 幂等锁定：当日已有记录 → 直接返回已存记录
+        Map<String, Object> existing = findTodayDivinationRecord(userId);
+        if (existing != null) {
+            return ResponseEntity.ok(ApiResponse.success(buildDivinationResponse(true, formatDivinationRecord(existing))));
+        }
+
+        // 服务端生成解读（复用 /ai/divination 提示词 + 5 秒限时 + 带上下文兜底）
+        // Round28 REQ-28-07: 透传配置解析后传入（起卦后 AI 分析展示）
+        AiTransmitConfig aiConfig = AiTransmitConfig.fromHeaders(servletRequest);
+        Map<String, Object> generated = generateDivinationAnalysis(originalName, mutualName, changedName, movingLine, aiConfig);
+        String analysis = (String) generated.get("analysis");
+        String source = (String) generated.get("source");
+
+        Map<String, Object> record = new HashMap<>();
+        record.put("originalName", originalName);
+        record.put("mutualName", mutualName.isEmpty() ? null : mutualName);
+        record.put("changedName", changedName.isEmpty() ? null : changedName);
+        record.put("movingLine", movingLine);
+        record.put("analysis", analysis);
+        record.put("source", source);
+        record.put("divinationDate", java.time.LocalDate.now().toString());
+
+        try {
+            jdbcTemplate.update(
+                    "INSERT INTO divination_records (user_id, divination_date, original_name, mutual_name, changed_name, moving_line, analysis, source) "
+                            + "VALUES (?, CURRENT_DATE, ?, ?, ?, ?, ?, ?)",
+                    userId, originalName,
+                    mutualName.isEmpty() ? null : mutualName,
+                    changedName.isEmpty() ? null : changedName,
+                    movingLine, analysis, source);
+        } catch (Exception e) {
+            // 并发窗口兜底：UNIQUE 冲突 → 改查当日记录返回 alreadyToday=true
+            Map<String, Object> concurrent = findTodayDivinationRecord(userId);
+            if (concurrent != null) {
+                return ResponseEntity.ok(ApiResponse.success(buildDivinationResponse(true, formatDivinationRecord(concurrent))));
+            }
+            // 非 UNIQUE 落库失败（或冲突后仍查不到）：记日志 + 仍返回当次解读（放行语义）
+            log.warn("起卦记录落库失败: {}", e.getMessage());
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(buildDivinationResponse(false, record)));
+    }
+
+    /**
+     * Round24 T4.2: 梅花易数解读生成公共方法（/ai/divination 与 /ai/divination/record 共用）。
+     * 提示词组装（积极红线+本卦/互卦/变卦+动爻）→ CompletableFuture 5 秒限时 → invoke →
+     * 非外部结果（超时/异常/通道降级/空结果）时走带卦象上下文的本地兜底（48 组差异化模板）。
+     */
+    private Map<String, Object> generateDivinationAnalysis(String originalName, String mutualName, String changedName, Integer movingLine, AiTransmitConfig aiConfig) {
+        // 积极红线提示词：鼓励正向行动建议，禁止消极/恐吓/宿命论表述
+        StringBuilder promptBuilder = new StringBuilder()
+                .append("请以积极向上、鼓励正向的基调解读以下梅花易数卦象，给出行动建议与鼓励，篇幅100~200字；")
+                .append("禁止出现'凶兆''大凶''不可为'等消极、恐吓、宿命论表述：")
+                .append("本卦").append(originalName.trim());
+        if (mutualName != null && !mutualName.isEmpty()) {
+            promptBuilder.append("，互卦").append(mutualName);
+        }
+        if (changedName != null && !changedName.isEmpty()) {
+            promptBuilder.append("，变卦").append(changedName);
+        }
+        if (movingLine != null) {
+            promptBuilder.append("，动爻第").append(movingLine).append("爻");
+        }
+        final String prompt = promptBuilder.toString();
+
+        // Round24 T3.2: 卦象上下文（本地兜底 48 组差异化模板入参）
+        Map<String, Object> context = new HashMap<>();
+        context.put("originalName", originalName.trim());
+        if (mutualName != null && !mutualName.isEmpty()) {
+            context.put("mutualName", mutualName);
+        }
+        if (changedName != null && !changedName.isEmpty()) {
+            context.put("changedName", changedName);
+        }
+        if (movingLine != null) {
+            context.put("movingLine", movingLine);
+        }
+
+        String analysis = null;
+        String source = "LOCAL_FALLBACK";
+        try {
+            java.util.concurrent.CompletableFuture<Map<String, Object>> aiFuture =
+                    java.util.concurrent.CompletableFuture.supplyAsync(() -> aiGatewayService.invoke(prompt, "DIVINATION", aiConfig));
+            // Round25 缺陷⑪: 5s 限时低于本地 GPU Ollama 热态推理耗时（8~10s）致永远走本地兜底，同 281 行 SUGGESTION 先例放宽至 15s
+            Map<String, Object> aiResult = aiFuture.get(15, java.util.concurrent.TimeUnit.SECONDS);
+            Object resultText = aiResult.get("result");
+            Object sourceObj = aiResult.get("source");
+            String aiSource = sourceObj != null ? sourceObj.toString() : "";
+            // 仅外部结果直接采用；通道降级返回的固定兜底文案不含卦象上下文，改走下方带上下文模板
+            if ("EXTERNAL".equals(aiSource) && resultText != null && !resultText.toString().trim().isEmpty()) {
+                analysis = resultText.toString().trim();
+                source = "EXTERNAL";
+            }
+        } catch (Exception ignored) {}
+
+        // AI 不可用（超时/异常/通道降级/空结果）→ 带卦象上下文的本地兜底文案，200 响应，不向上抛 AI_UNAVAILABLE
+        if (analysis == null || analysis.trim().isEmpty()) {
+            try {
+                analysis = localFallbackAIClient.call(prompt, "DIVINATION", context);
+            } catch (Exception e) {
+                analysis = "卦象解读：卦象蕴含积极向上的能量，建议您保持乐观心态、专注核心目标，"
+                        + "顺势而为、主动沟通，您的努力正被看见，好消息正在靠近。请理性看待占卜结果，仅供娱乐与文化体验。";
+            }
+            source = "LOCAL_FALLBACK";
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("analysis", analysis);
+        result.put("source", source);
+        return result;
+    }
+
+    /** 当日起卦记录查询（user_id + CURRENT_DATE，0 点自然重置语义） */
+    private Map<String, Object> findTodayDivinationRecord(Long userId) {
+        try {
+            return jdbcTemplate.queryForMap(
+                    "SELECT * FROM divination_records WHERE user_id = ? AND divination_date = CURRENT_DATE", userId);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** divination_records 原始行 → 驼峰契约结构 */
+    private Map<String, Object> formatDivinationRecord(Map<String, Object> row) {
+        Map<String, Object> record = new HashMap<>();
+        record.put("originalName", getRowValue(row, "original_name", "ORIGINAL_NAME"));
+        record.put("mutualName", getRowValue(row, "mutual_name", "MUTUAL_NAME"));
+        record.put("changedName", getRowValue(row, "changed_name", "CHANGED_NAME"));
+        record.put("movingLine", getRowValue(row, "moving_line", "MOVING_LINE"));
+        record.put("analysis", getRowValue(row, "analysis", "ANALYSIS"));
+        record.put("source", getRowValue(row, "source", "SOURCE"));
+        Object date = getRowValue(row, "divination_date", "DIVINATION_DATE");
+        record.put("divinationDate", date != null ? date.toString() : null);
+        return record;
+    }
+
+    private Map<String, Object> buildDivinationResponse(boolean alreadyToday, Map<String, Object> record) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("alreadyToday", alreadyToday);
+        result.put("record", record);
+        return result;
+    }
+
+    /** movingLine 可选解析：仅接受 1~6 的整数，其余情况视为未提供（null） */
+    private Integer parseMovingLine(Object movingLineObj) {
+        if (movingLineObj instanceof Number) {
+            int line = ((Number) movingLineObj).intValue();
+            if (line >= 1 && line <= 6) {
+                return line;
+            }
+        }
+        return null;
+    }
+
+    private String strOrEmpty(Object value) {
+        if (value == null) return "";
+        String str = value.toString().trim();
+        return str;
     }
 
     private String getRoleDisplay(String role) {
@@ -628,12 +921,22 @@ public class AIController {
     private String calculateMbtiType(List<Integer> answers) {
         int e = 0, i = 0, s = 0, n = 0, t = 0, f = 0, j = 0, p = 0;
 
+        // Round27 REQ-27-11: 60 题按题库 dimension 分桶计分（与 App 端逐题对齐）；
+        // 越界或非法维度回退 idx%4 旧序，保持兼容
         for (int idx = 0; idx < answers.size(); idx++) {
             int ans = answers.get(idx);
-            if (idx % 4 == 0) { if (ans == 1) e++; else i++; }
-            else if (idx % 4 == 1) { if (ans == 1) s++; else n++; }
-            else if (idx % 4 == 2) { if (ans == 1) t++; else f++; }
-            else { if (ans == 1) j++; else p++; }
+            String dim = MbtiQuestionBank.dimensionOf(idx);
+            if ("EI".equals(dim)) { if (ans == 1) e++; else i++; }
+            else if ("SN".equals(dim)) { if (ans == 1) s++; else n++; }
+            else if ("TF".equals(dim)) { if (ans == 1) t++; else f++; }
+            else if ("JP".equals(dim)) { if (ans == 1) j++; else p++; }
+            else {
+                log.warn("MBTI dimension fallback at idx={}, dim={}, answersSize={}", idx, dim, answers.size());
+                if (idx % 4 == 0) { if (ans == 1) e++; else i++; }
+                else if (idx % 4 == 1) { if (ans == 1) s++; else n++; }
+                else if (idx % 4 == 2) { if (ans == 1) t++; else f++; }
+                else { if (ans == 1) j++; else p++; }
+            }
         }
 
         return (e > i ? "E" : "I") + (s > n ? "S" : "N") + (t > f ? "T" : "F") + (j > p ? "J" : "P");

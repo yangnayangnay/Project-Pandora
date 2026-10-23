@@ -78,11 +78,12 @@ public class LogRepository {
                 });
     }
 
-    public Observable<Void> updateTop10(List<Map<String, Object>> top10List) {
+    // Round26 缺陷闭环：RxJava3 map 返回 null 抛 NPE，Void 方法统一改 Boolean 哨兵（调用方忽略元素）
+    public Observable<Boolean> updateTop10(List<Map<String, Object>> top10List) {
         return logApi.updateTop10(top10List)
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
-                    if (response.isSuccess()) return null;
+                    if (response.isSuccess()) return true;
                     throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
@@ -94,6 +95,42 @@ public class LogRepository {
                     if (response.isSuccess() && response.getData() != null) {
                         return response.getData();
                     }
+                    throw new BusinessException(response.getCode(), response.getMessage());
+                });
+    }
+
+    // Round26 B1（4.3 定稿方案）：个人十大增/改/删走 PersonalTop10Controller 端点（owner 校验 4046）
+    public Observable<Map<String, Object>> injectTop10(String content, int rankOrder) {
+        Map<String, Object> request = new HashMap<>();
+        request.put("content", content);
+        request.put("rankOrder", rankOrder);
+        return logApi.injectTop10(request)
+                .subscribeOn(Schedulers.io())
+                .map(response -> {
+                    if (response.isSuccess() && response.getData() != null) {
+                        return response.getData();
+                    }
+                    throw new BusinessException(response.getCode(), response.getMessage());
+                });
+    }
+
+    // RxJava3 ObservableMap 对 null 返回值抛 NPE，map 必须返回非 null（Boolean 哨兵，调用方 concat+ignoreElements 忽略元素）
+    public Observable<Boolean> updateTop10Content(Long id, String content) {
+        Map<String, Object> request = new HashMap<>();
+        request.put("content", content);
+        return logApi.updateTop10Content(id, request)
+                .subscribeOn(Schedulers.io())
+                .map(response -> {
+                    if (response.isSuccess()) return true;
+                    throw new BusinessException(response.getCode(), response.getMessage());
+                });
+    }
+
+    public Observable<Boolean> deleteTop10(Long id) {
+        return logApi.deleteTop10(id)
+                .subscribeOn(Schedulers.io())
+                .map(response -> {
+                    if (response.isSuccess()) return true;
                     throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
@@ -117,11 +154,12 @@ public class LogRepository {
                 });
     }
 
-    public Observable<Void> deleteLog(Long logId) {
+    // Round26 缺陷闭环：RxJava3 map 返回 null 抛 NPE（删除 HTTP 成功但 finish 不执行、误报删除失败），改 Boolean 哨兵
+    public Observable<Boolean> deleteLog(Long logId) {
         return logApi.deleteLog(logId)
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
-                    if (response.isSuccess()) return null;
+                    if (response.isSuccess()) return true;
                     throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }

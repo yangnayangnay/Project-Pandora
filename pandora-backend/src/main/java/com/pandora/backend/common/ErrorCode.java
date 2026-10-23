@@ -59,6 +59,7 @@ public enum ErrorCode {
     TOP10_CONTENT_DUPLICATE(4048, "该事项内容已存在，请勿重复添加"),
     TOP10_RANK_OUT_OF_RANGE(4049, "排名序号必须在1-10之间"),
     TOP10_SAVE_VERIFY_FAILED(4050, "保存失败，请重试。若多次失败请联系管理员"),
+    INVALID_PARAM_LENGTH(4051, "参数长度超限"),
     HIERARCHY_CYCLE_DETECTED(4060, "检测到循环引用，已截断"),
     HIERARCHY_ORPHAN_NODE(4061, "存在孤儿节点（上级已删除），已单独展示"),
 

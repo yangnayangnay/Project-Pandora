@@ -188,8 +188,8 @@ public class ResetRequestsActivity extends AppCompatActivity {
     }
 
     private Long num(Map<String, Object> m, String k) {
-        Object v = m.get(k);
-        return v instanceof Number ? ((Number) v).longValue() : null;
+        // Round26: 解析统一收敛至 NumberCompat（原非 Number 实例一律 null 语义保持）
+        return com.example.project_pandora.core.util.NumberCompat.toLong(m.get(k));
     }
 
     @Override

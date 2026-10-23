@@ -2,6 +2,7 @@ package com.example.project_pandora.core.divination;
 
 import java.util.Calendar;
 import java.util.Date;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class DivinationEngine {
 
@@ -74,6 +75,35 @@ public class DivinationEngine {
         int upperSum = yearZhi + month + day;
         int lowerSum = upperSum + hourZhi;
 
+        return divineBySums(upperSum, lowerSum);
+    }
+
+    /**
+     * Round23 REQ-23-08: 随机起卦（和数起卦法）。
+     * 生成两个 1~8191 的随机数：R1 模拟"可数之物"之数定上卦基数，
+     * R2 模拟"时辰之数"，与 divine(Date) 年月日时起卦完全同构——
+     * 上卦由 R1 决定、下卦由 R1+R2 决定、动爻由两和总数决定。
+     * 随机源选用 ThreadLocalRandom：娱乐场景无密码学安全要求，
+     * 免种子管理、免对象创建，每次独立采样保证连续起卦互不相关。
+     */
+    public DivinationResult divineRandom() {
+        int r1 = ThreadLocalRandom.current().nextInt(8191) + 1;
+        int r2 = ThreadLocalRandom.current().nextInt(8191) + 1;
+        return divineBySums(r1, r1 + r2);
+    }
+
+    /**
+     * Round23 REQ-23-08: 和数起卦公共核心（自 divine(Date) 提取，语义逐行不变）。
+     *
+     * 算法:
+     *   上卦数 = upperSum % 8，若为 0 取 8（先天卦数 1~8）
+     *   下卦数 = lowerSum % 8，若为 0 取 8
+     *   动爻 = (upperSum + lowerSum) % 6，若为 0 取 6（总数取动爻，1~6）
+     *   本卦编号 = (下卦数 - 1) × 8 + 上卦数（范围 1~64）
+     *   互卦/变卦/卦名卦辞爻辞沿用 calculateMutualHexagram /
+     *   calculateChangedHexagram / HexagramTexts
+     */
+    private DivinationResult divineBySums(int upperSum, int lowerSum) {
         int upperHexagram = upperSum % 8;
         if (upperHexagram == 0) upperHexagram = 8;
         int lowerHexagram = lowerSum % 8;
@@ -193,17 +223,99 @@ public class DivinationEngine {
                 originalLinePattern, mutualLinePattern, changedLinePattern);
     }
 
-    private int calculateChangedHexagram(int hexagram, int movingLine) {
-        int upper = (hexagram - 1) % 8 + 1;
-        int lower = (hexagram - 1) / 8 + 1;
+    /**
+     * Round24 REQ-24-06: 按卦名+动爻重建完整卦象（当日已算结果回显用）。
+     * HEXAGRAM_NAMES 反查本卦编号后复用互卦/变卦计算与 HexagramTexts 全量文本，
+     * 与 divineRandom 直接产出同构；非法卦名抛 IllegalArgumentException（调用方容错不崩溃）。
+     */
+    public DivinationResult fromNames(String originalName, int movingLine) {
+        return fromNames(originalName, null, null, movingLine);
+    }
 
-        if (movingLine <= 3) {
-            lower = flipTrigram(lower);
-        } else {
-            upper = flipTrigram(upper);
+    /**
+     * Round25 缺陷 #R25-03: 回显优先采用落库记录的互卦/变卦名。
+     * 旧回显仅按"本卦+动爻"重推互卦/变卦，当落库值非当前引擎产物
+     * （历史数据/算法演进/造数）时，卡片卦象与 AI 解读文本（基于落库名
+     * 生成）同屏矛盾（实测 admin0 记录互卦"夬" vs 引擎推导"乾"）。
+     * 落库名可反查时以其为准；空/未知名回退引擎推导。
+     */
+    public DivinationResult fromNames(String originalName, String mutualName, String changedName, int movingLine) {
+        if (originalName == null || originalName.trim().isEmpty()) {
+            throw new IllegalArgumentException("\u5366\u540D\u4E3A\u7A7A\uFF0C\u65E0\u6CD5\u91CD\u5EFA\u5366\u8C61");
+        }
+        int originalHexagram = nameToHexagram(originalName);
+        if (originalHexagram < 1) {
+            throw new IllegalArgumentException("\u672A\u77E5\u5366\u540D: " + originalName);
+        }
+        int line = movingLine;
+        if (line < 1) line = 1;
+        if (line > 6) line = 6;
+
+        int mutualHexagram = nameToHexagram(mutualName);
+        if (mutualHexagram < 1) {
+            mutualHexagram = calculateMutualHexagram(originalHexagram);
+        }
+        int changedHexagram = nameToHexagram(changedName);
+        if (changedHexagram < 1) {
+            changedHexagram = calculateChangedHexagram(originalHexagram, line);
         }
 
-        return (lower - 1) * 8 + upper;
+        String mutualNameResolved = HexagramTexts.getHexagramName(mutualHexagram);
+        String changedNameResolved = HexagramTexts.getHexagramName(changedHexagram);
+
+        String originalJudgment = HexagramTexts.getJudgment(originalHexagram);
+        String mutualJudgment = HexagramTexts.getJudgment(mutualHexagram);
+        String changedJudgment = HexagramTexts.getJudgment(changedHexagram);
+
+        String[] originalLines = new String[6];
+        String[] mutualLines = new String[6];
+        String[] changedLines = new String[6];
+        for (int i = 1; i <= 6; i++) {
+            originalLines[i - 1] = HexagramTexts.getLineText(originalHexagram, i);
+            mutualLines[i - 1] = HexagramTexts.getLineText(mutualHexagram, i);
+            changedLines[i - 1] = HexagramTexts.getLineText(changedHexagram, i);
+        }
+
+        boolean[] originalLinePattern = getLinePattern(originalHexagram);
+        boolean[] mutualLinePattern = getLinePattern(mutualHexagram);
+        boolean[] changedLinePattern = getLinePattern(changedHexagram);
+
+        return new DivinationResult(originalName, mutualNameResolved, changedNameResolved,
+                originalJudgment, mutualJudgment, changedJudgment,
+                originalLines, mutualLines, changedLines, line,
+                originalLinePattern, mutualLinePattern, changedLinePattern);
+    }
+
+    private int nameToHexagram(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return -1;
+        }
+        String[] names = HexagramTexts.HEXAGRAM_NAMES;
+        for (int i = 0; i < names.length; i++) {
+            if (names[i].equals(name)) {
+                return i + 1;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Round25 缺陷 #R25-02: 变卦改为标准"动爻单翻"。
+     * 旧实现按三爻卦编号整体 ^0x07 翻转：① 语义错误（动一爻不应整卦翻转，
+     * 如乾九五动旧算法得"需"，标准应为"大有"）；② 艮(7)/坤(8) 编号异或后
+     * 产生 0/15 无效编号，导致变卦名空串、落库 NULL（实测 id=5 遁+2爻、
+     * id=7 渐+2爻 变卦均为 null）。
+     * 标准算法：取本卦六爻画，仅翻转动爻一爻，重组上下卦编号。
+     */
+    private int calculateChangedHexagram(int hexagram, int movingLine) {
+        boolean[] pattern = getLinePattern(hexagram);
+        int line = Math.max(1, Math.min(6, movingLine));
+        pattern[line - 1] = !pattern[line - 1];
+
+        int lowerLines = (pattern[0] ? 1 : 0) | (pattern[1] ? 2 : 0) | (pattern[2] ? 4 : 0);
+        int upperLines = (pattern[3] ? 1 : 0) | (pattern[4] ? 2 : 0) | (pattern[5] ? 4 : 0);
+
+        return (linesToTrigram(lowerLines) - 1) * 8 + linesToTrigram(upperLines);
     }
 
     private int calculateMutualHexagram(int hexagram) {
@@ -228,9 +340,6 @@ public class DivinationEngine {
         return (mutualLower - 1) * 8 + mutualUpper;
     }
 
-    private int flipTrigram(int trigram) {
-        return trigram ^ 0x07;
-    }
 
     private int trigramToLines(int trigram) {
         switch (trigram) {

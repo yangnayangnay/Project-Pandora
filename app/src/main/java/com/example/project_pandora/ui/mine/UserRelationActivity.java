@@ -110,16 +110,13 @@ public class UserRelationActivity extends AppCompatActivity {
             for (Object item : (List<?>) raw) {
                 if (item instanceof Map) {
                     Map<String, Object> m = (Map<String, Object>) item;
-                    Long id = m.get("id") != null ? ((Number) m.get("id")).longValue() : null;
+                    // Round26: id/depth 解析统一收敛至 NumberCompat（原 id 为裸强转、depth 缺省 0，语义保持）
+                    Long id = com.example.project_pandora.core.util.NumberCompat.toLong(m.get("id"));
                     String realName = getStr(m, "realName");
                     String role = getStr(m, "role");
                     String deptName = getStr(m, "departmentName");
                     String teamName = getStr(m, "teamName");
-                    int depth = 0;
-                    Object depthObj = m.get("depth");
-                    if (depthObj instanceof Number) {
-                        depth = ((Number) depthObj).intValue();
-                    }
+                    int depth = com.example.project_pandora.core.util.NumberCompat.toIntOrDefault(m.get("depth"), 0);
                     result.add(new UserRelationItem(id, realName, role, deptName, teamName, depth));
                 }
             }

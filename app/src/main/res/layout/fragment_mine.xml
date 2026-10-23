@@ -9,7 +9,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@android:color/white">
+        android:background="?attr/colorSurface">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -27,7 +27,7 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:padding="16dp"
-            android:background="@android:color/white"
+            android:background="?attr/colorSurface"
             app:layout_constraintTop_toBottomOf="@id/toolbar">
 
             <de.hdodenhof.circleimageview.CircleImageView
@@ -53,7 +53,7 @@
                     android:layout_height="wrap_content"
                     android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="#212529" />
+                    android:textColor="@color/color_text_primary" />
 
                 <TextView
                     android:id="@+id/textRole"
@@ -61,7 +61,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:textSize="14sp"
-                    android:textColor="#888888" />
+                    android:textColor="@color/color_text_secondary" />
 
             </LinearLayout>
 
@@ -115,7 +115,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="›"
                                 android:textSize="20sp"
-                                android:textColor="#CCCCCC" />
+                                android:textColor="@color/color_text_secondary" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -141,35 +141,9 @@
                                 android:layout_height="wrap_content"
                                 android:text="›"
                                 android:textSize="20sp"
-                                android:textColor="#CCCCCC" />
+                                android:textColor="@color/color_text_secondary" />
                         </LinearLayout>
 
-                        <!-- Round19 REQ-19-12: 梅花易数入口 -->
-                        <LinearLayout
-                            android:id="@+id/btnDivination"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:padding="12dp"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:background="?attr/selectableItemBackground">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="梅花易数"
-                                android:textSize="16sp" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="›"
-                                android:textSize="20sp"
-                                android:textColor="#CCCCCC" />
-                        </LinearLayout>
 
                         <LinearLayout
                             android:id="@+id/btnBirthdayWish"
@@ -194,7 +168,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="›"
                                 android:textSize="20sp"
-                                android:textColor="#CCCCCC" />
+                                android:textColor="@color/color_text_secondary" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -221,7 +195,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="›"
                                 android:textSize="20sp"
-                                android:textColor="#CCCCCC" />
+                                android:textColor="@color/color_text_secondary" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -248,7 +222,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="›"
                                 android:textSize="20sp"
-                                android:textColor="#CCCCCC" />
+                                android:textColor="@color/color_text_secondary" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -275,7 +249,58 @@
                                 android:layout_height="wrap_content"
                                 android:text="›"
                                 android:textSize="20sp"
-                                android:textColor="#CCCCCC" />
+                                android:textColor="@color/color_text_secondary" />
+                        </LinearLayout>
+
+                        <!-- R37 REQ-37-B: 主题模式三选一（点选即全局生效；持久化 ThemePrefs）。
+                             垂直两行：标签一行+按钮组满宽一行（横向三段曾把黑夜按钮挤压至 29px 不可点，实测缺陷） -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="12dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/theme_mode_label"
+                                android:textSize="16sp" />
+
+                            <com.google.android.material.button.MaterialButtonToggleGroup
+                                android:id="@+id/toggleThemeMode"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                app:singleSelection="true"
+                                app:selectionRequired="true">
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnThemeSystem"
+                                    style="?attr/materialButtonOutlinedStyle"
+                                    android:layout_width="0dp"
+                                    android:layout_weight="1"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/theme_mode_system"
+                                    android:textSize="13sp" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnThemeDay"
+                                    style="?attr/materialButtonOutlinedStyle"
+                                    android:layout_width="0dp"
+                                    android:layout_weight="1"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/theme_mode_day"
+                                    android:textSize="13sp" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnThemeNight"
+                                    style="?attr/materialButtonOutlinedStyle"
+                                    android:layout_width="0dp"
+                                    android:layout_weight="1"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/theme_mode_night"
+                                    android:textSize="13sp" />
+                            </com.google.android.material.button.MaterialButtonToggleGroup>
                         </LinearLayout>
 
                         <LinearLayout
@@ -301,7 +326,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="›"
                                 android:textSize="20sp"
-                                android:textColor="#CCCCCC" />
+                                android:textColor="@color/color_text_secondary" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -328,7 +353,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="›"
                                 android:textSize="20sp"
-                                android:textColor="#CCCCCC" />
+                                android:textColor="@color/color_text_secondary" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -356,7 +381,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="›"
                                 android:textSize="20sp"
-                                android:textColor="#CCCCCC" />
+                                android:textColor="@color/color_text_secondary" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -383,7 +408,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="›"
                                 android:textSize="20sp"
-                                android:textColor="#CCCCCC" />
+                                android:textColor="@color/color_text_secondary" />
                         </LinearLayout>
 
                     </LinearLayout>

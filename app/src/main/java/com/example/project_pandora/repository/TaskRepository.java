@@ -5,6 +5,7 @@ import android.content.Context;
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.data.remote.TaskApi;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -96,7 +97,7 @@ public class TaskRepository {
                 });
     }
 
-    public Observable<Void> updateProgress(Long taskId, String progressNote, String status) {
+    public Observable<Map<String, Object>> updateProgress(Long taskId, String progressNote, String status) {
         Map<String, Object> request = new HashMap<>();
         if (progressNote != null) request.put("progressNote", progressNote);
         if (status != null) request.put("status", status);
@@ -104,7 +105,7 @@ public class TaskRepository {
         return taskApi.updateProgress(taskId, request)
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
-                    if (response.isSuccess()) return null;
+                    if (response.isSuccess()) return Collections.emptyMap();
                     throw new RuntimeException(response.getMessage());
                 });
     }
@@ -137,14 +138,14 @@ public class TaskRepository {
                 });
     }
 
-    public Observable<Void> transitionStatus(Long taskId, String targetStatus) {
+    public Observable<Map<String, Object>> transitionStatus(Long taskId, String targetStatus) {
         Map<String, String> request = new HashMap<>();
         request.put("status", targetStatus);
 
         return taskApi.transitionStatus(taskId, request)
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
-                    if (response.isSuccess()) return null;
+                    if (response.isSuccess()) return Collections.emptyMap();
                     throw new RuntimeException(response.getMessage());
                 });
     }
@@ -179,11 +180,11 @@ public class TaskRepository {
                 });
     }
 
-    public Observable<Void> deleteTask(Long taskId) {
+    public Observable<Map<String, Object>> deleteTask(Long taskId) {
         return taskApi.deleteTask(taskId)
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
-                    if (response.isSuccess()) return null;
+                    if (response.isSuccess()) return Collections.emptyMap();
                     throw new RuntimeException(response.getMessage());
                 });
     }

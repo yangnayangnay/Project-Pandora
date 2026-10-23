@@ -2,4 +2,37 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- REQ-31-03/05: 语义色板（亮色值；values-night 提供暗色同名额） -->
+    <!-- 编辑输入文字：亮色不透明纯黑 -->
+    <color name="color_text_edit_content">#FF000000</color>
+    <!-- 正文/次要文字（替换布局 #333333/#888888 等） -->
+    <color name="color_text_primary">#FF333333</color>
+    <color name="color_text_secondary">#FF888888</color>
+    <!-- 页面/卡片背景（替换硬编码白底） -->
+    <color name="color_bg_page">#FFFFFFFF</color>
+    <!-- 分隔线 -->
+    <color name="color_divider">#FFE0E0E0</color>
+    <!-- CalendarView 自绘组（亮色=现值） -->
+    <color name="color_calendar_bg">#FFFFFFFF</color>
+    <color name="color_calendar_header_bg">#FFF5F5F5</color>
+    <color name="color_calendar_text">#FF333333</color>
+    <color name="color_calendar_day_other">#FFAAAAAA</color>
+    <color name="color_calendar_today">#FF1976D2</color>
+    <color name="color_calendar_grid">#FFE8E8E8</color>
+    <color name="color_calendar_cell_bg">#FFF0F0F0</color>
+    <!-- 任务状态色（表格/详情共用，降饱和见夜间版） -->
+    <color name="color_status_completed_bg">#FF339AF0</color>
+    <color name="color_status_pending_bg">#FFFFD43B</color>
+    <color name="color_status_completed_text">#FFFFFFFF</color>
+    <color name="color_status_pending_text">#FF333333</color>
+    <!-- 紧急度色 -->
+    <color name="color_urgent_bg">#FFFF6B6B</color>
+    <color name="color_not_urgent_bg">#FF69DB7C</color>
+    <!-- R36 REQ-36-A1: 我布置的任务横线（直角描边样式专用色） -->
+    <color name="color_task_dispatched_stroke">#FF1565C0</color>
+    <color name="color_task_dispatched_text">#FF0D47A1</color>
+    <!-- 负责人本人标识色 -->
+    <color name="color_assignee_self">#FFE53935</color>
+    <color name="color_assignee_other">#FF6C757D</color>
 </resources>

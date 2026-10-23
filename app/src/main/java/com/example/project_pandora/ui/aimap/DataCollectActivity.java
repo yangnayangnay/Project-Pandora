@@ -39,8 +39,9 @@ public class DataCollectActivity extends AppCompatActivity {
 
     private void loadTaskData() {
         TaskRepository taskRepository = new TaskRepository(this);
+        Long userId = com.example.project_pandora.core.network.TokenManager.getInstance(this).getUserId();
         disposables.add(
-                taskRepository.listTasks(null, null)
+                taskRepository.listTasks(null, userId)
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 this::updateTaskStats,

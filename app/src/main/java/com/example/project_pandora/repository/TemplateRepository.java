@@ -5,6 +5,7 @@ import android.content.Context;
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.data.remote.TemplateApi;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,23 +47,23 @@ public class TemplateRepository {
                 });
     }
 
-    public Observable<Void> updateTemplate(Long templateId, String name, Map<String, Object> content) {
+    public Observable<Map<String, Object>> updateTemplate(Long templateId, String name, Map<String, Object> content) {
         Map<String, Object> request = new HashMap<>();
         request.put("name", name);
         request.put("content", content);
         return templateApi.updateTemplate(templateId, request)
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
-                    if (response.isSuccess()) return null;
+                    if (response.isSuccess()) return Collections.emptyMap();
                     throw new RuntimeException(response.getMessage());
                 });
     }
 
-    public Observable<Void> deleteTemplate(Long templateId) {
+    public Observable<Map<String, Object>> deleteTemplate(Long templateId) {
         return templateApi.deleteTemplate(templateId)
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
-                    if (response.isSuccess()) return null;
+                    if (response.isSuccess()) return Collections.emptyMap();
                     throw new RuntimeException(response.getMessage());
                 });
     }

@@ -294,8 +294,8 @@ public class HierarchyTreeAdapter extends RecyclerView.Adapter<RecyclerView.View
     private Long extractId(Map<String, Object> node) {
         Object id = node.get("id");
         if (id == null) id = node.get("ID");
-        if (id instanceof Number) return ((Number) id).longValue();
-        return null;
+        // Round26: 解析统一收敛至 NumberCompat（原 instanceof Number 判定语义保持）
+        return com.example.project_pandora.core.util.NumberCompat.toLong(id);
     }
 
     private String extractDisplayName(Map<String, Object> node) {

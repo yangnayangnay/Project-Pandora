@@ -16,6 +16,8 @@ import android.view.MenuItem;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
@@ -51,6 +53,8 @@ public class LogFragment extends Fragment {
     private String currentRole;
     private boolean isMyLogTab = true;
     private boolean hasOtherLogTab = false;
+    private boolean keyboardVisible = false;
+    private long currentUserId = -1L;
 
     private final List<Map<String, Object>> subordinateList = new ArrayList<>();
 
@@ -68,13 +72,17 @@ public class LogFragment extends Fragment {
         logRepository = new LogRepository(requireContext());
         logDisplayLimitConfig = new LogDisplayLimitConfig(requireContext());
         currentRole = TokenManager.getInstance(requireContext()).getRole();
+        Long uid = TokenManager.getInstance(requireContext()).getUserId();
+        currentUserId = uid != null ? uid : -1L;
 
         setupAdapters();
         setupTabs();
         setupSearch();
         setupFab();
         setupSwipeRefresh();
+        setupKeyboardFabToggle();
         setHasOptionsMenu(true);
+        setupToolbarMenu();
 
         if (binding.tabLayout.getTabCount() > 0) {
             binding.tabLayout.getTabAt(TAB_MY_LOG).select();
@@ -86,19 +94,19 @@ public class LogFragment extends Fragment {
         logAdapter = new LogAdapter(new LogAdapter.OnLogClickListener() {
             @Override
             public void onLogClick(Map<String, Object> log) {
-                Object id = log.get("id");
-                if (id instanceof Number) {
+                // Round26: 行 ID 解析收敛至 NumberCompat（原 instanceof Number 判定，串形态 ID 无法跳转）
+                Long logId = com.example.project_pandora.core.util.NumberCompat.toLong(log.get("id"));
+                if (logId != null) {
                     Intent intent = new Intent(requireContext(), LogDetailActivity.class);
-                    intent.putExtra(LogDetailActivity.EXTRA_LOG_ID, ((Number) id).longValue());
+                    intent.putExtra(LogDetailActivity.EXTRA_LOG_ID, logId);
                     startActivity(intent);
                 }
             }
 
             @Override
             public void onLogLongClick(Map<String, Object> log) {
-                Object id = log.get("id");
-                if (id instanceof Number) {
-                    long logId = ((Number) id).longValue();
+                Long logId = com.example.project_pandora.core.util.NumberCompat.toLong(log.get("id"));
+                if (logId != null) {
                     new AlertDialog.Builder(requireContext())
                             .setTitle("删除日志")
                             .setMessage("确定删除这条日志吗？")
@@ -107,12 +115,12 @@ public class LogFragment extends Fragment {
                             .show();
                 }
             }
-        });
+        }, currentUserId);
 
         binding.recyclerLogs.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerLogs.setAdapter(logAdapter);
 
-        subordinateLogAdapter = new SubordinateLogAdapter();
+        subordinateLogAdapter = new SubordinateLogAdapter(currentUserId);
         binding.recyclerSubordinateLogs.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerSubordinateLogs.setAdapter(subordinateLogAdapter);
     }
@@ -133,7 +141,7 @@ public class LogFragment extends Fragment {
                     binding.recyclerLogs.setVisibility(View.VISIBLE);
                     binding.recyclerSubordinateLogs.setVisibility(View.GONE);
                     binding.spinnerSubordinate.setVisibility(View.GONE);
-                    binding.fabAddLog.setVisibility(View.VISIBLE);
+                    updateFabVisibility();
                     clearSearchInputs();
                     loadMyLogs(null, null, null);
                 } else {
@@ -141,7 +149,7 @@ public class LogFragment extends Fragment {
                     binding.recyclerLogs.setVisibility(View.GONE);
                     binding.recyclerSubordinateLogs.setVisibility(View.VISIBLE);
                     binding.spinnerSubordinate.setVisibility(View.VISIBLE);
-                    binding.fabAddLog.setVisibility(View.GONE);
+                    updateFabVisibility();
                     clearSearchInputs();
                     loadSubordinateList();
                     loadSubordinateLogs(null, null, null, null);
@@ -175,9 +183,79 @@ public class LogFragment extends Fragment {
         });
     }
 
+    private void setupToolbarMenu() {
+        binding.toolbar.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.action_stat) {
+                showLogStats();
+                return true;
+            } else if (id == R.id.action_template) {
+                navigateToLogEntry();
+                return true;
+            }
+            return false;
+        });
+    }
+
     private void setupFab() {
-        binding.fabAddLog.setOnClickListener(v ->
-                startActivity(new Intent(requireContext(), LogCreateActivity.class)));
+        binding.fabAddLog.setOnClickListener(v -> navigateToLogEntry());
+    }
+
+    /** REQ-31-07: FAB/模板入口当日路由防双击标志 */
+    private boolean logEntryNavigating = false;
+
+    /**
+     * REQ-31-07: "添加日志"统一入口路由——当日已有本人日志（唯一约束至多一条）跳编辑模式，
+     * 无/查询失败降级新建（点击时单独查询，规避列表截断与搜索态数据替换风险）。
+     * 顺带根治 DEF-31-01：入口侧消除当日重复新建撞 4030 的场景。
+     */
+    private void navigateToLogEntry() {
+        if (logEntryNavigating) return;
+        logEntryNavigating = true;
+        String today = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                .format(new java.util.Date());
+        disposables.add(logRepository.listLogs(today, today, null)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        logs -> {
+                            logEntryNavigating = false;
+                            Intent intent = new Intent(requireContext(), LogCreateActivity.class);
+                            if (logs != null && !logs.isEmpty()) {
+                                Map<String, Object> todayLog = logs.get(0);
+                                intent.putExtra("editMode", true);
+                                intent.putExtra("logId", com.example.project_pandora.core.util.NumberCompat.toLong(todayLog.get("id")));
+                                intent.putExtra("workItem", todayLog.get("work_item") != null ? todayLog.get("work_item").toString() : "");
+                                intent.putExtra("workContent", todayLog.get("work_content") != null ? todayLog.get("work_content").toString() : "");
+                                intent.putExtra("logDate", today);
+                            }
+                            startActivity(intent);
+                        },
+                        error -> {
+                            logEntryNavigating = false;
+                            startActivity(new Intent(requireContext(), LogCreateActivity.class));
+                        }
+                ));
+    }
+
+    private void setupKeyboardFabToggle() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), (v, insets) -> {
+            boolean kb = insets.isVisible(WindowInsetsCompat.Type.ime())
+                    && insets.getInsets(WindowInsetsCompat.Type.ime()).bottom > 0;
+            if (kb != keyboardVisible) {
+                keyboardVisible = kb;
+                updateFabVisibility();
+            }
+            return insets;
+        });
+    }
+
+    private void updateFabVisibility() {
+        if (binding == null) return;
+        if (keyboardVisible || !isMyLogTab) {
+            binding.fabAddLog.setVisibility(View.GONE);
+        } else {
+            binding.fabAddLog.setVisibility(View.VISIBLE);
+        }
     }
 
     private void setupSwipeRefresh() {
@@ -206,7 +284,7 @@ public class LogFragment extends Fragment {
             showLogStats();
             return true;
         } else if (id == R.id.action_template) {
-            startActivity(new Intent(requireContext(), LogCreateActivity.class));
+            navigateToLogEntry();
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -253,6 +331,7 @@ public class LogFragment extends Fragment {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         logs -> {
+                            if (binding == null) return;
                             binding.swipeRefresh.setRefreshing(false);
                             List<Map<String, Object>> displayLogs = truncateByCountLimit(logs, isUnsearched);
                             logAdapter.setLogs(displayLogs);
@@ -260,6 +339,7 @@ public class LogFragment extends Fragment {
                             binding.textEmpty.setText("暂无日志");
                         },
                         error -> {
+                            if (binding == null) return;
                             binding.swipeRefresh.setRefreshing(false);
                             Toast.makeText(requireContext(), "加载失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                         }
@@ -314,6 +394,7 @@ public class LogFragment extends Fragment {
     }
 
     private void updateSubordinateSpinner() {
+        if (binding == null) return;
         List<String> names = new ArrayList<>();
         names.add("全部下属");
         for (Map<String, Object> sub : subordinateList) {
@@ -335,8 +416,8 @@ public class LogFragment extends Fragment {
         if (pos < subordinateList.size()) {
             Map<String, Object> sub = subordinateList.get(pos);
             if (sub != null) {
-                Object id = sub.get("id");
-                if (id instanceof Number) return ((Number) id).longValue();
+                // Round26: 解析统一收敛至 NumberCompat（原 instanceof Number 判定语义保持）
+                return com.example.project_pandora.core.util.NumberCompat.toLong(sub.get("id"));
             }
         }
         return null;
@@ -347,12 +428,14 @@ public class LogFragment extends Fragment {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         logs -> {
+                            if (binding == null) return;
                             binding.swipeRefresh.setRefreshing(false);
                             subordinateLogAdapter.setLogs(logs);
                             binding.textEmpty.setVisibility(logs.isEmpty() ? View.VISIBLE : View.GONE);
                             binding.textEmpty.setText("暂无下属日志");
                         },
                         error -> {
+                            if (binding == null) return;
                             binding.swipeRefresh.setRefreshing(false);
                             String msg = error.getMessage();
                             if (msg != null && msg.contains("403")) {

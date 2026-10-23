@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#FFF8F0">
+    android:background="@color/color_bg_page">
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
@@ -24,32 +24,21 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- 输入区 -->
+            <!-- 娱乐提示 -->
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="请输入一个正整数"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="#4E342E"
-                android:layout_marginBottom="8dp" />
-
-            <EditText
-                android:id="@+id/editNumber"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="例如：16"
-                android:inputType="number"
-                android:textSize="16sp"
-                android:background="@android:drawable/edit_text"
-                android:padding="12dp"
-                android:layout_marginBottom="16dp" />
+                android:text="仅供娱乐与文化体验，请理性看待"
+                android:textSize="12sp"
+                android:textColor="@color/color_text_secondary"
+                android:gravity="center"
+                android:layout_marginBottom="12dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnDivine"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="起卦"
+                android:text="随机起卦"
                 android:textSize="16sp"
                 android:backgroundTint="#E53935"
                 android:layout_marginBottom="24dp" />
@@ -61,7 +50,7 @@
                 android:layout_height="wrap_content"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="#4E342E"
+                android:textColor="@color/color_text_primary"
                 android:visibility="gone"
                 android:layout_marginBottom="12dp" />
 
@@ -89,6 +78,15 @@
                         android:textSize="14sp"
                         android:textStyle="bold"
                         android:textColor="#E53935" />
+
+                    <!-- Round27 REQ-27-13: 本卦卦象（自绘爻型，动爻高亮） -->
+                    <com.example.project_pandora.ui.ai.HexagramView
+                        android:id="@+id/hexagramOriginal"
+                        android:layout_width="120dp"
+                        android:layout_height="84dp"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="4dp" />
 
                     <TextView
                         android:id="@+id/textOriginalName"
@@ -135,6 +133,15 @@
                         android:textStyle="bold"
                         android:textColor="#F5A623" />
 
+                    <!-- Round27 REQ-27-13: 互卦卦象（自绘爻型，无动爻高亮） -->
+                    <com.example.project_pandora.ui.ai.HexagramView
+                        android:id="@+id/hexagramMutual"
+                        android:layout_width="120dp"
+                        android:layout_height="84dp"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="4dp" />
+
                     <TextView
                         android:id="@+id/textMutualName"
                         android:layout_width="wrap_content"
@@ -180,6 +187,15 @@
                         android:textStyle="bold"
                         android:textColor="#27AE60" />
 
+                    <!-- Round27 REQ-27-13: 变卦卦象（自绘爻型，无动爻高亮） -->
+                    <com.example.project_pandora.ui.ai.HexagramView
+                        android:id="@+id/hexagramChanged"
+                        android:layout_width="120dp"
+                        android:layout_height="84dp"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="4dp" />
+
                     <TextView
                         android:id="@+id/textChangedName"
                         android:layout_width="wrap_content"
@@ -209,6 +225,52 @@
                 android:textColor="#6D4C41"
                 android:visibility="gone"
                 android:layout_marginTop="8dp" />
+
+            <!-- AI 解读卡片 -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardAiAnalysis"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="12dp"
+                android:visibility="gone"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="2dp"
+                xmlns:app="http://schemas.android.com/apk/res-auto">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="AI 解读"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="#7B1FA2" />
+
+                    <TextView
+                        android:id="@+id/textAiAnalysis"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="13sp"
+                        android:textColor="#5D4037"
+                        android:layout_marginTop="4dp" />
+
+                    <TextView
+                        android:id="@+id/textAiSource"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="11sp"
+                        android:textColor="@color/color_text_secondary"
+                        android:layout_marginTop="4dp"
+                        android:gravity="end" />
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
         </LinearLayout>
     </ScrollView>

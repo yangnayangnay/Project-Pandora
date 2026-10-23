@@ -25,6 +25,10 @@ public class HierarchyController {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    // Round28 REQ-28-12: 归属关系变更后失效受影响用户的个人十大 AI 点评缓存
+    @Autowired
+    private com.pandora.backend.view.PersonalTop10Generator personalTop10Generator;
+
     @PostMapping("/relation")
     @Auditable(operationType = "HIERARCHY_ADD", targetType = "USER_HIERARCHY")
     public ResponseEntity<ApiResponse<Map<String, Object>>> addRelation(@RequestBody Map<String, Object> request) {
@@ -33,6 +37,9 @@ public class HierarchyController {
         boolean forceReplace = Boolean.TRUE.equals(request.get("forceReplace"));
         Map<String, Object> result = hierarchyService.addRelation(superiorId, subordinateId, forceReplace);
 
+        // Round28 REQ-28-12: 归属变更失效双方个人十大
+        invalidateTop10Safely(superiorId, subordinateId);
+
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
@@ -40,7 +47,20 @@ public class HierarchyController {
     @Auditable(operationType = "HIERARCHY_REMOVE", targetType = "USER_HIERARCHY")
     public ResponseEntity<ApiResponse<Map<String, Object>>> removeRelation(@RequestParam Long superiorId, @RequestParam Long subordinateId) {
         hierarchyService.removeRelation(superiorId, subordinateId);
+
+        // Round28 REQ-28-12: 归属变更失效双方个人十大
+        invalidateTop10Safely(superiorId, subordinateId);
+
         return ResponseEntity.ok(ApiResponse.success(Map.of("success", true)));
+    }
+
+    private void invalidateTop10Safely(Long superiorId, Long subordinateId) {
+        try {
+            personalTop10Generator.invalidateUser(superiorId);
+        } catch (Exception ignored) {}
+        try {
+            personalTop10Generator.invalidateUser(subordinateId);
+        } catch (Exception ignored) {}
     }
 
     @GetMapping("/relations")

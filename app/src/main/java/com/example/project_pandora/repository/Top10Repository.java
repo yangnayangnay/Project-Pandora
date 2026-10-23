@@ -6,6 +6,7 @@ import com.example.project_pandora.core.exception.BusinessException;
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.data.remote.Top10Api;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -53,11 +54,11 @@ public class Top10Repository {
                 });
     }
 
-    public Observable<Void> deleteCompanyImportant(long id) {
+    public Observable<Map<String, Object>> deleteCompanyImportant(long id) {
         return top10Api.deleteCompanyImportant(id)
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
-                    if (response.isSuccess()) return null;
+                    if (response.isSuccess()) return Collections.emptyMap();
                     throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
@@ -84,11 +85,11 @@ public class Top10Repository {
                 });
     }
 
-    public Observable<Void> unmarkCompanyDispatch(long taskId) {
+    public Observable<Map<String, Object>> unmarkCompanyDispatch(long taskId) {
         return top10Api.unmarkCompanyDispatch(taskId)
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
-                    if (response.isSuccess()) return null;
+                    if (response.isSuccess()) return Collections.emptyMap();
                     throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }

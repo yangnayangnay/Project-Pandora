@@ -44,6 +44,17 @@ public interface LogApi {
     @GET("log/top10")
     Observable<ApiResponse<List<Map<String, Object>>>> getTop10(@Query("workType") String workType);
 
+    // Round26 B1（4.3 定稿方案）：个人十大增/改/删改走 PersonalTop10Controller（owner 校验 4046），
+    // 老端点 PUT log/top10 批量保存因 top10_works 无复合唯一键（ON DUPLICATE 永不触发，纯 INSERT 累积重复行）弃用
+    @POST("view/personal-top10/inject")
+    Observable<ApiResponse<Map<String, Object>>> injectTop10(@Body Map<String, Object> request);
+
+    @PUT("view/personal-top10/inject/{id}")
+    Observable<ApiResponse<Map<String, Object>>> updateTop10Content(@Path("id") Long id, @Body Map<String, Object> request);
+
+    @DELETE("view/personal-top10/inject/{id}")
+    Observable<ApiResponse<Void>> deleteTop10(@Path("id") Long id);
+
     @GET("log/subordinate")
     Observable<ApiResponse<List<Map<String, Object>>>> getSubordinateLogs(
             @Query("subordinateId") Long subordinateId,

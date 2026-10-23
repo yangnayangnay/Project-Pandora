@@ -82,8 +82,11 @@ public class ProfileActivity extends AppCompatActivity {
                                 binding.editEmail.setText(originalEmail);
                                 binding.editPhone.setText(originalPhone);
                                 binding.textRole.setText(com.example.project_pandora.core.util.RoleDisplayUtil.toChinese(getStr(data, "role")));
-                                binding.textDepartment.setText(getNumAsIntStr(data, "departmentId"));
-                                binding.textTeam.setText(getNumAsIntStr(data, "teamId"));
+                                // Round26 观察F: 部门/团队显示名称（/me 已补 LEFT JOIN；空值显示占位"-"）
+                                String deptName = getStr(data, "departmentName");
+                                binding.textDepartment.setText(deptName.isEmpty() ? "-" : deptName);
+                                String teamName = getStr(data, "teamName");
+                                binding.textTeam.setText(teamName.isEmpty() ? "-" : teamName);
 
                                 loadAvatar(originalAvatar);
                             }
@@ -97,12 +100,6 @@ public class ProfileActivity extends AppCompatActivity {
         return val != null ? val.toString() : "";
     }
 
-    private String getNumAsIntStr(Map<String, Object> map, String key) {
-        Object val = map.get(key);
-        if (val == null) return "";
-        if (val instanceof Number) return String.valueOf(((Number) val).intValue());
-        return val.toString();
-    }
 
     private void loadAvatar(String avatarUrl) {
         if (avatarUrl != null && !avatarUrl.isEmpty()) {

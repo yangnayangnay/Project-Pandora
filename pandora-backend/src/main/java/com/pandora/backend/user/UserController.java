@@ -36,6 +36,10 @@ public class UserController {
     @Autowired
     private com.pandora.backend.hierarchy.HierarchyService hierarchyService;
 
+    // Round28 REQ-28-12: 个人信息变更同步失效个人十大 AI 点评缓存
+    @Autowired
+    private com.pandora.backend.view.PersonalTop10Generator personalTop10Generator;
+
     private static final Pattern EMAIL_REGEX = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
     private static final Pattern PHONE_REGEX = Pattern.compile("^1[3-9]\\d{9}$");
 
@@ -43,11 +47,16 @@ public class UserController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCurrentUser() {
         Long userId = getCurrentUserId();
         try {
+            // Round26 观察F: LEFT JOIN 补部门/团队名称（悬空/无归属返回 NULL，App 端显示占位）
             Map<String, Object> user = jdbcTemplate.queryForMap(
-                    "SELECT id AS \"id\", username AS \"username\", role AS \"role\", email AS \"email\", " +
-                    "real_name AS \"realName\", phone AS \"phone\", department_id AS \"departmentId\", " +
-                    "team_id AS \"teamId\", avatar AS \"avatar\", theme_mode AS \"themeMode\", manual_theme AS \"manualTheme\" " +
-                    "FROM users WHERE id = ? AND deleted = 0", userId);
+                    "SELECT u.id AS \"id\", u.username AS \"username\", u.role AS \"role\", u.email AS \"email\", " +
+                    "u.real_name AS \"realName\", u.phone AS \"phone\", u.department_id AS \"departmentId\", " +
+                    "u.team_id AS \"teamId\", d.name AS \"departmentName\", t.name AS \"teamName\", " +
+                    "u.avatar AS \"avatar\", u.theme_mode AS \"themeMode\", u.manual_theme AS \"manualTheme\" " +
+                    "FROM users u " +
+                    "LEFT JOIN departments d ON u.department_id = d.id AND d.deleted = 0 " +
+                    "LEFT JOIN teams t ON u.team_id = t.id AND t.deleted = 0 " +
+                    "WHERE u.id = ? AND u.deleted = 0", userId);
             return ResponseEntity.ok(ApiResponse.success(user));
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
@@ -143,6 +152,11 @@ public class UserController {
         if (realName != null) {
             jdbcTemplate.update("UPDATE users SET real_name = ? WHERE id = ?", realName, userId);
         }
+
+        // Round28 REQ-28-12: 基本资料变更后失效个人十大（下次查看按当日+新信息重新生成）
+        try {
+            personalTop10Generator.invalidateUser(userId);
+        } catch (Exception ignored) {}
 
         return ResponseEntity.ok(ApiResponse.success());
     }
@@ -386,6 +400,58 @@ public class UserController {
         try { return Long.parseLong(val.toString()); } catch (Exception e) { return null; }
     }
 
+
+    /**
+     * R40 REQ-40-C: 部门/团队归属选项（调动界面下拉数据源，ADMIN 独占）。
+     */
+    @GetMapping("/org-options")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getOrgOptions() {
+        String role = getCurrentUserRole();
+        if (!RoleChecker.isAdminOnly(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "无权操作"));
+        }
+        List<Map<String, Object>> departments = jdbcTemplate.queryForList(
+                "SELECT id, name FROM departments ORDER BY id");
+        List<Map<String, Object>> teams = jdbcTemplate.queryForList(
+                "SELECT id, name, department_id FROM teams ORDER BY id");
+        Map<String, Object> result = new HashMap<>();
+        result.put("departments", departments);
+        result.put("teams", teams);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    /**
+     * R40 REQ-40-C: 人员归属调动（部门/团队，ADMIN 独占）。
+     * 直接更新 users 表 department_id/team_id（user_org_affiliation 为零引用历史设计，不启用）。
+     */
+    @PutMapping("/{userId}/org")
+    @Auditable(operationType = "USER_ORG_TRANSFER", targetType = "USER")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateUserOrg(
+            @PathVariable Long userId, @RequestBody Map<String, Object> request) {
+        String role = getCurrentUserRole();
+        if (!RoleChecker.isAdminOnly(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "无权操作"));
+        }
+        Long departmentId = request.get("departmentId") != null
+                ? Long.valueOf(request.get("departmentId").toString()) : null;
+        Long teamId = request.get("teamId") != null
+                ? Long.valueOf(request.get("teamId").toString()) : null;
+        // 团队必须挂在部门下（传团队时校验其部门一致性；只传部门则清团队）
+        if (teamId != null) {
+            Long teamDept = jdbcTemplate.queryForObject(
+                    "SELECT department_id FROM teams WHERE id = ?", Long.class, teamId);
+            if (departmentId == null || !departmentId.equals(teamDept)) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "团队与部门不匹配");
+            }
+        }
+        jdbcTemplate.update("UPDATE users SET department_id = ?, team_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted = 0",
+                departmentId, teamId, userId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", userId);
+        result.put("departmentId", departmentId);
+        result.put("teamId", teamId);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
 
     /**
      * Round19 REQ-19-06: 管理员独占的账号创建接口。

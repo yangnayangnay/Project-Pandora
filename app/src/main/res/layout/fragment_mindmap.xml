@@ -9,7 +9,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#F5F5F5">
+        android:background="@color/color_bg_page">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -39,11 +39,10 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:orientation="vertical"
-            android:background="#FFFFFF"
+            android:background="?attr/colorSurface"
             android:layout_marginEnd="2dp"
             android:layout_marginBottom="2dp"
-            android:clickable="true"
-            android:focusable="true"
+
             app:layout_constraintTop_toBottomOf="@id/toolbar"
             app:layout_constraintBottom_toTopOf="@id/guideline_horizontal"
             app:layout_constraintStart_toStartOf="parent"
@@ -78,16 +77,18 @@
                 android:layout_height="wrap_content"
                 android:text="管理员集中展示，条型展示，可编辑加入备注"
                 android:textSize="10sp"
-                android:textColor="#999999"
+                android:textColor="@color/color_text_secondary"
                 android:paddingStart="10dp"
                 android:paddingEnd="10dp"
                 android:paddingTop="4dp"
                 android:paddingBottom="4dp" />
 
             <androidx.core.widget.NestedScrollView
+                android:id="@+id/scroll_company_important"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="1">
+                android:layout_weight="1"
+                android:fillViewport="true">
 
                 <LinearLayout
                     android:id="@+id/list_company_important"
@@ -103,11 +104,9 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:orientation="vertical"
-            android:background="#FFF8E1"
+            android:background="@color/color_bg_page"
             android:layout_marginStart="2dp"
             android:layout_marginBottom="2dp"
-            android:clickable="true"
-            android:focusable="true"
             app:layout_constraintTop_toBottomOf="@id/toolbar"
             app:layout_constraintBottom_toTopOf="@id/guideline_horizontal"
             app:layout_constraintStart_toStartOf="@id/guideline_vertical"
@@ -142,16 +141,18 @@
                 android:layout_height="wrap_content"
                 android:text="逻辑分层，信息指令关联，上级领导指令派发"
                 android:textSize="10sp"
-                android:textColor="#999999"
+                android:textColor="@color/color_text_secondary"
                 android:paddingStart="10dp"
                 android:paddingEnd="10dp"
                 android:paddingTop="4dp"
                 android:paddingBottom="4dp" />
 
             <androidx.core.widget.NestedScrollView
+                android:id="@+id/scroll_company_dispatch"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="1">
+                android:layout_weight="1"
+                android:fillViewport="true">
 
                 <LinearLayout
                     android:id="@+id/list_company_dispatch"
@@ -167,11 +168,9 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:orientation="vertical"
-            android:background="#FFFFFF"
+            android:background="?attr/colorSurface"
             android:layout_marginEnd="2dp"
             android:layout_marginTop="2dp"
-            android:clickable="true"
-            android:focusable="true"
             app:layout_constraintTop_toTopOf="@id/guideline_horizontal"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -193,12 +192,26 @@
                     android:layout_marginEnd="8dp" />
 
                 <TextView
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
                     android:text="个人10大信息展示"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="#FFFFFF" />
+
+                <TextView
+                    android:id="@+id/btn_edit_personal_top10"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="编辑"
+                    android:textSize="12sp"
+                    android:textColor="#FFFFFF"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="4dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true" />
             </LinearLayout>
 
             <TextView
@@ -206,16 +219,18 @@
                 android:layout_height="wrap_content"
                 android:text="日志自动生成，个人ID注入修改"
                 android:textSize="10sp"
-                android:textColor="#999999"
+                android:textColor="@color/color_text_secondary"
                 android:paddingStart="10dp"
                 android:paddingEnd="10dp"
                 android:paddingTop="4dp"
                 android:paddingBottom="4dp" />
 
             <androidx.core.widget.NestedScrollView
+                android:id="@+id/scroll_personal_important"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="1">
+                android:layout_weight="1"
+                android:fillViewport="true">
 
                 <LinearLayout
                     android:id="@+id/list_personal_important"
@@ -231,11 +246,9 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:orientation="vertical"
-            android:background="#FFFFFF"
+            android:background="?attr/colorSurface"
             android:layout_marginStart="2dp"
             android:layout_marginTop="2dp"
-            android:clickable="true"
-            android:focusable="true"
             app:layout_constraintTop_toTopOf="@id/guideline_horizontal"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="@id/guideline_vertical"
@@ -270,16 +283,18 @@
                 android:layout_height="wrap_content"
                 android:text="当天日志信息流展示"
                 android:textSize="10sp"
-                android:textColor="#999999"
+                android:textColor="@color/color_text_secondary"
                 android:paddingStart="10dp"
                 android:paddingEnd="10dp"
                 android:paddingTop="4dp"
                 android:paddingBottom="4dp" />
 
             <androidx.core.widget.NestedScrollView
+                android:id="@+id/scroll_personal_log"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="1">
+                android:layout_weight="1"
+                android:fillViewport="true">
 
                 <LinearLayout
                     android:id="@+id/list_personal_log"

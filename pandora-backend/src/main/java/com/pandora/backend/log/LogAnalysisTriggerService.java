@@ -25,17 +25,17 @@ public class LogAnalysisTriggerService {
             "测试", "部署", "沟通", "协调", "跟进", "优化", "修复", "评审", "文档", "培训"
     };
 
-    public void triggerAutoAnalysis(Long logId, Long userId) {
+    public void triggerAutoAnalysis(Long logId, Long userId, com.pandora.backend.ai.AiTransmitConfig aiConfig) {
         new Thread(() -> {
             try {
-                doAnalysis(logId, userId);
+                doAnalysis(logId, userId, aiConfig);
             } catch (Exception e) {
                 log.error("日志自动分析失败: logId={}, userId={}, error={}", logId, userId, e.getMessage());
             }
         }, "log-auto-analysis-" + logId).start();
     }
 
-    private void doAnalysis(Long logId, Long userId) {
+    private void doAnalysis(Long logId, Long userId, com.pandora.backend.ai.AiTransmitConfig aiConfig) {
         Map<String, Object> logRecord;
         try {
             logRecord = jdbcTemplate.queryForMap(
@@ -59,7 +59,7 @@ public class LogAnalysisTriggerService {
         String analysisContent;
         String source;
         try {
-            Map<String, Object> aiResult = aiGatewayService.invoke(prompt, "LOG_AUTO_ANALYSIS");
+            Map<String, Object> aiResult = aiGatewayService.invoke(prompt, "LOG_AUTO_ANALYSIS", aiConfig);
             analysisContent = aiResult.get("result") != null ? aiResult.get("result").toString() : "分析结果为空";
             String rawSource = aiResult.get("source") != null ? aiResult.get("source").toString() : "LOCAL";
             source = "EXTERNAL".equals(rawSource) ? "EXTERNAL" : "LOCAL";

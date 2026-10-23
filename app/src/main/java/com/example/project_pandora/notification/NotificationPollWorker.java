@@ -68,20 +68,27 @@ public class NotificationPollWorker extends Worker {
                     .subscribe(
                             response -> {
                                 try {
+                                    // D-33-02 修复：游标基线自适应——本地游标超前服务端全局 MAX(id)
+                                    // （单设备迁移到新库的基线差异）时重置为服务端基线，仅影响后续增量
+                                    // 拉取（不回溯弹历史通知），根治"永远拉空"
+                                    Long serverMaxId = response.getMaxNotificationId();
+                                    long effectiveLastId = lastId;
+                                    if (serverMaxId != null && effectiveLastId > serverMaxId) {
+                                        prefs.edit().putLong(KEY_LAST_ID, serverMaxId).apply();
+                                        effectiveLastId = serverMaxId;
+                                    }
                                     if (response.isSuccess() && response.getData() != null) {
                                         List<Map<String, Object>> notifications = response.getData();
 
                                         // TASK-R18-015: 读取通知偏好做弹窗过滤
                                         Set<String> disabledTypes = loadDisabledTypes(api, prefs);
 
-                                        long maxId = lastId;
+                                        long maxId = effectiveLastId;
                                         for (Map<String, Object> notification : notifications) {
                                             Object idObj = notification.get("id");
                                             if (idObj == null) idObj = notification.get("ID");
-                                            long notifId = 0;
-                                            if (idObj != null) {
-                                                try { notifId = Long.parseLong(idObj.toString()); } catch (NumberFormatException ignored) {}
-                                            }
+                                            // Round26: 通知 ID 解析统一收敛至 NumberCompat（原吞异常→0 语义保持）
+                                            long notifId = com.example.project_pandora.core.util.NumberCompat.toLongOrDefault(idObj, 0L);
 
                                             Object typeObj = notification.get("type");
                                             if (typeObj == null) typeObj = notification.get("TYPE");
@@ -91,10 +98,8 @@ public class NotificationPollWorker extends Worker {
                                             if (contentObj == null) contentObj = notification.get("CONTENT");
                                             Object taskIdObj = notification.get("task_id");
                                             if (taskIdObj == null) taskIdObj = notification.get("TASK_ID");
-                                            Long taskId = null;
-                                            if (taskIdObj != null) {
-                                                try { taskId = Long.parseLong(taskIdObj.toString()); } catch (NumberFormatException ignored) {}
-                                            }
+                                            // Round26: 任务 ID 解析统一收敛至 NumberCompat（原吞异常→null 语义保持）
+                                            Long taskId = com.example.project_pandora.core.util.NumberCompat.toLong(taskIdObj);
 
                                             // TASK-R18-015: 被关闭类型的通知仅保留记录不弹窗
                                             if (type == null || !disabledTypes.contains(type)) {
@@ -107,7 +112,7 @@ public class NotificationPollWorker extends Worker {
 
                                             if (notifId > maxId) maxId = notifId;
                                         }
-                                        if (maxId > lastId) {
+                                        if (maxId > effectiveLastId) {
                                             prefs.edit().putLong(KEY_LAST_ID, maxId).apply();
                                         }
                                     }

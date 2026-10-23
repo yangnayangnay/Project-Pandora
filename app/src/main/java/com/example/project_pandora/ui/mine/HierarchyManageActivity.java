@@ -280,8 +280,8 @@ public class HierarchyManageActivity extends AppCompatActivity {
     private Long getId(Map<String, Object> user) {
         Object id = user.get("id");
         if (id == null) id = user.get("ID");
-        if (id instanceof Number) return ((Number) id).longValue();
-        return null;
+        // Round26: 解析统一收敛至 NumberCompat（原 instanceof Number 判定语义保持）
+        return com.example.project_pandora.core.util.NumberCompat.toLong(id);
     }
 
     @Override

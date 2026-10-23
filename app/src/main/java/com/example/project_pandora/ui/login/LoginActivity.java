@@ -59,7 +59,7 @@ public class LoginActivity extends AppCompatActivity {
         autoLogin();
 
         binding.btnLogin.setOnClickListener(v -> handleLogin());
-        binding.btnGoRegister.setVisibility(android.view.View.GONE);
+
         binding.btnForgotPassword.setOnClickListener(v -> {
             startActivity(new Intent(this, ForgotPasswordActivity.class));
         });
@@ -69,6 +69,10 @@ public class LoginActivity extends AppCompatActivity {
             binding.textServerStatus.setTextColor(0xFFFF9800);
             ServerConnectivityMonitor.getInstance().checkNow();
         });
+
+        // Round29 T7 修复: 生效地址不可达时的自救入口（ServerConfigActivity 无登录依赖）
+        binding.btnLoginServerConfig.setOnClickListener(v ->
+                startActivity(new Intent(this, com.example.project_pandora.ui.mine.ServerConfigActivity.class)));
 
         ServerConnectivityMonitor.getInstance().startMonitoring(this);
         disposables.add(ServerConnectivityMonitor.getInstance().stateStream()
@@ -103,11 +107,13 @@ public class LoginActivity extends AppCompatActivity {
                 binding.textServerStatus.setText(R.string.server_connected);
                 binding.textServerStatus.setTextColor(0xFF4CAF50);
                 binding.btnRefreshServer.setVisibility(android.view.View.GONE);
+                binding.btnLoginServerConfig.setVisibility(android.view.View.GONE);
                 break;
             case DISCONNECTED:
                 binding.textServerStatus.setText(R.string.server_retry_failed);
                 binding.textServerStatus.setTextColor(0xFFF44336);
                 binding.btnRefreshServer.setVisibility(android.view.View.VISIBLE);
+                binding.btnLoginServerConfig.setVisibility(android.view.View.VISIBLE);
                 showNotification(NOTIF_SERVER_DISCONNECTED,
                         getString(R.string.notification_server_status_title),
                         getString(R.string.notification_server_disconnected));

@@ -129,21 +129,21 @@
                         android:clipToPadding="false"
                         android:padding="8dp"
                         android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/textEmpty"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:text="暂无日志"
+                        android:textSize="16sp"
+                        android:textColor="@color/color_text_secondary"
+                        android:visibility="gone" />
                 </FrameLayout>
 
             </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/textEmpty"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:text="暂无日志"
-            android:textSize="16sp"
-            android:textColor="#888888"
-            android:visibility="gone" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fab_add_log"

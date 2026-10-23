@@ -2,17 +2,23 @@ package com.example.project_pandora.ui.mine;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.project_pandora.R;
 import com.example.project_pandora.core.config.LogCountLimit;
 import com.example.project_pandora.core.config.LogDisplayLimitConfig;
 import com.example.project_pandora.core.config.LogTimeLimit;
+import com.example.project_pandora.core.network.AiClientConfig;
+import com.example.project_pandora.core.network.AiConfigManager;
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.core.network.NetworkStateMonitor;
+import com.example.project_pandora.core.network.ServerUrlManager;
+import com.example.project_pandora.ui.ai.AiConfigActivity;
 import com.example.project_pandora.core.sync.NetworkMode;
 import com.example.project_pandora.core.sync.SyncManager;
 import com.example.project_pandora.core.sync.SyncProgress;
@@ -81,30 +87,79 @@ public class SettingsActivity extends AppCompatActivity {
             updateShowYesterdayLog(isChecked);
         });
 
+        // DEF-30-02: 5 类通知开关绑定监听（isPressed 防程序化 setChecked 误触发，同上惯例）
+        binding.switchNotifNewTask.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!buttonView.isPressed()) return;
+            updateNotificationPreference("NEW_TASK", isChecked, binding.switchNotifNewTask);
+        });
+        binding.switchNotifStatusChange.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!buttonView.isPressed()) return;
+            updateNotificationPreference("STATUS_CHANGE", isChecked, binding.switchNotifStatusChange);
+        });
+        binding.switchNotifLogCompleted.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!buttonView.isPressed()) return;
+            updateNotificationPreference("LOG_COMPLETED", isChecked, binding.switchNotifLogCompleted);
+        });
+        binding.switchNotifTop10Dispatch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!buttonView.isPressed()) return;
+            updateNotificationPreference("TOP10_DISPATCH_CHANGED", isChecked, binding.switchNotifTop10Dispatch);
+        });
+        binding.switchNotifTop10Important.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!buttonView.isPressed()) return;
+            updateNotificationPreference("TOP10_IMPORTANT_CHANGED", isChecked, binding.switchNotifTop10Important);
+        });
+
         binding.cardLogTimeLimit.setOnClickListener(v -> showTimeLimitSelector());
         binding.cardLogCountLimit.setOnClickListener(v -> showCountLimitSelector());
 
-        // TASK-R18-018: 5 类通知开关切换监听
-        binding.switchNotifNewTask.setOnCheckedChangeListener((b, checked) -> {
-            if (!b.isPressed()) return;
-            updateNotificationPreference("NEW_TASK", checked, binding.switchNotifNewTask);
-        });
-        binding.switchNotifStatusChange.setOnCheckedChangeListener((b, checked) -> {
-            if (!b.isPressed()) return;
-            updateNotificationPreference("STATUS_CHANGE", checked, binding.switchNotifStatusChange);
-        });
-        binding.switchNotifLogCompleted.setOnCheckedChangeListener((b, checked) -> {
-            if (!b.isPressed()) return;
-            updateNotificationPreference("LOG_COMPLETED", checked, binding.switchNotifLogCompleted);
-        });
-        binding.switchNotifTop10Dispatch.setOnCheckedChangeListener((b, checked) -> {
-            if (!b.isPressed()) return;
-            updateNotificationPreference("TOP10_DISPATCH_CHANGED", checked, binding.switchNotifTop10Dispatch);
-        });
-        binding.switchNotifTop10Important.setOnCheckedChangeListener((b, checked) -> {
-            if (!b.isPressed()) return;
-            updateNotificationPreference("TOP10_IMPORTANT_CHANGED", checked, binding.switchNotifTop10Important);
-        });
+        // Round28 REQ-28-01: AI 模型配置入口
+        binding.cardAiConfig.setOnClickListener(v ->
+                startActivity(new Intent(this, AiConfigActivity.class)));
+
+        // Round29: 服务器地址配置入口
+        binding.cardServerConfig.setOnClickListener(v ->
+                startActivity(new Intent(this, ServerConfigActivity.class)));
+
+        // Round29: 首次进入刷新服务器地址摘要
+        refreshServerSummary();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Round28 REQ-28-01: 从 AiConfigActivity 返回后刷新摘要（设备级配置随时可能变更）
+        refreshAiConfigSummary();
+        // Round29: 从 ServerConfigActivity 返回后刷新服务器地址摘要
+        refreshServerSummary();
+    }
+
+    /** Round29: 服务器地址卡片摘要（已配置 → 当前:{归一化地址}；未配置 → 默认:{当前生效默认地址摘要}） */
+    private void refreshServerSummary() {
+        ServerUrlManager manager = ServerUrlManager.getInstance(this);
+        String configured = manager.getConfiguredUrl();
+        String summary;
+        if (!configured.trim().isEmpty()) {
+            summary = getString(R.string.server_summary_current, configured);
+        } else {
+            summary = getString(R.string.server_summary_default, manager.getEffectiveBaseUrl());
+        }
+        binding.textServerSummary.setText(summary);
+    }
+
+    /** Round28 REQ-28-01: 设置页 AI 配置卡片摘要（未配置/已配置未启用/配置不完整/已启用:模型名） */
+    private void refreshAiConfigSummary() {
+        AiClientConfig c = AiConfigManager.getInstance(this).getConfig();
+        String summary;
+        if (c.apiUrl.trim().isEmpty() && c.model.trim().isEmpty()) {
+            summary = "未配置，使用服务端内置分析";
+        } else if (!c.enabled) {
+            summary = "已配置，未启用";
+        } else if (c.apiUrl.startsWith("http://") || c.apiUrl.startsWith("https://")) {
+            summary = "已启用：" + c.model.trim();
+        } else {
+            summary = "配置不完整";
+        }
+        binding.textAiConfigSummary.setText(summary);
     }
 
     private void loadSettings() {
@@ -117,13 +172,14 @@ public class SettingsActivity extends AppCompatActivity {
                                 Map<String, Object> data = response.getData();
                                 Object showCompleted = data.get("showCompletedTasks");
                                 if (showCompleted == null) showCompleted = data.get("SHOW_COMPLETED_TASKS");
+                                // Round26: 设置值解析收敛至 NumberCompat（原 parseInt 裸调，非数字串会崩溃；null/解析失败回退默认开）
                                 binding.switchShowCompleted.setChecked(
-                                        showCompleted == null || Integer.parseInt(showCompleted.toString()) == 1);
+                                        com.example.project_pandora.core.util.NumberCompat.toIntOrDefault(showCompleted, 1) == 1);
 
                                 Object showYesterday = data.get("showYesterdayLog");
                                 if (showYesterday == null) showYesterday = data.get("SHOW_YESTERDAY_LOG");
                                 binding.switchShowYesterdayLog.setChecked(
-                                        showYesterday == null || Integer.parseInt(showYesterday.toString()) == 1);
+                                        com.example.project_pandora.core.util.NumberCompat.toIntOrDefault(showYesterday, 1) == 1);
                             }
                         },
                         error -> {
@@ -256,6 +312,7 @@ public class SettingsActivity extends AppCompatActivity {
             binding.btnResync.setEnabled(false);
             binding.btnResync.setText("同步中...");
             disposables.add(syncManager.manualResync()
+                    .timeout(60, java.util.concurrent.TimeUnit.SECONDS)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                             progress -> {

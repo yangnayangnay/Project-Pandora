@@ -9,7 +9,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#F5F5F5">
+        android:background="@color/color_bg_page">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -41,7 +41,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:background="@android:color/white"
+                    android:background="?attr/colorSurface"
                     android:padding="16dp"
                     android:layout_marginEnd="8dp"
                     android:elevation="2dp">
@@ -69,7 +69,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:background="@android:color/white"
+                    android:background="?attr/colorSurface"
                     android:padding="16dp"
                     android:layout_marginEnd="8dp"
                     android:elevation="2dp">
@@ -97,7 +97,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:background="@android:color/white"
+                    android:background="?attr/colorSurface"
                     android:padding="16dp"
                     android:elevation="2dp">
 
@@ -157,14 +157,14 @@
                             android:text="关键词分析"
                             android:textSize="17sp"
                             android:textStyle="bold"
-                            android:textColor="#333333" />
+                            android:textColor="@color/color_text_primary" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="智能提取文本关键词，辅助信息穿透与快速理解"
                             android:textSize="13sp"
-                            android:textColor="#888888"
+                            android:textColor="@color/color_text_secondary"
                             android:layout_marginTop="4dp" />
 
                     </LinearLayout>
@@ -174,7 +174,7 @@
                         android:layout_height="wrap_content"
                         android:text="›"
                         android:textSize="24sp"
-                        android:textColor="#CCCCCC" />
+                        android:textColor="@color/color_text_secondary" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

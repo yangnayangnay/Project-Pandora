@@ -31,3 +31,6 @@ nul
 *.log
 bo.log
 emulator_*.log
+
+# R44: 本地 H2 数据库不入库
+pandora-backend/data/

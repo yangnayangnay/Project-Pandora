@@ -5,6 +5,7 @@ import android.content.Context;
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.data.remote.DraftApi;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -47,11 +48,11 @@ public class DraftRepository {
                 });
     }
 
-    public Observable<Void> deleteDraft(String draftType) {
+    public Observable<Map<String, Object>> deleteDraft(String draftType) {
         return draftApi.deleteDraft(draftType)
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
-                    if (response.isSuccess()) return null;
+                    if (response.isSuccess()) return Collections.emptyMap();
                     throw new RuntimeException(response.getMessage());
                 });
     }

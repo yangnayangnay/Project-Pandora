@@ -9,7 +9,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@android:color/white">
+        android:background="?attr/colorSurface">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -40,7 +40,7 @@
                     android:background="#f8f9fa"
                     android:paddingHorizontal="6dp"
                     android:paddingVertical="8dp"
-                    android:weightSum="7"
+                    android:weightSum="6"
                     android:layout_marginTop="12dp">
 
                     <TextView
@@ -50,7 +50,7 @@
                         android:text="任务名称"
                         android:textSize="11sp"
                         android:textStyle="bold"
-                        android:textColor="#495057" />
+                        android:textColor="@color/color_text_primary" />
 
                     <TextView
                         android:layout_width="0dp"
@@ -59,7 +59,7 @@
                         android:text="截止日期"
                         android:textSize="11sp"
                         android:textStyle="bold"
-                        android:textColor="#495057"
+                        android:textColor="@color/color_text_primary"
                         android:gravity="center" />
 
                     <TextView
@@ -69,7 +69,7 @@
                         android:text="紧急程度"
                         android:textSize="11sp"
                         android:textStyle="bold"
-                        android:textColor="#495057"
+                        android:textColor="@color/color_text_primary"
                         android:gravity="center" />
 
                     <TextView
@@ -79,18 +79,10 @@
                         android:text="完成情况"
                         android:textSize="11sp"
                         android:textStyle="bold"
-                        android:textColor="#495057"
+                        android:textColor="@color/color_text_primary"
                         android:gravity="center" />
 
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="进度备注"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:textColor="#495057" />
-
+                    <!-- R39 REQ-A01: 摘要区删'进度备注'格（weightSum 7→6） -->
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -98,7 +90,7 @@
                         android:text="负责人"
                         android:textSize="11sp"
                         android:textStyle="bold"
-                        android:textColor="#495057"
+                        android:textColor="@color/color_text_primary"
                         android:gravity="center" />
 
                 </LinearLayout>
@@ -109,7 +101,7 @@
                     android:orientation="horizontal"
                     android:paddingHorizontal="6dp"
                     android:paddingVertical="8dp"
-                    android:weightSum="7">
+                    android:weightSum="6">
 
                     <TextView
                         android:id="@+id/textTaskName"
@@ -118,7 +110,7 @@
                         android:layout_weight="2"
                         android:textSize="13sp"
                         android:textStyle="bold"
-                        android:textColor="#212529"
+                        android:textColor="@color/color_text_primary"
                         android:maxLines="2"
                         android:ellipsize="end" />
 
@@ -128,7 +120,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:textSize="11sp"
-                        android:textColor="#6c757d"
+                        android:textColor="@color/color_text_secondary"
                         android:gravity="center"
                         android:maxLines="1"
                         android:ellipsize="end" />
@@ -155,23 +147,14 @@
                         android:paddingHorizontal="4dp"
                         android:paddingVertical="2dp" />
 
-                    <TextView
-                        android:id="@+id/textSummaryProgress"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textSize="11sp"
-                        android:textColor="#6c757d"
-                        android:maxLines="2"
-                        android:ellipsize="end" />
-
+                    <!-- R39 REQ-A01: 摘要区删进度数据格 -->
                     <TextView
                         android:id="@+id/textSummaryAssignee"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:textSize="10sp"
-                        android:textColor="#6c757d"
+                        android:textColor="@color/color_text_secondary"
                         android:gravity="center"
                         android:maxLines="2"
                         android:ellipsize="end" />
@@ -239,7 +222,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:textSize="14sp"
-                    android:textColor="#666666" />
+                    android:textColor="@color/color_text_secondary" />
 
                 <TextView
                     android:id="@+id/textEndTime"
@@ -247,7 +230,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:textSize="14sp"
-                    android:textColor="#666666" />
+                    android:textColor="@color/color_text_secondary" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -294,48 +277,26 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:textSize="12sp"
-                    android:textColor="#888888" />
+                    android:textColor="@color/color_text_secondary" />
 
+                <!-- R39 REQ-A02/A03: 进度备注展示块与更新进度输入区整体下线 -->
+
+                <!-- R39 REQ-C08: 任务正文展示 -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:text="进度备注"
+                    android:text="@string/task_content_label"
                     android:textStyle="bold"
                     android:textSize="16sp" />
 
                 <TextView
-                    android:id="@+id/textProgressNote"
+                    android:id="@+id/textTaskContent"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:textSize="14sp"
-                    android:textColor="#666666"
-                    android:text="暂无进度备注" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="更新进度"
-                    android:textStyle="bold"
-                    android:textSize="16sp" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    app:boxStrokeWidth="1dp">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/editProgressNote"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="输入进度备注..."
-                        android:inputType="textMultiLine"
-                        android:minLines="2" />
-
-                </com.google.android.material.textfield.TextInputLayout>
+                    android:textColor="@color/color_text_primary" />
 
             </LinearLayout>
 
@@ -347,7 +308,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:padding="8dp"
-            android:background="#F5F5F5"
+            android:background="@color/color_bg_page"
             app:layout_constraintBottom_toBottomOf="parent">
 
             <com.google.android.material.button.MaterialButton
@@ -358,6 +319,17 @@
                 android:layout_margin="4dp"
                 android:text="开始"
                 android:textSize="14sp" />
+
+            <!-- R39 REQ-B02: 切回未完成（责任人+COMPLETED 态显示，二元切换） -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnReopen"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_margin="4dp"
+                android:text="@string/btn_reopen_task"
+                android:textSize="14sp"
+                android:visibility="gone" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnComplete"

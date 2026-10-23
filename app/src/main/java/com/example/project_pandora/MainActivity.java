@@ -5,6 +5,7 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -25,6 +26,7 @@ import com.example.project_pandora.core.sync.SyncState;
 import com.example.project_pandora.core.sync.SyncWorker;
 import com.example.project_pandora.databinding.ActivityMainBinding;
 import com.example.project_pandora.notification.NotificationPollWorker;
+import com.example.project_pandora.notification.NotificationPermissionHelper;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
@@ -161,13 +163,23 @@ public class MainActivity extends AppCompatActivity {
     /**
      * TASK-R18-017: 应用切回前台时触发一次性立即通知轮询（OneTimeWorkRequest，REPLACE 防重复入队）
      * 实现后台 15 分钟 / 前台立即的通知及时性
+     * Round24 REQ-24-09: 已登录分支同时触发通知权限运行时申请（会话内去重，覆盖登录后/冷启已登录两条路径）
      */
     @Override
     protected void onStart() {
         super.onStart();
         if (TokenManager.getInstance(this).isLoggedIn()) {
             NotificationPollWorker.enqueueOneTimeWork(this);
+            NotificationPermissionHelper.requestOnce(this);
         }
+    }
+
+    /**
+     * Round24 REQ-24-09: 通知权限结果不做业务分支——拒绝时应用内轮询/业务全正常
+     */
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
     @Override

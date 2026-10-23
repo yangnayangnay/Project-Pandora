@@ -9,7 +9,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#F5F5F5">
+        android:background="@color/color_bg_page">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -19,6 +19,7 @@
             app:title="AI数据分析"
             app:titleTextColor="@android:color/white"
             app:navigationIcon="@drawable/ic_back"
+            app:menu="@menu/menu_ai_suggestion_update"
             app:layout_constraintTop_toTopOf="parent" />
 
         <ScrollView
@@ -52,7 +53,7 @@
                             android:text="个人信息"
                             android:textStyle="bold"
                             android:textSize="16sp"
-                            android:textColor="#333333" />
+                            android:textColor="@color/color_text_primary" />
 
                         <TextView
                             android:id="@+id/textUserInfo"
@@ -60,7 +61,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:textSize="14sp"
-                            android:textColor="#555555" />
+                            android:textColor="@color/color_text_primary" />
 
                     </LinearLayout>
 
@@ -85,7 +86,7 @@
                             android:text="任务统计"
                             android:textStyle="bold"
                             android:textSize="16sp"
-                            android:textColor="#333333" />
+                            android:textColor="@color/color_text_primary" />
 
                         <TextView
                             android:id="@+id/textTaskStats"
@@ -93,7 +94,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:textSize="14sp"
-                            android:textColor="#555555" />
+                            android:textColor="@color/color_text_primary" />
 
                     </LinearLayout>
 
@@ -118,7 +119,7 @@
                             android:text="工作建议"
                             android:textStyle="bold"
                             android:textSize="16sp"
-                            android:textColor="#333333" />
+                            android:textColor="@color/color_text_primary" />
 
                         <TextView
                             android:id="@+id/textWorkAdvice"
@@ -126,7 +127,17 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:textSize="14sp"
-                            android:textColor="#555555" />
+                            android:textColor="@color/color_text_primary" />
+
+                        <TextView
+                            android:id="@+id/text_ai_source"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="11sp"
+                            android:textColor="@color/color_text_secondary"
+                            android:gravity="end"
+                            android:layout_marginTop="4dp"
+                            android:visibility="gone" />
 
                     </LinearLayout>
 
@@ -151,7 +162,7 @@
                             android:text="职业建议"
                             android:textStyle="bold"
                             android:textSize="16sp"
-                            android:textColor="#333333" />
+                            android:textColor="@color/color_text_primary" />
 
                         <TextView
                             android:id="@+id/textCareerAdvice"
@@ -159,7 +170,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:textSize="14sp"
-                            android:textColor="#555555" />
+                            android:textColor="@color/color_text_primary" />
 
                     </LinearLayout>
 
@@ -184,7 +195,7 @@
                             android:text="发展计划"
                             android:textStyle="bold"
                             android:textSize="16sp"
-                            android:textColor="#333333" />
+                            android:textColor="@color/color_text_primary" />
 
                         <TextView
                             android:id="@+id/textDevelopmentPlan"
@@ -192,7 +203,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:textSize="14sp"
-                            android:textColor="#555555" />
+                            android:textColor="@color/color_text_primary" />
 
                     </LinearLayout>
 

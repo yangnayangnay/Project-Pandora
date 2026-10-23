@@ -21,7 +21,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, RoleAuthFilter roleAuthFilter) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, RoleAuthFilter roleAuthFilter,
+                                           ApiKeyFilter apiKeyFilter) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -31,6 +32,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(roleAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // R41: ApiKeyFilter 置于 RoleAuthFilter 之前（密钥层先于 JWT 角色层）
+                .addFilterBefore(apiKeyFilter, RoleAuthFilter.class)
                 .headers(headers -> headers.frameOptions(frame -> frame.disable()));
         return http.build();
     }
