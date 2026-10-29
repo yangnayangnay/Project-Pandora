@@ -1,6 +1,7 @@
 package com.example.project_pandora.ui.task;
 
 import android.app.DatePickerDialog;
+import android.app.TimePickerDialog;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -15,6 +16,7 @@ import com.example.project_pandora.core.autosave.DraftRestoreDialog;
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.core.network.TokenManager;
 import com.example.project_pandora.core.util.BackToolbarHelper;
+import com.example.project_pandora.core.util.TaskDateTimes;
 import com.example.project_pandora.data.remote.TaskApi;
 import com.example.project_pandora.databinding.ActivityTaskCreateBinding;
 import com.example.project_pandora.repository.DraftRepository;
@@ -38,7 +40,8 @@ public class TaskCreateActivity extends AppCompatActivity {
     private TaskApi taskApi;
     private DraftRepository draftRepository;
     private AutoSaveManager autoSaveManager;
-    private String selectedEndTime = null;
+    private String selectedStartTime;
+    private String selectedEndTime;
     private final List<Long> assigneeIds = new ArrayList<>();
     private final List<String> assigneeNames = new ArrayList<>();
     private final CompositeDisposable disposables = new CompositeDisposable();
@@ -67,16 +70,22 @@ public class TaskCreateActivity extends AppCompatActivity {
         // Round23 REQ-23-07: 候选加载期间禁用 Spinner，避免误导性下拉
         binding.spinnerAssignee.setEnabled(false);
         loadAssigneeOptions();
+        String role = TokenManager.getInstance(this).getRole();
+        binding.textTaskReviewHint.setText("ADMIN".equals(role) || "FOUNDER".equals(role)
+                ? "可派发给全公司任意人员；当前职级的任务操作免审。"
+                : "可派发给全公司任意人员；创建、编辑和删除须经对应上级审核后生效。");
 
-        binding.textEndTime.setOnClickListener(v -> {
-            showDatePicker();
-            onContentChanged();
-        });
+        selectedStartTime = savedInstanceState == null ? TaskDateTimes.format(new Date())
+                : savedInstanceState.getString("taskStartTime", TaskDateTimes.format(new Date()));
+        selectedEndTime = savedInstanceState == null ? null : savedInstanceState.getString("taskEndTime");
+        renderTimes();
+        binding.textStartTime.setOnClickListener(v -> showDateTimePicker(false));
+        binding.textEndTime.setOnClickListener(v -> showDateTimePicker(true));
 
         binding.btnCreateTask.setOnClickListener(v -> handleCreateTask());
 
         setupAutoSave();
-        checkDraftRestore();
+        if (savedInstanceState == null) checkDraftRestore();
     }
 
     private void setupAutoSave() {
@@ -85,6 +94,7 @@ public class TaskCreateActivity extends AppCompatActivity {
                     Map<String, Object> content = new HashMap<>();
                     content.put("name", binding.editTaskName.getText().toString());
                     content.put("content", binding.editTaskContent.getText().toString()); // R39 REQ-C07: 草稿覆盖正文
+                    content.put("startTime", selectedStartTime);
                     content.put("endTime", selectedEndTime);
                     boolean isUrgent = binding.rgUrgency.getCheckedRadioButtonId() == R.id.rb_urgent;
                     content.put("isUrgent", isUrgent);
@@ -162,11 +172,10 @@ public class TaskCreateActivity extends AppCompatActivity {
         // R39 REQ-C07: 草稿恢复回显正文（旧草稿无 content 键 null 守卫天然兼容）
         Object draftContent = content.get("content");
         if (draftContent != null) binding.editTaskContent.setText(draftContent.toString());
-        Object endTime = content.get("endTime");
-        if (endTime != null) {
-            selectedEndTime = endTime.toString();
-            binding.textEndTime.setText(selectedEndTime);
-        }
+        String start = TaskDateTimes.restore(content.get("startTime"), false);
+        if (start != null) selectedStartTime = start;
+        selectedEndTime = TaskDateTimes.restore(content.get("endTime"), true);
+        renderTimes();
         Object isUrgent = content.get("isUrgent");
         if (isUrgent instanceof Boolean) {
             if ((Boolean) isUrgent) {
@@ -202,8 +211,9 @@ public class TaskCreateActivity extends AppCompatActivity {
         assigneeNames.clear();
         assigneeIds.add(currentUserId);
         assigneeNames.add(currentUserName);
+        setupAssigneeSpinner();
 
-        disposables.add(taskApi.getSubordinateUsers()
+        disposables.add(taskApi.getAssignees()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
@@ -221,17 +231,29 @@ public class TaskCreateActivity extends AppCompatActivity {
                                     if (id != null) {
                                         // Round26: Gson 数字串统一收敛至 NumberCompat（原 parseDouble 裸调无捕获）
                                         Long idLong = com.example.project_pandora.core.util.NumberCompat.toLong(id);
-                                        if (idLong != null) {
+                                        if (idLong != null && !assigneeIds.contains(idLong)) {
                                             assigneeIds.add(idLong);
                                             assigneeNames.add(name != null ? name.toString() : "用户" + idLong);
                                         }
                                     }
                                 }
+                                setupAssigneeSpinner();
+                            } else {
+                                showAssigneeLoadError();
                             }
-                            setupAssigneeSpinner();
                         },
-                        error -> setupAssigneeSpinner()
+                        error -> showAssigneeLoadError()
                 ));
+    }
+
+    private void showAssigneeLoadError() {
+        if (isFinishing() || isDestroyed()) return;
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("人员列表加载失败")
+                .setMessage("暂时只能分配给自己。请重试以加载公司人员列表。")
+                .setPositiveButton("重试", (dialog, which) -> loadAssigneeOptions())
+                .setNegativeButton("分配给自己", null)
+                .show();
     }
 
     private void setupAssigneeSpinner() {
@@ -254,12 +276,35 @@ public class TaskCreateActivity extends AppCompatActivity {
         binding.spinnerAssignee.setAlpha(single ? 0.6f : 1.0f);
     }
 
-    private void showDatePicker() {
+    private void renderTimes() {
+        binding.textStartTime.setText(selectedStartTime == null ? "点击选择日期和时间" : selectedStartTime);
+        binding.textEndTime.setText(selectedEndTime == null ? "点击选择日期和时间" : selectedEndTime);
+    }
+
+    private void showDateTimePicker(boolean end) {
         Calendar cal = Calendar.getInstance();
+        Date previous = TaskDateTimes.parse(end ? selectedEndTime : selectedStartTime);
+        if (previous == null && end) previous = TaskDateTimes.parse(selectedStartTime);
+        if (previous != null) cal.setTime(previous);
         new DatePickerDialog(this, (view, year, month, day) -> {
-            selectedEndTime = String.format("%04d-%02d-%02d", year, month + 1, day);
-            binding.textEndTime.setText(selectedEndTime);
+            cal.set(year, month, day);
+            TimePickerDialog picker = new TimePickerDialog(this, (timeView, hour, minute) -> {
+                cal.set(Calendar.HOUR_OF_DAY, hour);
+                cal.set(Calendar.MINUTE, minute);
+                String value = TaskDateTimes.format(cal.getTime());
+                if (end) selectedEndTime = value; else selectedStartTime = value;
+                renderTimes();
+                onContentChanged();
+            }, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true);
+            picker.setTitle(end ? "选择截止时间" : "选择开始时间");
+            picker.show();
         }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
+    }
+
+    @Override protected void onSaveInstanceState(Bundle outState) {
+        outState.putString("taskStartTime", selectedStartTime);
+        outState.putString("taskEndTime", selectedEndTime);
+        super.onSaveInstanceState(outState);
     }
 
     private void handleCreateTask() {
@@ -283,7 +328,11 @@ public class TaskCreateActivity extends AppCompatActivity {
             return;
         }
         if (selectedEndTime == null) {
-            Toast.makeText(this, "请选择截止日期", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "请选择截止日期和时间", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!TaskDateTimes.validRange(selectedStartTime, selectedEndTime)) {
+            Toast.makeText(this, "截止时间不能早于开始时间，请检查任务排期", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -292,7 +341,6 @@ public class TaskCreateActivity extends AppCompatActivity {
         int assigneePos = binding.spinnerAssignee.getSelectedItemPosition();
         Long assigneeId = assigneeIds.get(assigneePos);
 
-        String todayStr = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
         Map<String, Object> request = new HashMap<>();
         request.put("name", name);
         request.put("content", content); // R39 REQ-C06: 正文落库
@@ -300,8 +348,8 @@ public class TaskCreateActivity extends AppCompatActivity {
         request.put("assigneeId", assigneeId);
         request.put("isImportant", isImportant);
         request.put("isUrgent", isUrgent);
-        request.put("startTime", todayStr);
-        request.put("endTime", selectedEndTime);
+        request.put("startTime", selectedStartTime + ":00");
+        request.put("endTime", selectedEndTime + ":00");
 
         binding.btnCreateTask.setEnabled(false);
         binding.btnCreateTask.setText("创建中...");
@@ -312,7 +360,7 @@ public class TaskCreateActivity extends AppCompatActivity {
                 .subscribe(
                         response -> {
                             if (response.isSuccess()) {
-                                Toast.makeText(this, "任务创建成功", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(this, response.getData() == null ? response.getMessage() : java.util.Objects.toString(response.getData().get("message"), "操作成功"), Toast.LENGTH_LONG).show();
                                 saveCompleted = true;
                                 if (autoSaveManager != null) {
                                     autoSaveManager.stop();

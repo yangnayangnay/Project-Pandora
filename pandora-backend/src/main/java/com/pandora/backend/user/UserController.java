@@ -126,6 +126,17 @@ public class UserController {
         String email = (String) request.get("email");
         String phone = (String) request.get("phone");
         String realName = (String) request.get("realName");
+        Map<String, Object> identity = jdbcTemplate.queryForMap(
+                "SELECT username, real_name FROM users WHERE id = ? AND deleted = 0", userId);
+        if ((username != null && !username.equals(identity.get("username")))
+                || (realName != null && !realName.equals(identity.get("real_name")))) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "用户名和真实姓名由组织统一维护，不能自行修改");
+        }
+        for (String key : request.keySet()) {
+            if (!Set.of("username", "realName", "email", "phone", "avatar").contains(key)) {
+                throw new BusinessException(ErrorCode.FORBIDDEN, "不能自行修改身份、职级或组织字段");
+            }
+        }
 
         if (realName != null && realName.trim().isEmpty()) {
             throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "真实姓名不能为空");
@@ -137,9 +148,6 @@ public class UserController {
             throw new BusinessException(ErrorCode.INVALID_PHONE_FORMAT);
         }
 
-        if (username != null) {
-            jdbcTemplate.update("UPDATE users SET username = ? WHERE id = ?", username, userId);
-        }
         if (avatar != null) {
             jdbcTemplate.update("UPDATE users SET avatar = ? WHERE id = ?", avatar, userId);
         }
@@ -148,9 +156,6 @@ public class UserController {
         }
         if (phone != null) {
             jdbcTemplate.update("UPDATE users SET phone = ? WHERE id = ?", phone, userId);
-        }
-        if (realName != null) {
-            jdbcTemplate.update("UPDATE users SET real_name = ? WHERE id = ?", realName, userId);
         }
 
         // Round28 REQ-28-12: 基本资料变更后失效个人十大（下次查看按当日+新信息重新生成）
@@ -200,8 +205,11 @@ public class UserController {
         if (oldPassword == null || newPassword == null) {
             throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD);
         }
-        if (newPassword.length() < 6) {
-            throw new BusinessException(ErrorCode.PASSWORD_TOO_SHORT);
+        if (newPassword.length() < 6 || newPassword.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "新密码至少6位，UTF-8长度不能超过72字节");
+        }
+        if (newPassword.equals(oldPassword)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "新密码不能与原密码相同");
         }
 
         Map<String, Object> user;

@@ -15,11 +15,14 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
+            android:background="@color/color_surface"
             app:title="十大重要工作"
-            app:titleTextColor="@android:color/white"
+            app:titleTextColor="@color/color_text_primary"
             app:navigationIcon="@drawable/ic_back"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            style="@style/Widget.Pandora.Toolbar"
+            app:navigationIconTint="@color/color_text_primary"
+            android:elevation="0dp" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerTop10"
@@ -35,7 +38,8 @@
             android:layout_height="wrap_content"
             android:layout_margin="16dp"
             android:text="保存"
-            app:layout_constraintBottom_toBottomOf="parent" />
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:textColor="@color/color_on_accent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </layout>

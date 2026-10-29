@@ -15,11 +15,14 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
+            android:background="@color/color_surface"
             app:title="@string/server_config_title"
-            app:titleTextColor="@android:color/white"
+            app:titleTextColor="@color/color_text_primary"
             app:navigationIcon="@drawable/ic_back"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            style="@style/Widget.Pandora.Toolbar"
+            app:navigationIconTint="@color/color_text_primary"
+            android:elevation="0dp" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler_server_list"
@@ -39,9 +42,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_margin="12dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="2dp"
-            app:layout_constraintBottom_toBottomOf="parent">
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:cardBackgroundColor="@color/color_surface">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -51,7 +55,7 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/til_server_url"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    style="@style/Widget.Pandora.TextInput"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="@string/server_url_input_hint">
@@ -73,7 +77,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_test"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        style="@style/Widget.Pandora.Button.Outlined"
                         android:layout_width="0dp"
                         android:layout_weight="1"
                         android:layout_height="wrap_content"
@@ -85,7 +89,8 @@
                         android:layout_width="0dp"
                         android:layout_weight="1"
                         android:layout_height="wrap_content"
-                        android:text="@string/btn_add_server" />
+                        android:text="@string/btn_add_server"
+                        android:textColor="@color/color_on_accent" />
                 </LinearLayout>
 
                 <TextView

@@ -391,6 +391,22 @@ CREATE TABLE IF NOT EXISTS `divination_records` (
 ALTER TABLE `tasks` ADD COLUMN IF NOT EXISTS `content` CLOB DEFAULT NULL;
 
 -- R44 REQ-D: 中继幂等映射表（clientKey 唯一索引去重+sourceId→cloudId 跨库 id 映射）
+ALTER TABLE `tasks` ADD COLUMN IF NOT EXISTS `revision` BIGINT NOT NULL DEFAULT 0;
+CREATE TABLE IF NOT EXISTS `task_change_requests` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `task_id` BIGINT,
+    `operation` VARCHAR(10) NOT NULL,
+    `requester_id` BIGINT NOT NULL,
+    `approver_id` BIGINT NOT NULL,
+    `payload` CLOB NOT NULL,
+    `base_revision` BIGINT NOT NULL DEFAULT 0,
+    `status` VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+    `reason` VARCHAR(500),
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `reviewed_at` TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS `idx_task_change_reviewer` ON `task_change_requests` (`approver_id`, `status`);
+
 CREATE TABLE IF NOT EXISTS `sync_relay_keys` (
     `id`           BIGINT       NOT NULL AUTO_INCREMENT,
     `client_key`    VARCHAR(128) NOT NULL,

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <data>
 
     </data>
 
-    <!-- Round24 REQ-24-02: 根布局重构为 CoordinatorLayout，底部任务面板提升为三视图共享 -->
     <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -21,97 +21,245 @@
                 android:id="@+id/tabLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="?attr/colorSurface"
+                android:background="@drawable/bg_schedule_tabs"
+                android:layout_marginHorizontal="12dp"
+                android:layout_marginVertical="8dp"
                 android:contentDescription="@string/a11y_tab_view_mode"
                 app:tabMode="fixed"
                 app:tabGravity="fill"
-                app:tabIndicatorColor="#E53935"
-                app:tabSelectedTextColor="#E53935" />
+                app:tabIndicator="@drawable/bg_schedule_tab_selected"
+                app:tabIndicatorHeight="40dp"
+                app:tabIndicatorGravity="center"
+                app:tabIndicatorFullWidth="false"
+                app:tabSelectedTextColor="@color/color_text_primary" />
 
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1">
 
-                <FrameLayout
+                <com.example.project_pandora.ui.widget.MonthCalendarLayout
                     android:id="@+id/containerMonthView"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent">
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:background="@color/color_month_page">
 
-                    <LinearLayout
+                    <FrameLayout
+                        android:id="@+id/monthHeader"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:orientation="vertical"
-                        android:background="@color/color_bg_page">
+                        android:layout_height="440dp"
+                        android:background="@color/color_month_page">
 
                         <LinearLayout
-                            android:id="@+id/layoutMonthNav"
+                            android:id="@+id/expandedMonthHeader"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center"
-                            android:padding="8dp">
+                            android:layout_height="match_parent"
+                            android:orientation="vertical">
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnPreviousMonth"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="‹"
-                                android:textSize="20sp"
-                                style="@style/Widget.Material3.Button.TextButton" />
+                            <LinearLayout
+                                android:id="@+id/layoutMonthNav"
+                                android:layout_width="match_parent"
+                                android:layout_height="56dp"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:paddingHorizontal="12dp">
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnPreviousMonth"
+                                    style="@style/Widget.Pandora.Button.Text"
+                                    android:layout_width="48dp"
+                                    android:layout_height="48dp"
+                                    android:minWidth="0dp"
+                                    android:minHeight="0dp"
+                                    android:paddingHorizontal="0dp"
+                                    android:text="‹"
+                                    android:textSize="24sp"
+                                    android:contentDescription="上个月" />
+
+                                <TextView
+                                    android:id="@+id/textMonthLabel"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:gravity="start|center_vertical"
+                                    android:textSize="24sp"
+                                    android:textStyle="bold"
+                                    android:textColor="@color/color_text_primary"
+                                    tools:text="2026年10月" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnNextMonth"
+                                    style="@style/Widget.Pandora.Button.Text"
+                                    android:layout_width="48dp"
+                                    android:layout_height="48dp"
+                                    android:minWidth="0dp"
+                                    android:minHeight="0dp"
+                                    android:paddingHorizontal="0dp"
+                                    android:text="›"
+                                    android:textSize="24sp"
+                                    android:contentDescription="下个月" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnResetZoom"
+                                    style="@style/Widget.Pandora.Button.Text"
+                                    android:layout_width="48dp"
+                                    android:layout_height="48dp"
+                                    android:minWidth="0dp"
+                                    android:minHeight="0dp"
+                                    android:paddingHorizontal="0dp"
+                                    android:text="今天"
+                                    android:textSize="14sp"
+                                    android:contentDescription="回到今天" />
+
+                            </LinearLayout>
+
+                            <com.example.project_pandora.ui.widget.PhoneMonthView
+                                android:id="@+id/calendarView"
+                                android:layout_width="match_parent"
+                                android:layout_height="0dp"
+                                android:layout_weight="1"
+                                android:layout_marginHorizontal="12dp" />
 
                             <TextView
-                                android:id="@+id/textMonthLabel"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
+                                android:id="@+id/monthDragHandle"
+                                android:layout_width="match_parent"
+                                android:layout_height="24dp"
                                 android:gravity="center"
+                                android:text="━"
+                                android:textSize="14sp"
+                                android:textColor="@color/color_text_secondary"
+                                android:contentDescription="上滑查看全部任务，下滑展开每日任务" />
+
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/compactMonthHeader"
+                            android:layout_width="match_parent"
+                            android:layout_height="144dp"
+                            android:layout_gravity="top"
+                            android:orientation="vertical"
+                            android:background="@color/color_month_page"
+                            android:visibility="gone">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="52dp"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:paddingHorizontal="12dp">
+
+                                <TextView
+                                    android:id="@+id/compactMonthLabel"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:gravity="center"
+                                    android:textSize="20sp"
+                                    android:textStyle="bold"
+                                    android:textColor="@color/color_text_primary"
+                                    tools:text="2026年10月" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnCompactPreviousMonth"
+                                    style="@style/Widget.Pandora.Button.Text"
+                                    android:layout_width="48dp"
+                                    android:layout_height="48dp"
+                                    android:minWidth="0dp"
+                                    android:minHeight="0dp"
+                                    android:paddingHorizontal="0dp"
+                                    android:text="‹"
+                                    android:textSize="24sp"
+                                    android:contentDescription="上个月" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnCompactNextMonth"
+                                    style="@style/Widget.Pandora.Button.Text"
+                                    android:layout_width="48dp"
+                                    android:layout_height="48dp"
+                                    android:minWidth="0dp"
+                                    android:minHeight="0dp"
+                                    android:paddingHorizontal="0dp"
+                                    android:text="›"
+                                    android:textSize="24sp"
+                                    android:contentDescription="下个月" />
+
+                            </LinearLayout>
+
+                            <com.example.project_pandora.ui.widget.WeekDateStrip
+                                android:id="@+id/monthWeekStrip"
+                                android:layout_width="match_parent"
+                                android:layout_height="88dp" />
+
+                        </LinearLayout>
+
+                    </FrameLayout>
+
+                    <androidx.core.widget.NestedScrollView
+                        android:id="@+id/scrollPanelTaskTable"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:fillViewport="true"
+                        android:clipToPadding="false">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:paddingHorizontal="16dp"
+                            android:paddingBottom="88dp">
+
+                            <TextView
+                                android:id="@+id/monthTaskHeading"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:paddingVertical="12dp"
+                                android:text="当天任务"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:textColor="@color/color_text_primary" />
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnNextMonth"
-                                android:layout_width="wrap_content"
+                            <com.google.android.material.tabs.TabLayout
+                                android:id="@+id/tabPanelTasks"
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="›"
-                                android:textSize="20sp"
-                                style="@style/Widget.Material3.Button.TextButton" />
+                                app:tabMode="fixed" />
+
+                            <TextView
+                                android:id="@+id/textPanelTaskEmpty"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:padding="32dp"
+                                android:gravity="center"
+                                android:text="暂无任务"
+                                android:textSize="14sp"
+                                android:textColor="@color/color_text_secondary"
+                                android:visibility="gone" />
+
+                            <TextView
+                                android:id="@+id/textPanelTaskError"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:padding="32dp"
+                                android:gravity="center"
+                                android:text="加载失败，点击重试"
+                                android:textSize="15sp"
+                                android:textColor="@color/color_error"
+                                android:contentDescription="点击重试"
+                                android:visibility="gone" />
+
+                            <androidx.recyclerview.widget.RecyclerView
+                                android:id="@+id/recyclerPanelTaskTable"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:nestedScrollingEnabled="false" />
 
                         </LinearLayout>
 
-                        <FrameLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="0dp"
-                            android:layout_weight="1">
+                    </androidx.core.widget.NestedScrollView>
 
-                            <com.example.project_pandora.ui.widget.CalendarView
-                                android:id="@+id/calendarView"
-                                android:layout_width="match_parent"
-                                android:layout_height="match_parent"
-                                android:layout_margin="8dp" />
-
-                            <!-- R38: 恢复预设缩放按钮移左下角（用户指示），仍布局层叠不随网格滚动平移 -->
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnResetZoom"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="bottom|start"
-                                android:layout_margin="12dp"
-                                android:minWidth="0dp"
-                                android:minHeight="0dp"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:paddingHorizontal="14dp"
-                                android:paddingVertical="8dp"
-                                android:text="@string/reset_zoom_label"
-                                android:textSize="12sp" />
-
-                        </FrameLayout>
-
-                    </LinearLayout>
-
-                </FrameLayout>
+                </com.example.project_pandora.ui.widget.MonthCalendarLayout>
 
                 <FrameLayout
                     android:id="@+id/containerWeekView"
@@ -119,47 +267,11 @@
                     android:layout_height="match_parent"
                     android:visibility="gone">
 
-                    <LinearLayout
+                    <com.example.project_pandora.ui.widget.TaskScheduleView
+                        android:id="@+id/weekSchedule"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:orientation="vertical"
-                        android:background="@color/color_bg_page">
-
-                        <TextView
-                            android:id="@+id/textWeekLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center"
-                            android:padding="12dp"
-                            android:textSize="18sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/color_text_primary" />
-
-                        <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/recyclerWeekTasks"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:padding="8dp"
-                            android:clipToPadding="false" />
-
-                        <LinearLayout
-                            android:id="@+id/weekEmptyState"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:orientation="vertical"
-                            android:gravity="center"
-                            android:visibility="gone">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="本周暂无任务"
-                                android:textSize="16sp"
-                                android:textColor="#BCAAA4" />
-
-                        </LinearLayout>
-
-                    </LinearLayout>
+                        app:scheduleMode="week" />
 
                 </FrameLayout>
 
@@ -169,78 +281,11 @@
                     android:layout_height="match_parent"
                     android:visibility="gone">
 
-                    <LinearLayout
+                    <com.example.project_pandora.ui.widget.TaskScheduleView
+                        android:id="@+id/daySchedule"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:orientation="vertical"
-                        android:background="@color/color_bg_page">
-
-                        <HorizontalScrollView
-                            android:id="@+id/weekCalendarScroll"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:background="?attr/colorSurface"
-                            android:scrollbars="none">
-
-                            <LinearLayout
-                                android:id="@+id/weekCalendarContainer"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal"
-                                android:padding="4dp" />
-
-                        </HorizontalScrollView>
-
-                        <TextView
-                            android:id="@+id/textDayLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center"
-                            android:padding="8dp"
-                            android:textSize="16sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/color_text_primary" />
-
-                        <FrameLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="0dp"
-                            android:layout_weight="1">
-
-                            <androidx.recyclerview.widget.RecyclerView
-                                android:id="@+id/recyclerDayTasks"
-                                android:layout_width="match_parent"
-                                android:layout_height="match_parent"
-                                android:padding="8dp"
-                                android:clipToPadding="false" />
-
-                            <LinearLayout
-                                android:id="@+id/dayEmptyState"
-                                android:layout_width="match_parent"
-                                android:layout_height="match_parent"
-                                android:orientation="vertical"
-                                android:gravity="center"
-                                android:visibility="gone">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="今日暂无任务"
-                                    android:textSize="16sp"
-                                    android:textColor="#BCAAA4" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="8dp"
-                                    android:text="点击右下角 + 添加"
-                                    android:textSize="13sp"
-                                    android:textColor="#D7CCC8" />
-
-                            </LinearLayout>
-
-                        </FrameLayout>
-
-                    </LinearLayout>
+                        app:scheduleMode="day" />
 
                 </FrameLayout>
 
@@ -248,174 +293,6 @@
 
         </LinearLayout>
 
-        <!-- Round24 REQ-24-02: 三视图共享底部任务面板（六列表格原样搬运自 TaskShowActivity） -->
-        <LinearLayout
-            android:id="@+id/sheetTaskPanel"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:background="?attr/colorSurface"
-            android:elevation="8dp"
-            app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior"
-            android:visibility="gone"
-            app:behavior_peekHeight="0dp"
-            app:behavior_hideable="true"
-            app:behavior_skipCollapsed="true"
-            app:behavior_fitToContents="false"
-            app:behavior_halfExpandedRatio="0.5">
-
-            <FrameLayout
-                android:id="@+id/viewSheetDragHandle"
-                android:layout_width="match_parent"
-                android:layout_height="56dp">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal">
-
-                    <View
-                        android:layout_width="32dp"
-                        android:layout_height="4dp"
-                        android:background="@drawable/bg_sheet_drag_handle" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="上滑查看全部任务"
-                        android:textSize="11sp"
-                        android:textColor="@color/color_text_secondary" />
-
-                </LinearLayout>
-
-            </FrameLayout>
-
-            <com.google.android.material.tabs.TabLayout
-                android:id="@+id/tabPanelTasks"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:tabMode="fixed" />
-
-            <!-- Round25 R25-03: 外层改 NestedScrollView 承担垂直滚动（BottomSheet 标准嵌套结构），
-                 内层 HSV 只负责横向滚动，RecyclerView wrap_content 全渲染；修复超一屏时垂直滚动失效 -->
-            <com.example.project_pandora.ui.widget.VelocityTunedScrollView
-                android:id="@+id/scrollPanelTaskTable"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:scrollbars="none">
-
-            <com.example.project_pandora.ui.widget.VelocityTunedHorizontalScrollView
-                android:id="@+id/scrollPanelTaskHorizontal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <!-- 表头块：从 activity_task_show.xml L44-105 原样拷贝，逐属性保持不得改动 -->
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:background="#37474F"
-                        android:paddingHorizontal="6dp"
-                        android:paddingVertical="10dp">
-
-                        <TextView
-                            android:layout_width="120dp"
-                            android:layout_height="wrap_content"
-                            android:text="任务名"
-                            android:textSize="12sp"
-                            android:textStyle="bold"
-                            android:textColor="@android:color/white" />
-
-                        <TextView
-                            android:layout_width="80dp"
-                            android:layout_height="wrap_content"
-                            android:text="截止日期"
-                            android:textSize="11sp"
-                            android:textStyle="bold"
-                            android:textColor="@android:color/white"
-                            android:gravity="center" />
-
-                        <TextView
-                            android:layout_width="70dp"
-                            android:layout_height="wrap_content"
-                            android:text="紧急度"
-                            android:textSize="11sp"
-                            android:textStyle="bold"
-                            android:textColor="@android:color/white"
-                            android:gravity="center" />
-
-                        <TextView
-                            android:layout_width="70dp"
-                            android:layout_height="wrap_content"
-                            android:text="完成度"
-                            android:textSize="11sp"
-                            android:textStyle="bold"
-                            android:textColor="@android:color/white"
-                            android:gravity="center" />
-
-                        <TextView
-                            android:layout_width="70dp"
-                            android:layout_height="wrap_content"
-                            android:text="负责人"
-                            android:textSize="11sp"
-                            android:textStyle="bold"
-                            android:textColor="@android:color/white"
-                            android:gravity="center" />
-
-                    </LinearLayout>
-
-                    <!-- Round25 R25-03: 移除 nestedScrollingEnabled=false，恢复嵌套滚动，
-                         修复表格超一屏（employee4 12 行）时垂直滚动失效（BottomSheet 拦截） -->
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/recyclerPanelTaskTable"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
-
-                </LinearLayout>
-
-            </com.example.project_pandora.ui.widget.VelocityTunedHorizontalScrollView>
-
-            </com.example.project_pandora.ui.widget.VelocityTunedScrollView>
-
-            <TextView
-                android:id="@+id/textPanelTaskEmpty"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:text="暂无任务数据"
-                android:textSize="14sp"
-                android:textColor="#9E9E9E"
-                android:gravity="center"
-                android:padding="20dp"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/textPanelTaskError"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:text="加载失败，点击重试"
-                android:textSize="15sp"
-                android:textColor="#E53935"
-                android:gravity="center"
-                android:visibility="gone" />
-
-        </LinearLayout>
-
-        <!-- Round24 REQ-24-02: FAB 锚定面板顶部，随面板升降自动上移 -->
-        <!-- Round26 缺陷⑩: XML 层 layout_gravity 方案实测失效（bottom 分量使 FAB 整体沉入面板），
-             改由 ViewFragment 代码层恒定 translationY 兜底（见 ViewFragment FAB 偏移注释） -->
-        <!-- R36 R1: FAB 改锚定父容器固定位置（原锚定面板顶部在面板 HIDDEN 时整体不可见） -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fabAddTask"
             android:layout_width="wrap_content"
@@ -423,24 +300,9 @@
             android:layout_margin="16dp"
             android:contentDescription="添加任务"
             android:src="@android:drawable/ic_input_add"
-            app:backgroundTint="#E53935"
-            app:tint="@android:color/white"
+            app:backgroundTint="@color/color_accent"
+            app:tint="@color/color_on_accent"
             android:layout_gravity="bottom|end" />
-
-        <!-- R36 REQ-36-B1/B3: 常驻面板入口按钮（面板隐藏期唯一可见入口；
-             仅本按钮上的上滑手势可展开面板——月视图缩放/单指滑动一律不触发） -->
-        <TextView
-            android:id="@+id/btnPanelEntry"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginBottom="8dp"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="6dp"
-            android:background="@drawable/bg_panel_entry"
-            android:text="@string/panel_entry_hint"
-            android:textSize="12sp"
-            android:textColor="@color/color_text_secondary" />
 
         <ProgressBar
             android:id="@+id/progressBar"

@@ -16,6 +16,8 @@ pandora-backend/target/
 # Web frontend
 pandora-web/node_modules/
 pandora-web/dist/
+/pandora-web/.build-temp/
+/.build-temp/
 
 # H2 data
 pandora-data/

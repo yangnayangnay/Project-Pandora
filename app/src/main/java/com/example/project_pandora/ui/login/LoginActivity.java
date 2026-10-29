@@ -10,6 +10,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 
 import com.example.project_pandora.MainActivity;
 import com.example.project_pandora.R;
@@ -66,7 +67,7 @@ public class LoginActivity extends AppCompatActivity {
         binding.btnRefreshServer.setOnClickListener(v -> {
             binding.btnRefreshServer.setVisibility(android.view.View.GONE);
             binding.textServerStatus.setText(R.string.server_checking);
-            binding.textServerStatus.setTextColor(0xFFFF9800);
+            binding.textServerStatus.setTextColor(ContextCompat.getColor(this, R.color.color_warning));
             ServerConnectivityMonitor.getInstance().checkNow();
         });
 
@@ -105,13 +106,13 @@ public class LoginActivity extends AppCompatActivity {
         switch (state) {
             case CONNECTED:
                 binding.textServerStatus.setText(R.string.server_connected);
-                binding.textServerStatus.setTextColor(0xFF4CAF50);
+                binding.textServerStatus.setTextColor(ContextCompat.getColor(this, R.color.color_success));
                 binding.btnRefreshServer.setVisibility(android.view.View.GONE);
                 binding.btnLoginServerConfig.setVisibility(android.view.View.GONE);
                 break;
             case DISCONNECTED:
                 binding.textServerStatus.setText(R.string.server_retry_failed);
-                binding.textServerStatus.setTextColor(0xFFF44336);
+                binding.textServerStatus.setTextColor(ContextCompat.getColor(this, R.color.color_error));
                 binding.btnRefreshServer.setVisibility(android.view.View.VISIBLE);
                 binding.btnLoginServerConfig.setVisibility(android.view.View.VISIBLE);
                 showNotification(NOTIF_SERVER_DISCONNECTED,
@@ -120,7 +121,7 @@ public class LoginActivity extends AppCompatActivity {
                 break;
             case CHECKING:
                 binding.textServerStatus.setText(R.string.server_checking);
-                binding.textServerStatus.setTextColor(0xFFFF9800);
+                binding.textServerStatus.setTextColor(ContextCompat.getColor(this, R.color.color_warning));
                 break;
         }
     }

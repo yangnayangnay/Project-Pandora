@@ -2,14 +2,54 @@
     <!-- Base application theme. -->
     <style name="Base.Theme.Project_Pandora" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- REQ-31-05: 亮色主题基座显式化（Material3 默认值等价，保证行为确定） -->
-        <item name="colorPrimary">@color/color_calendar_today</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <item name="colorSurface">@color/color_bg_page</item>
+        <item name="colorPrimary">@color/color_accent</item>
+        <item name="colorOnPrimary">@color/color_on_accent</item>
+        <item name="colorPrimaryContainer">@color/color_accent_soft</item>
+        <item name="colorOnPrimaryContainer">@color/color_text_primary</item>
+        <item name="colorSecondary">@color/color_accent</item>
+        <item name="colorOnSecondary">@color/color_on_accent</item>
+        <item name="colorSecondaryContainer">@color/color_accent_soft</item>
+        <item name="colorOnSecondaryContainer">@color/color_text_primary</item>
+        <item name="colorTertiary">@color/color_accent</item>
+        <item name="colorOnTertiary">@color/color_on_accent</item>
+        <item name="colorTertiaryContainer">@color/color_accent_soft</item>
+        <item name="colorOnTertiaryContainer">@color/color_text_primary</item>
+        <item name="colorSurface">@color/color_surface</item>
         <item name="colorOnSurface">@color/color_text_primary</item>
         <item name="colorOnSurfaceVariant">@color/color_text_secondary</item>
+        <item name="colorSurfaceVariant">@color/color_surface_soft</item>
+        <item name="colorSurfaceContainerLowest">@color/color_surface</item>
+        <item name="colorSurfaceContainerLow">@color/color_surface</item>
+        <item name="colorSurfaceContainer">@color/color_surface_soft</item>
+        <item name="colorSurfaceContainerHigh">@color/color_surface_soft</item>
+        <item name="colorSurfaceContainerHighest">@color/color_accent_soft</item>
+        <item name="colorOutline">@color/color_border_strong</item>
+        <item name="colorOutlineVariant">@color/color_divider</item>
+        <item name="colorError">@color/color_error</item>
+        <item name="colorOnError">@color/color_on_accent</item>
+        <item name="colorErrorContainer">@color/color_error_surface</item>
+        <item name="colorOnErrorContainer">@color/color_error</item>
+        <item name="colorControlHighlight">@color/color_accent_soft</item>
         <item name="android:colorBackground">@color/color_bg_page</item>
+        <item name="android:windowBackground">@color/color_bg_page</item>
         <item name="android:textColorPrimary">@color/color_text_primary</item>
         <item name="android:textColorSecondary">@color/color_text_secondary</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
+        <item name="textAppearanceBodyLarge">@style/TextAppearance.Pandora.Body</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.Pandora.BodySmall</item>
+        <item name="textAppearanceTitleLarge">@style/TextAppearance.Pandora.Title</item>
+        <item name="textAppearanceLabelLarge">@style/TextAppearance.Pandora.Label</item>
+        <item name="materialButtonStyle">@style/Widget.Pandora.Button</item>
+        <item name="materialButtonOutlinedStyle">@style/Widget.Pandora.Button.Outlined</item>
+        <item name="materialCardViewStyle">@style/Widget.Pandora.Card</item>
+        <item name="cardViewStyle">@style/Widget.Pandora.LegacyCard</item>
+        <item name="toolbarStyle">@style/Widget.Pandora.Toolbar</item>
+        <item name="textInputStyle">@style/Widget.Pandora.TextInput</item>
+        <item name="tabStyle">@style/Widget.Pandora.Tabs</item>
+        <item name="chipStyle">@style/Widget.Pandora.Chip</item>
+        <item name="bottomNavigationStyle">@style/Widget.Pandora.BottomNavigation</item>
+        <item name="floatingActionButtonStyle">@style/Widget.Pandora.Fab</item>
     </style>
 
     <style name="Theme.Project_Pandora" parent="Base.Theme.Project_Pandora" />

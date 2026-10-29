@@ -15,9 +15,9 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
+            android:background="@color/color_surface"
             app:title="AI地图"
-            app:titleTextColor="@android:color/white"
+            app:titleTextColor="@color/color_text_primary"
             app:layout_constraintTop_toTopOf="parent" />
 
         <LinearLayout
@@ -33,9 +33,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="120dp"
                 android:layout_marginBottom="16dp"
-                app:cardBackgroundColor="#6750A4"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/color_surface"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/color_divider"
                 android:clickable="true"
                 android:focusable="true">
 
@@ -43,24 +45,21 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:orientation="horizontal"
-                    android:gravity="center"
-                    android:padding="16dp">
+                    android:gravity="center_vertical"
+                    android:padding="24dp">
 
-                    <TextView
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:text="&#x1F4CA;"
-                        android:textSize="32sp"
-                        android:gravity="center"
-                        android:layout_marginEnd="16dp" />
+                    <ImageView android:layout_width="48dp" android:layout_height="48dp"
+                        android:layout_marginEnd="20dp" android:padding="12dp"
+                        android:background="@drawable/bg_brand_tile" android:src="@drawable/ic_data_outline"
+                        android:tint="@color/color_accent" android:importantForAccessibility="no" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="数据收集"
-                        android:textSize="20sp"
+                        android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@android:color/white" />
+                        android:textColor="@color/color_text_primary" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -70,9 +69,11 @@
                 android:id="@+id/btn_ai_analysis"
                 android:layout_width="match_parent"
                 android:layout_height="120dp"
-                app:cardBackgroundColor="#6750A4"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/color_surface"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/color_divider"
                 android:clickable="true"
                 android:focusable="true">
 
@@ -80,24 +81,21 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:orientation="horizontal"
-                    android:gravity="center"
-                    android:padding="16dp">
+                    android:gravity="center_vertical"
+                    android:padding="24dp">
 
-                    <TextView
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:text="&#x1F916;"
-                        android:textSize="32sp"
-                        android:gravity="center"
-                        android:layout_marginEnd="16dp" />
+                    <ImageView android:layout_width="48dp" android:layout_height="48dp"
+                        android:layout_marginEnd="20dp" android:padding="12dp"
+                        android:background="@drawable/bg_brand_tile" android:src="@drawable/ic_ai_map"
+                        android:tint="@color/color_accent" android:importantForAccessibility="no" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="AI数据分析展示"
-                        android:textSize="20sp"
+                        android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@android:color/white" />
+                        android:textColor="@color/color_text_primary" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

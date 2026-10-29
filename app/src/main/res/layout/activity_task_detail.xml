@@ -15,11 +15,14 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
+            android:background="@color/color_surface"
             app:title="任务详情"
-            app:titleTextColor="@android:color/white"
+            app:titleTextColor="@color/color_text_primary"
             app:navigationIcon="@drawable/ic_back"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            style="@style/Widget.Pandora.Toolbar"
+            app:navigationIconTint="@color/color_text_primary"
+            android:elevation="0dp" />
 
         <ScrollView
             android:layout_width="match_parent"
@@ -37,7 +40,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:background="#f8f9fa"
+                    android:background="@color/color_surface_soft"
                     android:paddingHorizontal="6dp"
                     android:paddingVertical="8dp"
                     android:weightSum="6"
@@ -206,7 +209,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginTop="16dp"
-                    android:background="#E0E0E0" />
+                    android:background="@color/color_divider" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -254,7 +257,7 @@
                         android:layout_weight="1"
                         android:text="紧急"
                         android:textSize="14sp"
-                        android:textColor="#F44336"
+                        android:textColor="@color/color_accent"
                         android:textStyle="bold"
                         android:paddingVertical="8dp" />
 
@@ -265,7 +268,7 @@
                         android:layout_weight="1"
                         android:text="不紧急"
                         android:textSize="14sp"
-                        android:textColor="#4CAF50"
+                        android:textColor="@color/color_success"
                         android:textStyle="bold"
                         android:paddingVertical="8dp" />
 
@@ -318,7 +321,8 @@
                 android:layout_weight="1"
                 android:layout_margin="4dp"
                 android:text="开始"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                android:textColor="@color/color_on_accent" />
 
             <!-- R39 REQ-B02: 切回未完成（责任人+COMPLETED 态显示，二元切换） -->
             <com.google.android.material.button.MaterialButton
@@ -329,7 +333,8 @@
                 android:layout_margin="4dp"
                 android:text="@string/btn_reopen_task"
                 android:textSize="14sp"
-                android:visibility="gone" />
+                android:visibility="gone"
+                android:textColor="@color/color_on_accent" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnComplete"
@@ -338,7 +343,8 @@
                 android:layout_weight="1"
                 android:layout_margin="4dp"
                 android:text="完成"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                android:textColor="@color/color_on_accent" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnConfirm"
@@ -347,7 +353,8 @@
                 android:layout_weight="1"
                 android:layout_margin="4dp"
                 android:text="确认"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                android:textColor="@color/color_on_accent" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnReject"
@@ -356,7 +363,8 @@
                 android:layout_weight="1"
                 android:layout_margin="4dp"
                 android:text="退回"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                android:textColor="@color/color_on_accent" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnDelete"
@@ -366,8 +374,9 @@
                 android:layout_margin="4dp"
                 android:text="删除"
                 android:textSize="14sp"
-                android:backgroundTint="#F44336"
-                android:visibility="gone" />
+                android:backgroundTint="@color/color_error"
+                android:visibility="gone"
+                android:textColor="@color/color_on_accent" />
 
         </LinearLayout>
 

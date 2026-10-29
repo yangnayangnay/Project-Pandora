@@ -6,8 +6,6 @@
         <!-- Round19 REQ-19-01: 菜单精简为5项，按角色动态显隐 -->
         <el-menu-item index="/user"><el-icon><User /></el-icon>人员管理</el-menu-item>
         <el-menu-item index="/account/create" v-if="userStore.role === 'ADMIN'"><el-icon><CirclePlus /></el-icon>账号创建</el-menu-item>
-        <el-menu-item index="/user/hierarchy-relation" v-if="userStore.role === 'ADMIN'"><el-icon><Connection /></el-icon>人员关系</el-menu-item>
-        <el-menu-item index="/user/dept-team" v-if="userStore.role === 'ADMIN'"><el-icon><OfficeBuilding /></el-icon>部门团队</el-menu-item>
         <el-menu-item index="/config/audit-log" v-if="userStore.role === 'ADMIN'"><el-icon><Document /></el-icon>系统日志</el-menu-item>
         <el-menu-item index="/top10/company-important"><el-icon><Trophy /></el-icon>公司十大事项</el-menu-item>
         <el-menu-item index="/profile"><el-icon><UserFilled /></el-icon>个人中心</el-menu-item>

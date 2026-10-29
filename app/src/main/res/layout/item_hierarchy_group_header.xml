@@ -7,7 +7,7 @@
     android:paddingBottom="10dp"
     android:paddingStart="8dp"
     android:paddingEnd="8dp"
-    android:textColor="#B71C1C"
+    android:textColor="@color/color_error"
     android:textSize="15sp"
     android:textStyle="bold"
-    android:background="#FFF4E5" />
+    android:background="@color/color_error_surface" />

@@ -70,14 +70,20 @@ const routes = [
       {
         path: 'user/dept-team',
         name: 'DeptTeam',
-        component: () => import('@/views/user/DeptTeamView.vue'),
-        meta: { title: '部门团队', requiresAuth: true }
+        redirect: '/user',
+        meta: { title: '人员管理', requiresAuth: true }
       },
       {
         path: 'user/hierarchy-relation',
         name: 'HierarchyRelation',
-        component: () => import('@/views/user/HierarchyRelationView.vue'),
-        meta: { title: '人员关系', requiresAuth: true }
+        redirect: '/user',
+        meta: { title: '人员管理', requiresAuth: true }
+      },
+      {
+        path: 'user/personnel-relation',
+        name: 'PersonnelRelation',
+        redirect: '/user',
+        meta: { title: '人员管理', requiresAuth: true }
       },
       {
         path: 'ai',

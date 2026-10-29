@@ -57,6 +57,7 @@ public class ProfileActivity extends AppCompatActivity {
         userApi = NetworkClient.getInstance(this).createService(UserApi.class);
 
         loadUserInfo();
+        binding.btnChangePassword.setOnClickListener(v -> startActivity(new Intent(this, ChangePasswordActivity.class)));
 
         binding.btnSave.setOnClickListener(v -> saveProfile());
 
@@ -106,9 +107,9 @@ public class ProfileActivity extends AppCompatActivity {
             String baseUrl = NetworkClient.getBaseUrl();
             if (baseUrl.endsWith("/")) baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
             String fullUrl = baseUrl + avatarUrl;
-            Glide.with(this).load(fullUrl).placeholder(R.mipmap.ic_launcher).error(R.mipmap.ic_launcher).into(binding.imageAvatar);
+            Glide.with(this).load(fullUrl).placeholder(R.drawable.ic_profile_placeholder).error(R.drawable.ic_profile_placeholder).into(binding.imageAvatar);
         } else {
-            binding.imageAvatar.setImageResource(R.mipmap.ic_launcher);
+            binding.imageAvatar.setImageResource(R.drawable.ic_profile_placeholder);
         }
     }
 
@@ -117,18 +118,6 @@ public class ProfileActivity extends AppCompatActivity {
         String realName = binding.editRealName.getText().toString().trim();
         String email = binding.editEmail.getText().toString().trim();
         String phone = binding.editPhone.getText().toString().trim();
-
-        if (username.isEmpty()) {
-            binding.layoutUsername.setError("用户名不能为空");
-            return;
-        }
-        binding.layoutUsername.setError(null);
-
-        if (realName.isEmpty()) {
-            binding.layoutRealName.setError("真实姓名不能为空");
-            return;
-        }
-        binding.layoutRealName.setError(null);
 
         if (!email.isEmpty() && !EMAIL_REGEX.matcher(email).matches()) {
             binding.layoutEmail.setError("邮箱格式不正确");
@@ -143,8 +132,6 @@ public class ProfileActivity extends AppCompatActivity {
         binding.layoutPhone.setError(null);
 
         Map<String, Object> request = new HashMap<>();
-        request.put("username", username);
-        request.put("realName", realName);
         request.put("email", email);
         request.put("phone", phone);
 

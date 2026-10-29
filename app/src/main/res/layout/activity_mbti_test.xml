@@ -9,17 +9,20 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#FFFAF0">
+        android:background="@color/color_bg_page">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#8B0000"
+            android:background="@color/color_surface"
             app:title="MBTI性格测试"
-            app:titleTextColor="#FFD700"
+            app:titleTextColor="@color/color_text_primary"
             app:navigationIcon="@drawable/ic_back"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            style="@style/Widget.Pandora.Toolbar"
+            app:navigationIconTint="@color/color_text_primary"
+            android:elevation="0dp" />
 
         <LinearLayout
             android:id="@+id/layout_question"
@@ -47,7 +50,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
-                android:progressTint="#8B0000" />
+                android:progressTint="@color/color_accent" />
 
             <TextView
                 android:id="@+id/text_question"
@@ -66,8 +69,8 @@
                 android:textSize="16sp"
                 android:padding="16dp"
                 android:layout_marginBottom="12dp"
-                app:backgroundTint="#FFFFFF"
-                app:strokeColor="#8B0000"
+                app:backgroundTint="@color/color_surface"
+                app:strokeColor="@color/color_accent"
                 app:strokeWidth="1dp"
                 android:textColor="@color/color_text_primary" />
 
@@ -77,8 +80,8 @@
                 android:layout_height="wrap_content"
                 android:textSize="16sp"
                 android:padding="16dp"
-                app:backgroundTint="#FFFFFF"
-                app:strokeColor="#8B0000"
+                app:backgroundTint="@color/color_surface"
+                app:strokeColor="@color/color_accent"
                 app:strokeWidth="1dp"
                 android:textColor="@color/color_text_primary" />
 
@@ -97,7 +100,7 @@
             <ProgressBar
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:indeterminateTint="#8B0000"
+                android:indeterminateTint="@color/color_accent"
                 android:layout_marginBottom="24dp" />
 
             <TextView
@@ -106,7 +109,7 @@
                 android:text="正在生成分析报告"
                 android:textSize="20sp"
                 android:textStyle="bold"
-                android:textColor="#8B0000" />
+                android:textColor="@color/color_accent" />
 
         </LinearLayout>
 
@@ -138,7 +141,7 @@
                     android:layout_height="wrap_content"
                     android:textSize="48sp"
                     android:textStyle="bold"
-                    android:textColor="#8B0000"
+                    android:textColor="@color/color_accent"
                     android:gravity="center"
                     android:layout_marginBottom="8dp" />
 
@@ -154,7 +157,7 @@
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="#E0E0E0"
+                    android:background="@color/color_divider"
                     android:layout_marginBottom="16dp" />
 
                 <TextView
@@ -163,7 +166,7 @@
                     android:text="荣格认知功能栈"
                     android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="#8B0000"
+                    android:textColor="@color/color_accent"
                     android:layout_marginBottom="12dp" />
 
                 <TextView
@@ -178,7 +181,7 @@
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="#E0E0E0"
+                    android:background="@color/color_divider"
                     android:layout_marginBottom="16dp" />
 
                 <TextView
@@ -187,7 +190,7 @@
                     android:text="分析报告"
                     android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="#8B0000"
+                    android:textColor="@color/color_accent"
                     android:layout_marginBottom="12dp" />
 
                 <TextView
@@ -216,7 +219,8 @@
                     android:layout_height="wrap_content"
                     android:text="重新测试"
                     android:layout_marginTop="24dp"
-                    app:backgroundTint="#8B0000" />
+                    app:backgroundTint="@color/color_accent"
+                    android:textColor="@color/color_on_accent" />
 
             </LinearLayout>
         </ScrollView>

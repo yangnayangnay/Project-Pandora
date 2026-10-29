@@ -3,7 +3,6 @@ package com.example.project_pandora.ui.log;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,6 +23,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import com.example.project_pandora.R;
 import com.example.project_pandora.core.config.LogDisplayLimitConfig;
 import com.example.project_pandora.core.network.TokenManager;
+import com.example.project_pandora.core.network.NetworkClient;
+import com.example.project_pandora.data.remote.UserApi;
 import com.example.project_pandora.databinding.FragmentLogBinding;
 import com.example.project_pandora.repository.LogRepository;
 import com.google.android.material.tabs.TabLayout;
@@ -37,6 +38,7 @@ import java.util.Map;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.disposables.SerialDisposable;
 
 public class LogFragment extends Fragment {
 
@@ -49,6 +51,9 @@ public class LogFragment extends Fragment {
     private SubordinateLogAdapter subordinateLogAdapter;
     private LogDisplayLimitConfig logDisplayLimitConfig;
     private final CompositeDisposable disposables = new CompositeDisposable();
+    private final SerialDisposable logLoad = new SerialDisposable();
+    private final SerialDisposable directoryLoad = new SerialDisposable();
+    private final SerialDisposable roleRefresh = new SerialDisposable();
 
     private String currentRole;
     private boolean isMyLogTab = true;
@@ -74,6 +79,8 @@ public class LogFragment extends Fragment {
         currentRole = TokenManager.getInstance(requireContext()).getRole();
         Long uid = TokenManager.getInstance(requireContext()).getUserId();
         currentUserId = uid != null ? uid : -1L;
+        isMyLogTab = true;
+        keyboardVisible = false;
 
         setupAdapters();
         setupTabs();
@@ -87,7 +94,6 @@ public class LogFragment extends Fragment {
         if (binding.tabLayout.getTabCount() > 0) {
             binding.tabLayout.getTabAt(TAB_MY_LOG).select();
         }
-        loadMyLogs(null, null, null);
     }
 
     private void setupAdapters() {
@@ -128,7 +134,7 @@ public class LogFragment extends Fragment {
     private void setupTabs() {
         binding.tabLayout.addTab(binding.tabLayout.newTab().setText("我的日志"));
 
-        hasOtherLogTab = !"EMPLOYEE".equals(currentRole);
+        hasOtherLogTab = canViewOtherLogs();
         if (hasOtherLogTab) {
             binding.tabLayout.addTab(binding.tabLayout.newTab().setText("他人日志"));
         }
@@ -143,7 +149,7 @@ public class LogFragment extends Fragment {
                     binding.spinnerSubordinate.setVisibility(View.GONE);
                     updateFabVisibility();
                     clearSearchInputs();
-                    loadMyLogs(null, null, null);
+                    applyFilters();
                 } else {
                     isMyLogTab = false;
                     binding.recyclerLogs.setVisibility(View.GONE);
@@ -152,7 +158,7 @@ public class LogFragment extends Fragment {
                     updateFabVisibility();
                     clearSearchInputs();
                     loadSubordinateList();
-                    loadSubordinateLogs(null, null, null, null);
+                    applyFilters();
                 }
             }
 
@@ -164,23 +170,74 @@ public class LogFragment extends Fragment {
         });
     }
 
+    private boolean canViewOtherLogs() {
+        return "ADMIN".equals(currentRole) || "FOUNDER".equals(currentRole)
+                || "DEPT_HEAD".equals(currentRole) || "TEAM_LEADER".equals(currentRole);
+    }
+
+    private void refreshRoleTabs() {
+        boolean allowed = canViewOtherLogs();
+        if (allowed == hasOtherLogTab) return;
+        hasOtherLogTab = allowed;
+        directoryLoad.set(null);
+        subordinateList.clear();
+        updateSubordinateSpinner();
+        if (allowed) {
+            binding.tabLayout.addTab(binding.tabLayout.newTab().setText("他人日志"));
+        } else {
+            binding.tabLayout.getTabAt(TAB_MY_LOG).select();
+            binding.tabLayout.removeTabAt(TAB_OTHER_LOG);
+            subordinateLogAdapter.setLogs(new ArrayList<>());
+        }
+    }
+
     private void setupSearch() {
-        binding.btnSearch.setOnClickListener(v -> {
-            String startDate = binding.editStartDate.getText().toString().trim();
-            String endDate = binding.editEndDate.getText().toString().trim();
-            String keyword = binding.editKeyword.getText().toString().trim();
-
-            String sDate = TextUtils.isEmpty(startDate) ? null : startDate;
-            String eDate = TextUtils.isEmpty(endDate) ? null : endDate;
-            String kw = TextUtils.isEmpty(keyword) ? null : keyword;
-
-            if (isMyLogTab) {
-                loadMyLogs(sDate, eDate, kw);
-            } else {
-                Long subId = getSelectedSubordinateId();
-                loadSubordinateLogs(subId, sDate, eDate, kw);
-            }
+        binding.editStartDate.setOnClickListener(v -> pickFilterDate(binding.editStartDate));
+        binding.editEndDate.setOnClickListener(v -> pickFilterDate(binding.editEndDate));
+        binding.btnSearch.setOnClickListener(v -> applyFilters());
+        binding.btnResetFilters.setOnClickListener(v -> {
+            clearSearchInputs(); binding.spinnerSubordinate.setSelection(0);
+            binding.chipFilterToday.setChecked(false); binding.chipFilterWeek.setChecked(false); binding.chipFilterAll.setChecked(true);
+            applyFilters();
         });
+        binding.chipFilterToday.setOnClickListener(v -> setDateRange(0));
+        binding.chipFilterWeek.setOnClickListener(v -> setDateRange(6));
+        binding.chipFilterAll.setOnClickListener(v -> { binding.editStartDate.setText(""); binding.editEndDate.setText(""); applyFilters(); });
+        binding.spinnerSubordinate.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) { if (!isMyLogTab) applyFilters(); }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+    }
+
+    private void pickFilterDate(android.widget.EditText field) {
+        Calendar now = Calendar.getInstance();
+        android.app.DatePickerDialog picker = new android.app.DatePickerDialog(requireContext(), (view, year, month, day) -> {
+            field.setText(String.format(Locale.ROOT, "%04d-%02d-%02d", year, month + 1, day));
+            binding.chipFilterToday.setChecked(false); binding.chipFilterWeek.setChecked(false); binding.chipFilterAll.setChecked(false);
+        }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH));
+        picker.show();
+    }
+
+    private void setDateRange(int days) {
+        binding.editStartDate.setText(com.example.project_pandora.core.util.LogDateWindow.daysAgo(days));
+        binding.editEndDate.setText(com.example.project_pandora.core.util.LogDateWindow.daysAgo(0));
+        applyFilters();
+    }
+
+    private void applyFilters() {
+        if (binding == null) return;
+        String start = binding.editStartDate.getText().toString().trim();
+        String end = binding.editEndDate.getText().toString().trim();
+        String keyword = binding.editKeyword.getText().toString().trim();
+        if (!start.isEmpty() && !end.isEmpty() && start.compareTo(end) > 0) {
+            Toast.makeText(requireContext(), "开始日期不能晚于结束日期", Toast.LENGTH_SHORT).show();
+            binding.swipeRefresh.setRefreshing(false); return;
+        }
+        binding.textFilterSummary.setText((isMyLogTab ? "我的日志" : "授权范围内的他人日志")
+                + " · " + (start.isEmpty() ? "不限起始日期" : start) + " 至 " + (end.isEmpty() ? "不限结束日期" : end)
+                + (keyword.isEmpty() ? "" : " · 关键词：" + keyword));
+        if (isMyLogTab) loadMyLogs(start.isEmpty() ? null : start, end.isEmpty() ? null : end, keyword.isEmpty() ? null : keyword);
+        else loadSubordinateLogs(getSelectedSubordinateId(), start.isEmpty() ? null : start, end.isEmpty() ? null : end, keyword.isEmpty() ? null : keyword);
     }
 
     private void setupToolbarMenu() {
@@ -259,22 +316,7 @@ public class LogFragment extends Fragment {
     }
 
     private void setupSwipeRefresh() {
-        binding.swipeRefresh.setOnRefreshListener(() -> {
-            String startDate = binding.editStartDate.getText().toString().trim();
-            String endDate = binding.editEndDate.getText().toString().trim();
-            String keyword = binding.editKeyword.getText().toString().trim();
-
-            String sDate = TextUtils.isEmpty(startDate) ? null : startDate;
-            String eDate = TextUtils.isEmpty(endDate) ? null : endDate;
-            String kw = TextUtils.isEmpty(keyword) ? null : keyword;
-
-            if (isMyLogTab) {
-                loadMyLogs(sDate, eDate, kw);
-            } else {
-                Long subId = getSelectedSubordinateId();
-                loadSubordinateLogs(subId, sDate, eDate, kw);
-            }
-        });
+        binding.swipeRefresh.setOnRefreshListener(this::applyFilters);
     }
 
     @Override
@@ -327,7 +369,7 @@ public class LogFragment extends Fragment {
     private void loadMyLogs(String startDate, String endDate, String keyword) {
         boolean isUnsearched = startDate == null && endDate == null && keyword == null;
         String effectiveStartDate = applyDisplayLimitIfNeeded(startDate, isUnsearched);
-        disposables.add(logRepository.listLogs(effectiveStartDate, endDate, keyword)
+        logLoad.set(logRepository.listLogs(effectiveStartDate, endDate, keyword)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         logs -> {
@@ -376,7 +418,7 @@ public class LogFragment extends Fragment {
     }
 
     private void loadSubordinateList() {
-        disposables.add(logRepository.getSubordinates()
+        directoryLoad.set(logRepository.getSubordinates()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         list -> {
@@ -396,7 +438,7 @@ public class LogFragment extends Fragment {
     private void updateSubordinateSpinner() {
         if (binding == null) return;
         List<String> names = new ArrayList<>();
-        names.add("全部下属");
+        names.add("全部可查看人员");
         for (Map<String, Object> sub : subordinateList) {
             if (sub == null) continue;
             Object realName = sub.get("real_name");
@@ -424,7 +466,7 @@ public class LogFragment extends Fragment {
     }
 
     private void loadSubordinateLogs(Long subordinateId, String startDate, String endDate, String keyword) {
-        disposables.add(logRepository.getSubordinateLogs(subordinateId, startDate, endDate, keyword)
+        logLoad.set(logRepository.getSubordinateLogs(subordinateId, startDate, endDate, keyword)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         logs -> {
@@ -453,7 +495,7 @@ public class LogFragment extends Fragment {
                 .subscribe(
                         v -> {
                             Toast.makeText(requireContext(), "已删除", Toast.LENGTH_SHORT).show();
-                            loadMyLogs(null, null, null);
+                            applyFilters();
                         },
                         error -> Toast.makeText(requireContext(), "删除失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
                 ));
@@ -463,24 +505,28 @@ public class LogFragment extends Fragment {
     public void onResume() {
         super.onResume();
         if (binding == null) return;
-        String startDate = binding.editStartDate.getText().toString().trim();
-        String endDate = binding.editEndDate.getText().toString().trim();
-        String keyword = binding.editKeyword.getText().toString().trim();
-        String sDate = TextUtils.isEmpty(startDate) ? null : startDate;
-        String eDate = TextUtils.isEmpty(endDate) ? null : endDate;
-        String kw = TextUtils.isEmpty(keyword) ? null : keyword;
-        if (isMyLogTab) {
-            loadMyLogs(sDate, eDate, kw);
-        } else {
-            Long subId = getSelectedSubordinateId();
-            loadSubordinateLogs(subId, sDate, eDate, kw);
-        }
+        UserApi api = NetworkClient.getInstance(requireContext()).createService(UserApi.class);
+        roleRefresh.set(api.getCurrentUser().observeOn(AndroidSchedulers.mainThread()).subscribe(response -> {
+            if (binding == null) return;
+            if (response.isSuccess() && response.getData() != null) {
+                Object role = response.getData().get("role");
+                if (role != null) currentRole = role.toString();
+                refreshRoleTabs();
+            }
+            if (!isMyLogTab) loadSubordinateList();
+            applyFilters();
+        }, error -> {
+            if (binding != null) applyFilters();
+        }));
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
         disposables.clear();
+        logLoad.set(null);
+        directoryLoad.set(null);
+        roleRefresh.set(null);
         binding = null;
     }
 }

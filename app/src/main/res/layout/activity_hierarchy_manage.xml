@@ -15,11 +15,14 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
+            android:background="@color/color_surface"
             app:title="层级关系管理"
-            app:titleTextColor="@android:color/white"
+            app:titleTextColor="@color/color_text_primary"
             app:navigationIcon="@drawable/ic_back"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            style="@style/Widget.Pandora.Toolbar"
+            app:navigationIconTint="@color/color_text_primary"
+            android:elevation="0dp" />
 
         <ScrollView
             android:layout_width="match_parent"
@@ -61,7 +64,7 @@
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="#E0E0E0"
+                    android:background="@color/color_divider"
                     android:layout_marginVertical="16dp" />
 
                 <TextView
@@ -104,13 +107,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="添加关系"
-                    app:cornerRadius="8dp" />
+                    app:cornerRadius="8dp"
+                    android:textColor="@color/color_on_accent" />
 
                 <TextView
                     android:id="@+id/textError"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textColor="#F44336"
+                    android:textColor="@color/color_error"
                     android:textSize="13sp"
                     android:layout_marginTop="8dp"
                     android:visibility="gone" />

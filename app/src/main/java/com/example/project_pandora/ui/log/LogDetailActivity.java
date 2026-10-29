@@ -135,6 +135,9 @@ public class LogDetailActivity extends AppCompatActivity {
         Long logUserId = com.example.project_pandora.core.util.NumberCompat.toLong(logUserIdObj);
         boolean isOwner = logUserId != null && logUserId.equals(currentUserId);
         boolean canManage = isOwner;
+        boolean writable = com.example.project_pandora.core.util.LogDateWindow.isWritable(editLogDate);
+        binding.btnEdit.setEnabled(writable);
+        binding.btnEdit.setText(writable ? "编辑" : "超出可编辑日期范围");
         if (!canManage) {
             binding.btnEdit.setVisibility(View.GONE);
             binding.btnDelete.setVisibility(View.GONE);

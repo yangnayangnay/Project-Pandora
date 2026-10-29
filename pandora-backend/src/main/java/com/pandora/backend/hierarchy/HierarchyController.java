@@ -30,6 +30,8 @@ public class HierarchyController {
     private com.pandora.backend.view.PersonalTop10Generator personalTop10Generator;
 
     @PostMapping("/relation")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @org.springframework.transaction.annotation.Transactional
     @Auditable(operationType = "HIERARCHY_ADD", targetType = "USER_HIERARCHY")
     public ResponseEntity<ApiResponse<Map<String, Object>>> addRelation(@RequestBody Map<String, Object> request) {
         Long superiorId = Long.valueOf(request.get("superiorId").toString());
@@ -44,6 +46,7 @@ public class HierarchyController {
     }
 
     @DeleteMapping("/relation")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @Auditable(operationType = "HIERARCHY_REMOVE", targetType = "USER_HIERARCHY")
     public ResponseEntity<ApiResponse<Map<String, Object>>> removeRelation(@RequestParam Long superiorId, @RequestParam Long subordinateId) {
         hierarchyService.removeRelation(superiorId, subordinateId);

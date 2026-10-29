@@ -1,35 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- REQ-31-05: 暗色语义色板（与 values 同名同语义） -->
-    <!-- 编辑输入文字：高对比浅色 -->
-    <color name="color_text_edit_content">#FFECECEC</color>
-    <!-- 正文/次要文字 -->
-    <color name="color_text_primary">#FFE0E0E0</color>
-    <color name="color_text_secondary">#FFB0B0B0</color>
-    <!-- 页面/卡片背景：深色 -->
-    <color name="color_bg_page">#FF121212</color>
-    <!-- 分隔线 -->
-    <color name="color_divider">#FF3A3A3A</color>
-    <!-- CalendarView 自绘组（暗色等价） -->
-    <color name="color_calendar_bg">#FF1E1E1E</color>
-    <color name="color_calendar_header_bg">#FF2C2C2C</color>
-    <color name="color_calendar_text">#FFE0E0E0</color>
-    <color name="color_calendar_day_other">#FF666666</color>
-    <color name="color_calendar_today">#FF64B5F6</color>
-    <color name="color_calendar_grid">#FF3A3A3A</color>
-    <color name="color_calendar_cell_bg">#FF2A2A2A</color>
-    <!-- 任务状态色（降饱和暗色等价） -->
-    <color name="color_status_completed_bg">#FF1565C0</color>
-    <color name="color_status_pending_bg">#FF8C6D1F</color>
-    <color name="color_status_completed_text">#FFE0E0E0</color>
-    <color name="color_status_pending_text">#FFE0E0E0</color>
-    <!-- 紧急度色（降饱和） -->
-    <color name="color_urgent_bg">#FFB23B3B</color>
-    <color name="color_not_urgent_bg">#FF2E7D46</color>
-    <!-- R36 REQ-36-A1: 我布置的任务横线（深色变体） -->
-    <color name="color_task_dispatched_stroke">#FF64B5F6</color>
-    <color name="color_task_dispatched_text">#FF90CAF9</color>
-    <!-- 负责人本人标识色 -->
-    <color name="color_assignee_self">#FFEF9A9A</color>
-    <color name="color_assignee_other">#FF9E9E9E</color>
+    <!-- Keep system dark mode, using the same warm neutral roles. -->
+    <color name="color_bg_page">#191715</color>
+    <color name="color_surface">#24211E</color>
+    <color name="color_surface_soft">#2D2925</color>
+    <color name="color_accent">#D8BCA0</color>
+    <color name="color_on_accent">#2C241D</color>
+    <color name="color_accent_soft">#40352C</color>
+    <color name="color_text_primary">#F1EAE1</color>
+    <color name="color_text_secondary">#C1B5A7</color>
+    <color name="color_text_tertiary">#9B8F81</color>
+    <color name="color_text_edit_content">#F1EAE1</color>
+    <color name="color_divider">#3E3730</color>
+    <color name="color_border_strong">#8A7968</color>
+    <color name="color_success">#BED0B6</color>
+    <color name="color_success_surface">#2D362A</color>
+    <color name="color_warning">#E2C69C</color>
+    <color name="color_warning_surface">#3D3223</color>
+    <color name="color_error">#EDB0A2</color>
+    <color name="color_error_surface">#432D27</color>
+    <color name="color_calendar_bg">@color/color_surface</color>
+    <color name="color_calendar_header_bg">@color/color_surface_soft</color>
+    <color name="color_calendar_text">@color/color_text_primary</color>
+    <color name="color_calendar_day_other">@color/color_text_tertiary</color>
+    <color name="color_calendar_today">@color/color_accent</color>
+    <color name="color_calendar_grid">@color/color_divider</color>
+    <color name="color_calendar_cell_bg">@color/color_surface_soft</color>
+    <color name="color_status_completed_bg">@color/color_success_surface</color>
+    <color name="color_status_pending_bg">@color/color_warning_surface</color>
+    <color name="color_status_completed_text">@color/color_success</color>
+    <color name="color_status_pending_text">@color/color_warning</color>
+    <color name="color_urgent_bg">#814A3E</color>
+    <color name="color_not_urgent_bg">#66503F</color>
+    <color name="color_task_dispatched_stroke">@color/color_border_strong</color>
+    <color name="color_task_dispatched_text">@color/color_accent</color>
+    <color name="color_assignee_self">@color/color_accent</color>
+    <color name="color_assignee_other">@color/color_text_secondary</color>
 </resources>

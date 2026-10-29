@@ -1,0 +1,8 @@
+<resources>
+    <declare-styleable name="TaskScheduleView">
+        <attr name="scheduleMode" format="enum">
+            <enum name="week" value="0" />
+            <enum name="day" value="1" />
+        </attr>
+    </declare-styleable>
+</resources>

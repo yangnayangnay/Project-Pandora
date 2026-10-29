@@ -7,6 +7,10 @@ import android.graphics.Paint;
 import android.util.AttributeSet;
 import android.view.View;
 
+import androidx.core.content.ContextCompat;
+
+import com.example.project_pandora.R;
+
 public class HexagramView extends View {
 
     private boolean[] linePattern = new boolean[6];
@@ -32,17 +36,17 @@ public class HexagramView extends View {
     }
 
     private void init() {
-        yangPaint.setColor(Color.parseColor("#333333"));
+        yangPaint.setColor(ContextCompat.getColor(getContext(), R.color.color_text_primary));
         yangPaint.setStyle(Paint.Style.FILL);
 
-        yinPaint.setColor(Color.parseColor("#333333"));
+        yinPaint.setColor(ContextCompat.getColor(getContext(), R.color.color_text_primary));
         yinPaint.setStyle(Paint.Style.FILL);
 
-        movingPaint.setColor(Color.parseColor("#FF9800"));
+        movingPaint.setColor(ContextCompat.getColor(getContext(), R.color.color_accent));
         movingPaint.setStyle(Paint.Style.STROKE);
         movingPaint.setStrokeWidth(3f);
 
-        labelPaint.setColor(Color.parseColor("#888888"));
+        labelPaint.setColor(ContextCompat.getColor(getContext(), R.color.color_text_secondary));
         labelPaint.setTextSize(28f);
         labelPaint.setTextAlign(Paint.Align.CENTER);
     }

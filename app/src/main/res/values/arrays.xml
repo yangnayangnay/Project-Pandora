@@ -2,23 +2,23 @@
 <resources>
     <!-- R37 REQ-37-E: 月视图任务横线昼间色板（浅底+深字，8 色相家族区分） -->
     <string-array name="calendar_span_colors">
-        <item>#FFF9C4</item>
-        <item>#FFCDD2</item>
-        <item>#E1BEE7</item>
-        <item>#BBDEFB</item>
-        <item>#C8E6C9</item>
-        <item>#FFE0B2</item>
-        <item>#B2DFDB</item>
-        <item>#F8BBD0</item>
+        <item>#F4EEE6</item>
+        <item>#F1E9DF</item>
+        <item>#F6F0E8</item>
+        <item>#EFE7DC</item>
+        <item>#F2EAE0</item>
+        <item>#EDE5DA</item>
+        <item>#F3ECE3</item>
+        <item>#F0E8DD</item>
     </string-array>
     <string-array name="calendar_span_text_colors">
-        <item>#795548</item>
-        <item>#C62828</item>
-        <item>#6A1B9A</item>
-        <item>#1565C0</item>
-        <item>#2E7D32</item>
-        <item>#E65100</item>
-        <item>#00695C</item>
-        <item>#AD1457</item>
+        <item>#4A4037</item>
+        <item>#55483D</item>
+        <item>#463C34</item>
+        <item>#5A4C40</item>
+        <item>#4E4339</item>
+        <item>#584B3F</item>
+        <item>#443A32</item>
+        <item>#52463C</item>
     </string-array>
 </resources>

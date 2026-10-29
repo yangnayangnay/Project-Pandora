@@ -64,15 +64,16 @@ public class MineFragment extends Fragment {
                 startActivity(new Intent(requireContext(), BirthdayWishActivity.class)));
 
         String role = TokenManager.getInstance(requireContext()).getRole();
+        binding.btnResetRequests.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), ResetRequestsActivity.class)));
+        binding.btnHierarchyManage.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), HierarchyManageActivity.class)));
         if ("ADMIN".equals(role)) {
             binding.btnResetRequests.setVisibility(View.VISIBLE);
-            binding.btnResetRequests.setOnClickListener(v ->
-                    startActivity(new Intent(requireContext(), ResetRequestsActivity.class)));
             binding.btnHierarchyManage.setVisibility(View.VISIBLE);
-            binding.btnHierarchyManage.setOnClickListener(v ->
-                    startActivity(new Intent(requireContext(), HierarchyManageActivity.class)));
         }
 
+        binding.btnTaskReviews.setOnClickListener(v -> startActivity(new Intent(requireContext(), com.example.project_pandora.ui.task.TaskReviewsActivity.class)));
         binding.btnSettings.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), SettingsActivity.class)));
 
@@ -111,13 +112,11 @@ public class MineFragment extends Fragment {
         binding.btnLogout.setOnClickListener(v -> handleLogout());
 
         String relationRole = tm.getRole();
+        binding.btnUserRelation.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), UserRelationActivity.class)));
         if (relationRole != null && !"ADMIN".equals(relationRole)) {
             binding.btnUserRelation.setVisibility(View.VISIBLE);
-            binding.btnUserRelation.setOnClickListener(v ->
-                    startActivity(new Intent(requireContext(), UserRelationActivity.class)));
         }
-
-        loadUserInfo();
     }
 
     private void refreshUnsyncedCount() {
@@ -186,6 +185,11 @@ public class MineFragment extends Fragment {
                                 String username = getStr(data, "username");
                                 String displayName = (!realName.isEmpty()) ? realName : (!username.isEmpty() ? username : "未知用户");
                                 binding.textUsername.setText(displayName);
+                                String currentRole = getStr(data, "role");
+                                boolean admin = "ADMIN".equals(currentRole);
+                                binding.btnResetRequests.setVisibility(admin ? View.VISIBLE : View.GONE);
+                                binding.btnHierarchyManage.setVisibility(admin ? View.VISIBLE : View.GONE);
+                                binding.btnUserRelation.setVisibility(!currentRole.isEmpty() && !admin ? View.VISIBLE : View.GONE);
                                 binding.textRole.setText(com.example.project_pandora.core.util.RoleDisplayUtil.toChinese(getStr(data, "role")));
 
                                 String avatar = getStr(data, "avatar");
@@ -194,8 +198,8 @@ public class MineFragment extends Fragment {
                                     if (baseUrl.endsWith("/")) baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
                                     String fullUrl = baseUrl + avatar;
                                     Glide.with(this).load(fullUrl)
-                                            .placeholder(R.mipmap.ic_launcher)
-                                            .error(R.mipmap.ic_launcher)
+                                            .placeholder(R.drawable.ic_profile_placeholder)
+                                            .error(R.drawable.ic_profile_placeholder)
                                             .into(binding.imageAvatar);
                                 }
                             }
@@ -210,6 +214,11 @@ public class MineFragment extends Fragment {
     private String getStr(Map<String, Object> map, String key) {
         Object val = map.get(key);
         return val != null ? val.toString() : "";
+    }
+
+    @Override public void onResume() {
+        super.onResume();
+        if (binding != null) loadUserInfo();
     }
 
     @Override

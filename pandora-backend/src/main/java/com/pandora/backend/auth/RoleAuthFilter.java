@@ -24,6 +24,9 @@ public class RoleAuthFilter extends OncePerRequestFilter {
     @Autowired
     private SessionStore sessionStore;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -54,7 +57,16 @@ public class RoleAuthFilter extends OncePerRequestFilter {
         }
 
         Long userId = jwtUtil.getUserIdFromToken(token);
-        String role = jwtUtil.getRoleFromToken(token);
+        java.util.List<String> roles = jdbcTemplate.queryForList(
+                "SELECT role FROM users WHERE id = ? AND deleted = 0 AND approval_status = 'APPROVED'", String.class, userId);
+        if (roles.isEmpty()) {
+            response.setStatus(401);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"code\":401,\"message\":\"账号已停用或未批准\"}");
+            return;
+        }
+        String role = roles.get(0);
+        response.setHeader("X-User-Role", role);
 
         String sessionToken = sessionStore.get(userId);
         if (sessionToken == null || !sessionToken.equals(token)) {

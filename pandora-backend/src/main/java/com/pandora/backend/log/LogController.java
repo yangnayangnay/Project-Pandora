@@ -61,7 +61,8 @@ public class LogController {
         String completionStatus = (String) request.getOrDefault("completionStatus", "PENDING");
         Object timeCostObj = request.get("timeCost");
         String workContent = (String) request.get("workContent");
-        String logDate = (String) request.getOrDefault("logDate", new java.sql.Date(System.currentTimeMillis()).toString());
+        String logDate = (String) request.getOrDefault("logDate", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString());
+        LogDatePolicy.requireWritable(logDate);
 
         List<Map<String, Object>> existingLogs = jdbcTemplate.queryForList(
                 "SELECT id, deleted FROM work_logs WHERE user_id = ? AND log_date = ? ORDER BY deleted ASC",
@@ -89,7 +90,7 @@ public class LogController {
             } catch (DuplicateKeyException e) {
                 throw new BusinessException(ErrorCode.LOG_DATE_CONFLICT);
             }
-            logId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+            logId = jdbcTemplate.queryForObject("SELECT id FROM work_logs WHERE user_id = ? AND log_date = ?", Long.class, userId, logDate);
         }
         Map<String, Object> result = new HashMap<>();
         result.put("id", logId);
@@ -318,11 +319,26 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(top10));
     }
 
+    @org.springframework.transaction.annotation.Transactional
     @PutMapping("/{logId}")
     @Auditable(operationType = "LOG_UPDATE", targetType = "WORK_LOG")
     public ResponseEntity<ApiResponse<Map<String, Object>>> editLog(
             @PathVariable Long logId, @RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
+
+        List<Map<String, Object>> owned = jdbcTemplate.queryForList(
+                "SELECT log_date FROM work_logs WHERE id = ? AND user_id = ? AND deleted = 0 FOR UPDATE", logId, userId);
+        if (owned.isEmpty()) throw new BusinessException(ErrorCode.NOT_FOUND, "日志不存在或无权编辑");
+        String originalDate = owned.get(0).get("log_date").toString();
+        LogDatePolicy.requireWritable(originalDate);
+        if (request.containsKey("logDate") && !originalDate.equals(request.get("logDate"))) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "编辑日志不能更改所属日期，请在目标日期新建日志");
+        }
+        if (request.containsKey("workItem") && (request.get("workItem") == null
+                || request.get("workItem").toString().trim().isEmpty()
+                || request.get("workItem").toString().trim().length() > 512)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "日志标题不能为空且不能超过512字符");
+        }
 
         StringBuilder sql = new StringBuilder("UPDATE work_logs SET updated_at = CURRENT_TIMESTAMP");
         List<Object> params = new ArrayList<>();
@@ -335,7 +351,7 @@ public class LogController {
             sql.append(", work_content = ?");
             params.add(request.get("workContent"));
         }
-        if (request.containsKey("completionStatus")) {
+        if (request.get("completionStatus") != null) {
             sql.append(", completion_status = ?");
             params.add(request.get("completionStatus"));
         }

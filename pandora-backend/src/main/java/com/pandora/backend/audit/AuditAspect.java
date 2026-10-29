@@ -60,8 +60,10 @@ public class AuditAspect {
         }
 
         Long targetId = extractTargetId(method, joinPoint.getArgs());
-        String operationContent = buildOperationContent(joinPoint.getArgs());
-        String detail = Arrays.toString(joinPoint.getArgs());
+        boolean sensitive = methodName.toLowerCase(java.util.Locale.ROOT).contains("password")
+                || methodName.equals("login") || methodName.equals("register") || methodName.equals("createUser");
+        String operationContent = sensitive ? "账户安全操作（不记录密码）" : buildOperationContent(joinPoint.getArgs());
+        String detail = sensitive ? "[REDACTED]" : Arrays.toString(joinPoint.getArgs());
         if (detail.length() > 500) detail = detail.substring(0, 500) + "...";
 
         auditService.record(operatorId, methodName, targetType, targetId, detail, operationType, operationContent);

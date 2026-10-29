@@ -15,12 +15,15 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
+            android:background="@color/color_surface"
             app:title="AI数据分析"
-            app:titleTextColor="@android:color/white"
+            app:titleTextColor="@color/color_text_primary"
             app:navigationIcon="@drawable/ic_back"
             app:menu="@menu/menu_ai_suggestion_update"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            style="@style/Widget.Pandora.Toolbar"
+            app:navigationIconTint="@color/color_text_primary"
+            android:elevation="0dp" />
 
         <ScrollView
             android:layout_width="match_parent"
@@ -37,9 +40,10 @@
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="2dp"
-                    android:layout_marginBottom="12dp">
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="0dp"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="@color/color_surface">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -70,9 +74,10 @@
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="2dp"
-                    android:layout_marginBottom="12dp">
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="0dp"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="@color/color_surface">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -103,9 +108,10 @@
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="2dp"
-                    android:layout_marginBottom="12dp">
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="0dp"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="@color/color_surface">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -146,9 +152,10 @@
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="2dp"
-                    android:layout_marginBottom="12dp">
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="0dp"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="@color/color_surface">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -179,9 +186,10 @@
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="2dp"
-                    android:layout_marginBottom="12dp">
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="0dp"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="@color/color_surface">
 
                     <LinearLayout
                         android:layout_width="match_parent"

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="color_mindmap_company_header">#F1DFD2</color>
+    <color name="color_mindmap_company_text">#644430</color>
+    <color name="color_mindmap_dispatch_header">#E1E9DB</color>
+    <color name="color_mindmap_dispatch_text">#435740</color>
+    <color name="color_mindmap_personal_header">#DFE8EE</color>
+    <color name="color_mindmap_personal_text">#3F5768</color>
+    <color name="color_mindmap_log_header">#E9E1ED</color>
+    <color name="color_mindmap_log_text">#604C68</color>
+</resources>

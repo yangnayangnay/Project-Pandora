@@ -9,15 +9,17 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:background="@color/color_bg_page">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
+            android:background="@color/color_surface"
             app:title="导图"
-            app:titleTextColor="@android:color/white"
+            app:titleTextColor="@color/color_text_primary"
             app:layout_constraintTop_toTopOf="parent" />
 
         <androidx.constraintlayout.widget.Guideline
@@ -39,9 +41,14 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:orientation="vertical"
-            android:background="?attr/colorSurface"
-            android:layout_marginEnd="2dp"
-            android:layout_marginBottom="2dp"
+            android:background="@drawable/bg_mindmap_section_card"
+            android:elevation="3dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="6dp"
+            android:layout_marginBottom="6dp"
 
             app:layout_constraintTop_toBottomOf="@id/toolbar"
             app:layout_constraintBottom_toTopOf="@id/guideline_horizontal"
@@ -51,17 +58,15 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="#E74C3C"
+                android:background="@color/color_mindmap_company_header"
+                android:minHeight="60dp"
                 android:orientation="horizontal"
                 android:padding="10dp"
                 android:gravity="center_vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="&#x1F4CB;"
-                    android:textSize="18sp"
-                    android:layout_marginEnd="8dp" />
+                <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                    android:layout_marginEnd="8dp" android:src="@drawable/ic_data_outline"
+                    android:tint="@color/color_mindmap_company_text" android:importantForAccessibility="no" />
 
                 <TextView
                     android:layout_width="match_parent"
@@ -69,14 +74,14 @@
                     android:text="公司10大重要事项展示"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    android:textColor="#FFFFFF" />
+                    android:textColor="@color/color_mindmap_company_text" />
             </LinearLayout>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="管理员集中展示，条型展示，可编辑加入备注"
-                android:textSize="10sp"
+                android:textSize="11sp"
                 android:textColor="@color/color_text_secondary"
                 android:paddingStart="10dp"
                 android:paddingEnd="10dp"
@@ -104,9 +109,14 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:orientation="vertical"
-            android:background="@color/color_bg_page"
-            android:layout_marginStart="2dp"
-            android:layout_marginBottom="2dp"
+            android:background="@drawable/bg_mindmap_section_card"
+            android:elevation="3dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="12dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="6dp"
             app:layout_constraintTop_toBottomOf="@id/toolbar"
             app:layout_constraintBottom_toTopOf="@id/guideline_horizontal"
             app:layout_constraintStart_toStartOf="@id/guideline_vertical"
@@ -115,17 +125,15 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="#F5A623"
+                android:background="@color/color_mindmap_dispatch_header"
+                android:minHeight="60dp"
                 android:orientation="horizontal"
                 android:padding="10dp"
                 android:gravity="center_vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="&#x1F4E8;"
-                    android:textSize="18sp"
-                    android:layout_marginEnd="8dp" />
+                <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                    android:layout_marginEnd="8dp" android:src="@drawable/ic_calendar"
+                    android:tint="@color/color_mindmap_dispatch_text" android:importantForAccessibility="no" />
 
                 <TextView
                     android:layout_width="match_parent"
@@ -133,14 +141,14 @@
                     android:text="公司10大任务派发"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    android:textColor="#FFFFFF" />
+                    android:textColor="@color/color_mindmap_dispatch_text" />
             </LinearLayout>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="逻辑分层，信息指令关联，上级领导指令派发"
-                android:textSize="10sp"
+                android:textSize="11sp"
                 android:textColor="@color/color_text_secondary"
                 android:paddingStart="10dp"
                 android:paddingEnd="10dp"
@@ -168,9 +176,14 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:orientation="vertical"
-            android:background="?attr/colorSurface"
-            android:layout_marginEnd="2dp"
-            android:layout_marginTop="2dp"
+            android:background="@drawable/bg_mindmap_section_card"
+            android:elevation="3dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="6dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="12dp"
             app:layout_constraintTop_toTopOf="@id/guideline_horizontal"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -179,17 +192,15 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="#27AE60"
+                android:background="@color/color_mindmap_personal_header"
+                android:minHeight="60dp"
                 android:orientation="horizontal"
                 android:padding="10dp"
                 android:gravity="center_vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="&#x1F4C4;"
-                    android:textSize="18sp"
-                    android:layout_marginEnd="8dp" />
+                <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                    android:layout_marginEnd="8dp" android:src="@drawable/ic_mine"
+                    android:tint="@color/color_mindmap_personal_text" android:importantForAccessibility="no" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -198,7 +209,7 @@
                     android:text="个人10大信息展示"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    android:textColor="#FFFFFF" />
+                    android:textColor="@color/color_mindmap_personal_text" />
 
                 <TextView
                     android:id="@+id/btn_edit_personal_top10"
@@ -206,7 +217,7 @@
                     android:layout_height="wrap_content"
                     android:text="编辑"
                     android:textSize="12sp"
-                    android:textColor="#FFFFFF"
+                    android:textColor="@color/color_mindmap_personal_text"
                     android:paddingStart="8dp"
                     android:paddingEnd="4dp"
                     android:background="?attr/selectableItemBackground"
@@ -218,7 +229,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="日志自动生成，个人ID注入修改"
-                android:textSize="10sp"
+                android:textSize="11sp"
                 android:textColor="@color/color_text_secondary"
                 android:paddingStart="10dp"
                 android:paddingEnd="10dp"
@@ -246,9 +257,14 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:orientation="vertical"
-            android:background="?attr/colorSurface"
-            android:layout_marginStart="2dp"
-            android:layout_marginTop="2dp"
+            android:background="@drawable/bg_mindmap_section_card"
+            android:elevation="3dp"
+            android:clipToOutline="true"
+            android:outlineProvider="background"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="12dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="12dp"
             app:layout_constraintTop_toTopOf="@id/guideline_horizontal"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="@id/guideline_vertical"
@@ -257,17 +273,15 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="#2980B9"
+                android:background="@color/color_mindmap_log_header"
+                android:minHeight="60dp"
                 android:orientation="horizontal"
                 android:padding="10dp"
                 android:gravity="center_vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="&#x1F4DD;"
-                    android:textSize="18sp"
-                    android:layout_marginEnd="8dp" />
+                <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                    android:layout_marginEnd="8dp" android:src="@drawable/ic_log"
+                    android:tint="@color/color_mindmap_log_text" android:importantForAccessibility="no" />
 
                 <TextView
                     android:layout_width="match_parent"
@@ -275,14 +289,14 @@
                     android:text="日志展示"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    android:textColor="#FFFFFF" />
+                    android:textColor="@color/color_mindmap_log_text" />
             </LinearLayout>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="当天日志信息流展示"
-                android:textSize="10sp"
+                android:textSize="11sp"
                 android:textColor="@color/color_text_secondary"
                 android:paddingStart="10dp"
                 android:paddingEnd="10dp"

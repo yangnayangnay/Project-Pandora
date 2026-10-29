@@ -231,7 +231,7 @@ public class SyncService {
         Map<String, Object> request = new HashMap<>();
         request.put("workItem", workItem);
         request.put("workContent", workContent);
-        request.put("completionStatus", completionStatus);
+        if (!"EDIT".equals(operation) || content.get("completionStatus") != null) request.put("completionStatus", completionStatus);
         request.put("timeCost", timeCost);
         request.put("logDate", logDate);
 

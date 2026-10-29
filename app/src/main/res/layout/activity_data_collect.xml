@@ -15,11 +15,14 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
+            android:background="@color/color_surface"
             app:title="数据收集"
-            app:titleTextColor="@android:color/white"
+            app:titleTextColor="@color/color_text_primary"
             app:navigationIcon="@drawable/ic_back"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            style="@style/Widget.Pandora.Toolbar"
+            app:navigationIconTint="@color/color_text_primary"
+            android:elevation="0dp" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -41,10 +44,10 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:background="?attr/colorSurface"
+                    android:background="@color/color_surface"
                     android:padding="16dp"
                     android:layout_marginEnd="8dp"
-                    android:elevation="2dp">
+                    android:elevation="1dp">
 
                     <TextView
                         android:id="@+id/textTaskCount"
@@ -53,14 +56,14 @@
                         android:text="0"
                         android:textSize="28sp"
                         android:textStyle="bold"
-                        android:textColor="#1565C0" />
+                        android:textColor="@color/color_accent" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="任务数"
                         android:textSize="13sp"
-                        android:textColor="#78909C" />
+                        android:textColor="@color/color_text_secondary" />
 
                 </LinearLayout>
 
@@ -69,10 +72,10 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:background="?attr/colorSurface"
+                    android:background="@color/color_surface"
                     android:padding="16dp"
                     android:layout_marginEnd="8dp"
-                    android:elevation="2dp">
+                    android:elevation="1dp">
 
                     <TextView
                         android:id="@+id/textLogCount"
@@ -81,14 +84,14 @@
                         android:text="0"
                         android:textSize="28sp"
                         android:textStyle="bold"
-                        android:textColor="#2E7D32" />
+                        android:textColor="@color/color_success" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="日志数"
                         android:textSize="13sp"
-                        android:textColor="#78909C" />
+                        android:textColor="@color/color_text_secondary" />
 
                 </LinearLayout>
 
@@ -97,9 +100,9 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:background="?attr/colorSurface"
+                    android:background="@color/color_surface"
                     android:padding="16dp"
-                    android:elevation="2dp">
+                    android:elevation="1dp">
 
                     <TextView
                         android:id="@+id/textCompletedCount"
@@ -108,14 +111,14 @@
                         android:text="0"
                         android:textSize="28sp"
                         android:textStyle="bold"
-                        android:textColor="#E65100" />
+                        android:textColor="@color/color_accent" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="已完成"
                         android:textSize="13sp"
-                        android:textColor="#78909C" />
+                        android:textColor="@color/color_text_secondary" />
 
                 </LinearLayout>
 
@@ -125,10 +128,11 @@
                 android:id="@+id/btnKeywordAnalysis"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="3dp"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
                 android:clickable="true"
-                android:focusable="true">
+                android:focusable="true"
+                app:cardBackgroundColor="@color/color_surface">
 
                 <LinearLayout
                     android:layout_width="match_parent"

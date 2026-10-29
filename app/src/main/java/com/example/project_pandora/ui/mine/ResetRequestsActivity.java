@@ -8,6 +8,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -155,7 +156,7 @@ public class ResetRequestsActivity extends AppCompatActivity {
             h.b.textUsername.setText(str(r, "USERNAME"));
             String status = str(r, "STATUS");
             h.b.textStatus.setText(status);
-            int color = "PENDING".equals(status) ? 0xFFFF9800 : "APPROVED".equals(status) ? 0xFF4CAF50 : 0xFFF44336;
+            int color = "PENDING".equals(status) ? ContextCompat.getColor(ResetRequestsActivity.this, R.color.color_warning) : "APPROVED".equals(status) ? ContextCompat.getColor(ResetRequestsActivity.this, R.color.color_success) : ContextCompat.getColor(ResetRequestsActivity.this, R.color.color_error);
             h.b.textStatus.setTextColor(color);
             String realName = str(r, "REAL_NAME");
             String email = str(r, "EMAIL");

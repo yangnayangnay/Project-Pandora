@@ -31,7 +31,7 @@ public class TaskDetailActivity extends AppCompatActivity {
     private SyncRoutingRepository syncRoutingRepository;
     private Long taskId;
     private Map<String, Object> currentTask;
-    private android.content.SharedPreferences urgencyPrefs;
+
 
 
     @Override
@@ -50,7 +50,7 @@ public class TaskDetailActivity extends AppCompatActivity {
         taskRepository = new TaskRepository(this);
         syncRoutingRepository = new SyncRoutingRepository(this);
         taskId = getIntent().getLongExtra("taskId", -1);
-        urgencyPrefs = getSharedPreferences("task_urgency", MODE_PRIVATE);
+
 
         if (taskId == -1) {
             finish();
@@ -141,23 +141,27 @@ public class TaskDetailActivity extends AppCompatActivity {
         // Round26: toBool 收敛至 NumberCompat（原私有方法语义一致）
         boolean defaultUrgent = com.example.project_pandora.core.util.NumberCompat.toBool(isUrgentObj);
 
-        boolean savedOverride = urgencyPrefs.getBoolean("task_" + taskId, defaultUrgent);
-        boolean hasOverride = urgencyPrefs.contains("task_" + taskId);
-
-        if (hasOverride) {
-            binding.textUrgencyHint.setText("已手动设置紧急程度，可随时调整");
-        } else {
-            binding.textUrgencyHint.setText("请设置紧急程度（红色为紧急，绿色为不紧急）");
-        }
-
-        binding.radioUrgencyUrgent.setChecked(savedOverride);
-        binding.radioUrgencyNotUrgent.setChecked(!savedOverride);
-
+        binding.radioGroupUrgency.setOnCheckedChangeListener(null);
+        binding.radioUrgencyUrgent.setChecked(defaultUrgent);
+        binding.radioUrgencyNotUrgent.setChecked(!defaultUrgent);
+        String role = TokenManager.getInstance(this).getRole();
+        Long actor = TokenManager.getInstance(this).getUserId();
+        boolean canEdit = "ADMIN".equals(role) || "FOUNDER".equals(role)
+                || java.util.Objects.equals(actor, com.example.project_pandora.core.util.NumberCompat.toLong(task.get("dispatcher_id")))
+                || java.util.Objects.equals(actor, com.example.project_pandora.core.util.NumberCompat.toLong(task.get("assignee_id")));
+        binding.radioUrgencyUrgent.setEnabled(canEdit);
+        binding.radioUrgencyNotUrgent.setEnabled(canEdit);
+        binding.textUrgencyHint.setText(!canEdit ? "仅创建人、责任人或管理职级可调整" : "ADMIN".equals(role) || "FOUNDER".equals(role)
+                ? "调整后立即生效（当前职级免审）" : "调整将提交上级审核，通过后生效");
         binding.radioGroupUrgency.setOnCheckedChangeListener((group, checkedId) -> {
-            boolean isUrgentNow = checkedId == R.id.radioUrgencyUrgent;
-            urgencyPrefs.edit().putBoolean("task_" + taskId, isUrgentNow).apply();
-            binding.textUrgencyHint.setText("已手动设置紧急程度，可随时调整");
-            Toast.makeText(this, "紧急程度已调整为：" + (isUrgentNow ? "紧急" : "不紧急"), Toast.LENGTH_SHORT).show();
+            boolean urgent = checkedId == R.id.radioUrgencyUrgent;
+            if (urgent == defaultUrgent) return;
+            binding.radioUrgencyUrgent.setEnabled(false); binding.radioUrgencyNotUrgent.setEnabled(false);
+            Map<String, Object> request = new java.util.HashMap<>(); request.put("isUrgent", urgent);
+            taskRepository.updateTask(taskId, request).observeOn(AndroidSchedulers.mainThread()).subscribe(result -> {
+                Toast.makeText(this, java.util.Objects.toString(result.get("message"), "操作成功"), Toast.LENGTH_LONG).show();
+                loadTaskDetail();
+            }, error -> { Toast.makeText(this, error.getMessage(), Toast.LENGTH_LONG).show(); loadTaskDetail(); });
         });
     }
 
@@ -186,7 +190,7 @@ public class TaskDetailActivity extends AppCompatActivity {
         binding.btnReject.setVisibility(isDispatcher && "COMPLETED".equals(status) ? View.VISIBLE : View.GONE);
 
         String role = TokenManager.getInstance(this).getRole();
-        boolean canDelete = isDispatcher || "ADMIN".equals(role);
+        boolean canDelete = isDispatcher || "ADMIN".equals(role) || "FOUNDER".equals(role);
         binding.btnDelete.setVisibility(canDelete ? View.VISIBLE : View.GONE);
     }
 
@@ -225,9 +229,9 @@ public class TaskDetailActivity extends AppCompatActivity {
         taskRepository.deleteTask(taskId)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
-                        ignored -> {
+                        result -> {
                             binding.progressBar.setVisibility(View.GONE);
-                            Toast.makeText(this, "任务已删除", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, java.util.Objects.toString(result.get("message"), "操作成功"), Toast.LENGTH_LONG).show();
                             finish();
                         },
                         error -> {

@@ -2,6 +2,8 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import { getToken, removeToken, removeUser } from './auth'
 import router from '@/router'
+import { useUserStore } from '@/stores/userStore'
+import { setUser } from './auth'
 
 const request = axios.create({
   baseURL: '/api',
@@ -33,6 +35,14 @@ request.interceptors.response.use(
   (response) => {
     if (response.config.responseType === 'blob') {
       return response
+    }
+    const latestRole = response.headers['x-user-role']
+    if (latestRole) {
+      const store = useUserStore()
+      if (store.user.role !== latestRole) {
+        store.user = { ...store.user, role: latestRole }
+        setUser(store.user)
+      }
     }
     const res = response.data
     if (res.code === 200) {

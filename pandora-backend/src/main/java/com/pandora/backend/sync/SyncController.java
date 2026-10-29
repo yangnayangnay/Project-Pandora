@@ -30,6 +30,9 @@ public class SyncController {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private com.pandora.backend.task.TaskChangeService taskChanges;
+
     @PostMapping
     @Auditable(operationType = "DATA_SYNC", targetType = "SYNC")
     @SuppressWarnings("unchecked")
@@ -97,6 +100,7 @@ public class SyncController {
         } catch (Exception e) {
             log.warn("apply failed for {}: {}", clientKey, e.getMessage());
             out.put("status", "NO_MAPPING");
+            out.put("message", e.getMessage());
         }
         return out;
     }
@@ -108,28 +112,34 @@ public class SyncController {
         String workItem = str(content.get("workItem"));
         String workContent = str(content.get("workContent"));
         String logDate = str(content.get("logDate"));
+        if (!"DELETE".equals(operation)) {
+            com.pandora.backend.log.LogDatePolicy.requireWritable(logDate);
+        }
 
+        if (!List.of("CREATE", "EDIT", "DELETE").contains(operation)) throw new IllegalArgumentException("不支持的日志操作");
+        if (!"DELETE".equals(operation) && (workItem == null || workItem.trim().isEmpty() || workItem.trim().length() > 512)) {
+            throw new IllegalArgumentException("日志标题不能为空且不能超过512字符");
+        }
         List<Map<String, Object>> existing = jdbcTemplate.queryForList(
-                "SELECT id FROM work_logs WHERE user_id = ? AND log_date = ? AND deleted = 0", userId, logDate);
+                "SELECT id, deleted FROM work_logs WHERE user_id = ? AND log_date = ?", userId, logDate);
         if (!existing.isEmpty()) {
             Long existingId = toLong(firstVal(existing.get(0), "id"));
-            if ("DELETE".equals(operation)) {
-                jdbcTemplate.update("UPDATE work_logs SET deleted = 1 WHERE id = ?", existingId);
-            } else {
-                jdbcTemplate.update(
-                        "UPDATE work_logs SET work_item = ?, work_content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                        workItem, workContent, existingId);
-            }
+            boolean deleted = ((Number) firstVal(existing.get(0), "deleted")).intValue() != 0;
+            if ("CREATE".equals(operation) && !deleted) throw new IllegalArgumentException("该日期已有日志，请打开原日志编辑，不能直接覆盖");
+            if ("EDIT".equals(operation) && deleted) throw new IllegalArgumentException("原日志已删除，请重新创建");
+            if ("DELETE".equals(operation)) jdbcTemplate.update("UPDATE work_logs SET deleted = 1 WHERE id = ?", existingId);
+            else jdbcTemplate.update(
+                    "UPDATE work_logs SET work_item = ?, work_content = ?, deleted = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    workItem, workContent, existingId);
             return existingId;
         }
-        if ("DELETE".equals(operation)) {
-            return 0L; // 无此日志的删除视为已达成（幂等语义）
-        }
+        if ("DELETE".equals(operation)) return 0L;
+        if ("EDIT".equals(operation)) throw new IllegalArgumentException("未找到原日志，请确认日期和账号后重试");
         jdbcTemplate.update(
                 "INSERT INTO work_logs (user_id, work_item, work_content, log_date, completion_status, created_at) VALUES (?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP)",
                 userId, workItem, workContent, logDate);
         return jdbcTemplate.queryForObject(
-                "SELECT MAX(id) FROM work_logs WHERE user_id = ? AND log_date = ?", Long.class, userId, logDate);
+                "SELECT id FROM work_logs WHERE user_id = ? AND log_date = ?", Long.class, userId, logDate);
     }
 
     /** 任务类：状态流转按 sourceId→cloudId 映射定位云端任务 */
@@ -151,9 +161,7 @@ public class SyncController {
         }
         String targetStatus = str(content.get("targetStatus"));
         if (targetStatus != null && !targetStatus.isEmpty()) {
-            jdbcTemplate.update(
-                    "UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted = 0",
-                    targetStatus, cloudId);
+            taskChanges.updateExecution(userId, cloudId, targetStatus, str(content.get("progressNote")));
         }
         return cloudId;
     }

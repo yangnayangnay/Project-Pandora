@@ -3,17 +3,40 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center">
+    android:background="@color/color_surface">
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:clipToPadding="false">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="32dp"
+            android:gravity="center">
+
+    <ImageView
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_marginBottom="28dp"
+        android:background="@drawable/bg_brand_tile"
+        android:padding="12dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_pandora_mark" />
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/login_title"
-        android:textSize="24sp"
-        android:textStyle="bold"
+        android:textSize="26sp"
+        android:fontFamily="sans-serif-medium"
+        android:textColor="@color/color_text_primary"
+        android:lineSpacingExtra="4dp"
         android:gravity="center"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginBottom="12dp" />
 
     <TextView
         android:id="@+id/text_server_status"
@@ -22,8 +45,8 @@
         android:text="@string/server_checking"
         android:textSize="13sp"
         android:gravity="center"
-        android:layout_marginBottom="8dp"
-        android:textColor="#FF9800" />
+        android:layout_marginBottom="28dp"
+        android:textColor="@color/color_text_secondary" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_refresh_server"
@@ -33,7 +56,7 @@
         android:textSize="13sp"
         android:visibility="gone"
         android:layout_marginBottom="8dp"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+        style="@style/Widget.Pandora.Button.Outlined" />
 
     <!-- Round29 T7 修复: 生效地址不可达时的自救入口（冷启动登录页可达，避免恢复路径断裂） -->
     <com.google.android.material.button.MaterialButton
@@ -44,13 +67,13 @@
         android:textSize="13sp"
         android:visibility="gone"
         android:layout_marginBottom="16dp"
-        style="@style/Widget.MaterialComponents.Button.TextButton" />
+        style="@style/Widget.Pandora.Button.Text" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        style="@style/Widget.Pandora.TextInput">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/edit_username"
@@ -65,7 +88,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        style="@style/Widget.Pandora.TextInput">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/edit_password"
@@ -81,6 +104,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/btn_login"
+        android:minHeight="56dp"
         android:textSize="16sp" />
 
     <com.google.android.material.button.MaterialButton
@@ -90,6 +114,9 @@
         android:layout_height="wrap_content"
         android:text="@string/btn_forgot_password"
         android:textSize="14sp"
-        style="@style/Widget.MaterialComponents.Button.TextButton" />
+        style="@style/Widget.Pandora.Button.Text" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
 </LinearLayout>

@@ -6,8 +6,8 @@
     android:gravity="center_vertical"
     android:padding="12dp"
     android:layout_marginBottom="8dp"
-    android:background="?attr/colorSurface"
-    android:elevation="2dp">
+    android:background="@color/color_surface"
+    android:elevation="1dp">
 
     <LinearLayout
         android:layout_width="0dp"
@@ -46,8 +46,8 @@
         android:layout_height="wrap_content"
         android:textSize="14sp"
         android:textStyle="bold"
-        android:textColor="#FFFFFF"
-        android:background="#1976D2"
+        android:textColor="@color/color_on_accent"
+        android:background="@color/color_accent"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
         android:paddingTop="4dp"

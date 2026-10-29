@@ -1,7 +1,7 @@
 <template>
   <div>
     <el-row :gutter="20">
-      <el-col :span="12">
+      <el-col :xs="24" :lg="12">
         <el-card header="个人信息">
           <el-descriptions :column="1" border>
             <el-descriptions-item label="用户名">{{ user.username || '-' }}</el-descriptions-item>
@@ -14,7 +14,12 @@
           </el-descriptions>
           <el-divider />
           <el-form :model="editForm" label-width="80px" v-if="editing">
-            <el-form-item label="用户名"><el-input v-model="editForm.username" /></el-form-item>
+            <el-form-item label="用户名">
+              <el-input :model-value="user.username || ''" readonly />
+            </el-form-item>
+            <el-form-item label="真实姓名">
+              <el-input :model-value="user.real_name || user.realName || ''" readonly />
+            </el-form-item>
             <el-form-item label="邮箱"><el-input v-model="editForm.email" /></el-form-item>
             <el-form-item label="手机号"><el-input v-model="editForm.phone" /></el-form-item>
             <el-form-item>
@@ -25,7 +30,7 @@
           <el-button type="primary" plain @click="startEdit" v-else>编辑信息</el-button>
         </el-card>
       </el-col>
-      <el-col :span="12">
+      <el-col :xs="24" :lg="12">
         <el-card header="修改密码">
           <el-button type="primary" plain @click="showPwdPanel = !showPwdPanel" v-if="!showPwdPanel">修改密码</el-button>
           <template v-if="showPwdPanel">
@@ -34,8 +39,8 @@
               <el-form-item label="新密码"><el-input v-model="pwdForm.newPassword" type="password" show-password /></el-form-item>
               <el-form-item label="确认新密码"><el-input v-model="pwdForm.confirmPassword" type="password" show-password /></el-form-item>
               <el-form-item>
-                <el-button type="primary" @click="savePassword">确认修改</el-button>
-                <el-button @click="showPwdPanel = false">取消</el-button>
+                <el-button type="primary" :loading="savingPassword" :disabled="savingPassword" @click="savePassword">确认修改</el-button>
+                <el-button :disabled="savingPassword" @click="showPwdPanel = false">取消</el-button>
               </el-form-item>
             </el-form>
           </template>
@@ -53,9 +58,12 @@ import { getCurrentUser, updateProfile, changePassword } from '@/api/user'
 const user = ref({})
 const editing = ref(false)
 const showPwdPanel = ref(false)
+const savingPassword = ref(false)
 const editForm = ref({})
 const pwdForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' })
 import { roleMap } from '@/utils/roleConstants'
+
+const utf8ByteLength = (value) => new TextEncoder().encode(value).length
 
 const loadUser = async () => {
   try {
@@ -66,12 +74,15 @@ const loadUser = async () => {
 
 const startEdit = () => {
   editing.value = true
-  editForm.value = { username: user.value.username, email: user.value.email, phone: user.value.phone }
+  editForm.value = { email: user.value.email, phone: user.value.phone }
 }
 
 const saveProfile = async () => {
   try {
-    await updateProfile(editForm.value)
+    await updateProfile({
+      email: editForm.value.email,
+      phone: editForm.value.phone
+    })
     ElMessage.success('保存成功')
     editing.value = false
     await loadUser()
@@ -79,20 +90,38 @@ const saveProfile = async () => {
 }
 
 const savePassword = async () => {
-  if (!pwdForm.value.oldPassword || !pwdForm.value.newPassword) {
+  if (savingPassword.value) return
+
+  if (!pwdForm.value.oldPassword || !pwdForm.value.newPassword || !pwdForm.value.confirmPassword) {
     ElMessage.warning('请填写完整')
+    return
+  }
+  if (pwdForm.value.newPassword.length < 6) {
+    ElMessage.warning('新密码不能少于 6 个字符')
+    return
+  }
+  if (utf8ByteLength(pwdForm.value.newPassword) > 72) {
+    ElMessage.warning('新密码不能超过 72 个 UTF-8 字节')
+    return
+  }
+  if (pwdForm.value.newPassword === pwdForm.value.oldPassword) {
+    ElMessage.warning('新密码不能与当前密码相同')
     return
   }
   if (pwdForm.value.newPassword !== pwdForm.value.confirmPassword) {
     ElMessage.warning('两次密码不一致')
     return
   }
+
+  savingPassword.value = true
   try {
     await changePassword({ oldPassword: pwdForm.value.oldPassword, newPassword: pwdForm.value.newPassword })
     ElMessage.success('密码修改成功')
     pwdForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' }
     showPwdPanel.value = false
-  } catch (e) { /* ignore */ }
+  } catch (e) { /* ignore */ } finally {
+    savingPassword.value = false
+  }
 }
 
 onMounted(loadUser)

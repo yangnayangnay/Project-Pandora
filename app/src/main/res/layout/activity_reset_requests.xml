@@ -9,10 +9,13 @@
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary"
+        android:background="@color/color_surface"
         app:title="@string/reset_requests_title"
-        app:titleTextColor="@android:color/white"
-        app:navigationIcon="@drawable/ic_back" />
+        app:titleTextColor="@color/color_text_primary"
+        app:navigationIcon="@drawable/ic_back"
+        style="@style/Widget.Pandora.Toolbar"
+        app:navigationIconTint="@color/color_text_primary"
+        android:elevation="0dp" />
 
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tab_status"

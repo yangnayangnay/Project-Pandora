@@ -5,8 +5,9 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="8dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="2dp">
+    app:cardCornerRadius="18dp"
+    app:cardElevation="0dp"
+    app:cardBackgroundColor="@color/color_surface">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -40,7 +41,7 @@
                 android:background="@drawable/bg_active_badge"
                 android:text="@string/server_badge_active"
                 android:textSize="10sp"
-                android:textColor="@android:color/white"
+                android:textColor="@color/color_text_primary"
                 android:visibility="gone" />
         </LinearLayout>
 
@@ -63,7 +64,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_move_up"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
+                style="@style/Widget.Pandora.Button.Text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:minWidth="0dp"
@@ -72,7 +73,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_move_down"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
+                style="@style/Widget.Pandora.Button.Text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:minWidth="0dp"
@@ -81,7 +82,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_item_test"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
+                style="@style/Widget.Pandora.Button.Text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:minWidth="0dp"
@@ -90,7 +91,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_delete"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
+                style="@style/Widget.Pandora.Button.Text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:minWidth="0dp"

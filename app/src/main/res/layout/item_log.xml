@@ -11,7 +11,7 @@
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_marginEnd="12dp"
-        android:src="@mipmap/ic_launcher"
+        android:src="@drawable/ic_profile_placeholder"
         android:scaleType="centerCrop"
         android:background="@drawable/circle_bg" />
 
@@ -48,7 +48,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:textSize="13sp"
-            android:textColor="#FF666666"
+            android:textColor="@color/color_text_secondary"
             android:maxLines="2"
             android:ellipsize="end"
             android:visibility="gone" />

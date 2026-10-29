@@ -12,6 +12,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.project_pandora.core.autosave.AutoSaveManager;
 import com.example.project_pandora.core.autosave.DraftRestoreDialog;
 import com.example.project_pandora.core.util.BackToolbarHelper;
+import com.example.project_pandora.core.util.LogDateWindow;
+import com.example.project_pandora.R;
 import com.example.project_pandora.core.sync.SyncRouteResult;
 import com.example.project_pandora.databinding.ActivityLogCreateBinding;
 import com.example.project_pandora.repository.DraftRepository;
@@ -36,6 +38,7 @@ public class LogCreateActivity extends AppCompatActivity {
     private DraftRepository draftRepository;
     private AutoSaveManager autoSaveManager;
     private String selectedDate;
+    private boolean syncingDateControls = false;
     private boolean isEditMode = false;
     private long editLogId = -1;
     private final CompositeDisposable disposables = new CompositeDisposable();
@@ -60,14 +63,12 @@ public class LogCreateActivity extends AppCompatActivity {
 
         BackToolbarHelper.setupBack(binding.toolbar, this::finish);
 
-        selectedDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        selectedDate = LogDateWindow.daysAgo(0);
         binding.textLogDate.setText(selectedDate);
-        binding.textLogDate.setOnClickListener(v -> {
-            showDatePicker();
-            onContentChanged();
-        });
+        binding.textLogDate.setOnClickListener(v -> showDatePicker());
 
         checkEditMode();
+        setupDateControls();
         setupAutoSave();
         checkDraftRestore();
 
@@ -162,8 +163,9 @@ public class LogCreateActivity extends AppCompatActivity {
 
         Object logDate = content.get("logDate");
         if (logDate != null) {
-            selectedDate = logDate.toString();
+            selectedDate = LogDateWindow.isWritable(logDate.toString()) ? logDate.toString() : LogDateWindow.daysAgo(0);
             binding.textLogDate.setText(selectedDate);
+            updateDateControls();
         }
     }
 
@@ -189,15 +191,86 @@ public class LogCreateActivity extends AppCompatActivity {
         }
     }
 
+    private void setupDateControls() {
+        updateDateControls();
+        binding.chipGroupDate.setOnCheckedStateChangeListener((group, checked) -> {
+            if (syncingDateControls || isEditMode || checked.isEmpty()) return;
+            int days = checked.get(0) == R.id.chipYesterday ? 1 : checked.get(0) == R.id.chipTomorrow ? -1 : 0;
+            selectDate(LogDateWindow.daysAgo(days));
+        });
+    }
+
+    private void updateDateControls() {
+        syncingDateControls = true;
+        binding.chipGroupDate.check(selectedDate.equals(LogDateWindow.daysAgo(1)) ? R.id.chipYesterday
+                : selectedDate.equals(LogDateWindow.daysAgo(-1)) ? R.id.chipTomorrow : R.id.chipToday);
+        binding.chipToday.setEnabled(!isEditMode);
+        binding.chipYesterday.setEnabled(!isEditMode);
+        binding.chipTomorrow.setEnabled(!isEditMode);
+        binding.textLogDate.setText(selectedDate + (isEditMode ? " · 编辑时日期锁定" : ""));
+        binding.textLogDate.setEnabled(!isEditMode);
+        if (!LogDateWindow.isWritable(selectedDate)) {
+            binding.btnSave.setEnabled(false);
+            binding.btnSave.setText("已超出可编辑日期范围");
+        }
+        syncingDateControls = false;
+    }
+
+    private void selectDate(String date) {
+        if (!LogDateWindow.isWritable(date) || isEditMode) return;
+        String previous = selectedDate;
+        selectedDate = date;
+        updateDateControls();
+        onContentChanged();
+        disposables.add(logRepository.listLogs(date, date, null)
+                .observeOn(AndroidSchedulers.mainThread()).subscribe(logs -> {
+                    if (!date.equals(selectedDate) || isFinishing()) return;
+                    if (logs.isEmpty()) return;
+                    new android.app.AlertDialog.Builder(this).setTitle("该日期已有日志")
+                            .setMessage("每人每天一篇日志。是否打开已有日志进行编辑？当前未提交内容不会覆盖原日志。")
+                            .setPositiveButton("打开编辑", (dialog, which) -> {
+                                Map<String, Object> existing = logs.get(0);
+                                Long id = com.example.project_pandora.core.util.NumberCompat.toLong(existing.get("id"));
+                                if (id == null) return;
+                                editLogId = id; isEditMode = true;
+                                binding.editWorkItem.setText(existing.get("work_item") == null ? "" : existing.get("work_item").toString());
+                                binding.editWorkContent.setText(existing.get("work_content") == null ? "" : existing.get("work_content").toString());
+                                binding.toolbar.setTitle("编辑日志"); binding.btnSave.setText("更新日志"); updateDateControls();
+                            }).setNegativeButton("取消", (dialog, which) -> { selectedDate = previous; updateDateControls(); })
+                            .setOnCancelListener(dialog -> { selectedDate = previous; updateDateControls(); }).show();
+                }, error -> { /* Offline saves still go through the queue; the server enforces date uniqueness. */ }));
+    }
+
     private void showDatePicker() {
-        Calendar cal = Calendar.getInstance();
-        new DatePickerDialog(this, (view, year, month, day) -> {
-            selectedDate = String.format(Locale.getDefault(), "%04d-%02d-%02d", year, month + 1, day);
-            binding.textLogDate.setText(selectedDate);
-        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
+        if (isEditMode) return;
+        java.util.TimeZone zone = java.util.TimeZone.getTimeZone("Asia/Shanghai");
+        Calendar selected = Calendar.getInstance(zone);
+        try {
+            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
+            format.setTimeZone(zone);
+            Date parsed = format.parse(selectedDate);
+            if (parsed != null) selected.setTime(parsed);
+        } catch (java.text.ParseException ignored) {
+        }
+        Calendar today = Calendar.getInstance(zone);
+        today.set(Calendar.HOUR_OF_DAY, 0); today.set(Calendar.MINUTE, 0); today.set(Calendar.SECOND, 0); today.set(Calendar.MILLISECOND, 0);
+        Calendar min = (Calendar) today.clone();
+        min.add(Calendar.DAY_OF_YEAR, -1);
+        Calendar max = (Calendar) today.clone();
+        max.set(Calendar.HOUR_OF_DAY, 23); max.set(Calendar.MINUTE, 59); max.set(Calendar.SECOND, 59); max.set(Calendar.MILLISECOND, 999);
+        max.add(Calendar.DAY_OF_YEAR, 1);
+        DatePickerDialog picker = new DatePickerDialog(this, (view, year, month, day) ->
+                selectDate(String.format(Locale.ROOT, "%04d-%02d-%02d", year, month + 1, day)),
+                selected.get(Calendar.YEAR), selected.get(Calendar.MONTH), selected.get(Calendar.DAY_OF_MONTH));
+        picker.getDatePicker().setMinDate(min.getTimeInMillis());
+        picker.getDatePicker().setMaxDate(max.getTimeInMillis());
+        picker.show();
     }
 
     private void handleSave() {
+        if (!LogDateWindow.isWritable(selectedDate)) {
+            Toast.makeText(this, "仅可填写或编辑昨天、今天、明天的日志", Toast.LENGTH_LONG).show(); return;
+        }
         String workItem = binding.editWorkItem.getText().toString().trim();
         if (workItem.isEmpty()) {
             Toast.makeText(this, "请输入日志标题", Toast.LENGTH_SHORT).show();
@@ -213,7 +286,7 @@ public class LogCreateActivity extends AppCompatActivity {
         saveHintHandler.postDelayed(saveHintRunnable, 5000);
 
         if (isEditMode && editLogId > 0) {
-            disposables.add(syncRoutingRepository.editLog(editLogId, workItem, workContent, "PENDING", null, selectedDate)
+            disposables.add(syncRoutingRepository.editLog(editLogId, workItem, workContent, null, null, selectedDate)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                             result -> {

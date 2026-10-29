@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -87,8 +88,8 @@ public class MainActivity extends AppCompatActivity {
         if (mode == NetworkMode.OFFLINE) {
             binding.syncStatusBar.setVisibility(View.VISIBLE);
             binding.textSyncIndicator.setText("离线模式 - 数据将保存至本地");
-            binding.syncStatusBar.setBackgroundColor(0xFFFFF3E0);
-            binding.textSyncIndicator.setTextColor(0xFFE65100);
+            binding.syncStatusBar.setBackgroundColor(ContextCompat.getColor(this, R.color.color_warning_surface));
+            binding.textSyncIndicator.setTextColor(ContextCompat.getColor(this, R.color.color_warning));
             return;
         }
 
@@ -100,8 +101,8 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     binding.textSyncIndicator.setText("同步中...");
                 }
-                binding.syncStatusBar.setBackgroundColor(0xFFE3F2FD);
-                binding.textSyncIndicator.setTextColor(0xFF1565C0);
+                binding.syncStatusBar.setBackgroundColor(ContextCompat.getColor(this, R.color.color_surface_soft));
+                binding.textSyncIndicator.setTextColor(ContextCompat.getColor(this, R.color.color_accent));
                 break;
             case PARTIAL_FAILED:
                 binding.syncStatusBar.setVisibility(View.VISIBLE);
@@ -110,14 +111,14 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     binding.textSyncIndicator.setText("部分同步失败");
                 }
-                binding.syncStatusBar.setBackgroundColor(0xFFFFF3E0);
-                binding.textSyncIndicator.setTextColor(0xFFE65100);
+                binding.syncStatusBar.setBackgroundColor(ContextCompat.getColor(this, R.color.color_warning_surface));
+                binding.textSyncIndicator.setTextColor(ContextCompat.getColor(this, R.color.color_warning));
                 break;
             case TOKEN_EXPIRED:
                 binding.syncStatusBar.setVisibility(View.VISIBLE);
                 binding.textSyncIndicator.setText("登录已过期，请重新登录");
-                binding.syncStatusBar.setBackgroundColor(0xFFFFEBEE);
-                binding.textSyncIndicator.setTextColor(0xFFC62828);
+                binding.syncStatusBar.setBackgroundColor(ContextCompat.getColor(this, R.color.color_error_surface));
+                binding.textSyncIndicator.setTextColor(ContextCompat.getColor(this, R.color.color_error));
                 break;
             default:
                 binding.syncStatusBar.setVisibility(View.GONE);

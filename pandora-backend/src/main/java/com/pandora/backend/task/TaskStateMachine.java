@@ -82,6 +82,7 @@ public class TaskStateMachine {
                 }
                 break;
             default:
+                if (!isAssignee && !isSuperior) throw new BusinessException(ErrorCode.FORBIDDEN_ACTION, "仅责任人或创建人可重新接收任务");
                 break;
         }
     }

@@ -29,7 +29,7 @@ public class CalendarView extends View {
     public static final float MIN_ZOOM = 0.5f;
     /** R37 REQ-37-C1: 上限=满屏单行（cellHeight=avail ⇔ zoom=GRID_ROWS=6.0） */
     public static final float MAX_ZOOM = 6.0f;
-    public static final float DEFAULT_ZOOM = 0.7f;
+    public static final float DEFAULT_ZOOM = 1.0f;
     private float zoomFactor = DEFAULT_ZOOM;
     private android.view.ScaleGestureDetector scaleGestureDetector;
 
@@ -177,6 +177,13 @@ public class CalendarView extends View {
         this.listener = listener;
     }
 
+    public void setDate(Calendar date) {
+        currentDate = (Calendar) date.clone();
+        selectedDay = date.get(Calendar.DAY_OF_MONTH);
+        scrollOffsetY = 0;
+        invalidate();
+    }
+
     public void setDayEvents(Map<Integer, List<TaskEvent>> events) {
         this.dayEvents = events;
         invalidate();
@@ -258,7 +265,7 @@ public class CalendarView extends View {
         dayNumPaint.setTextAlign(Paint.Align.LEFT);
 
         Paint eventTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        eventTextPaint.setTextSize(28f);
+        eventTextPaint.setTextSize(getResources().getDimension(com.example.project_pandora.R.dimen.calendar_task_text_size));
         eventTextPaint.setTextAlign(Paint.Align.LEFT);
 
         Paint eventBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -286,7 +293,7 @@ public class CalendarView extends View {
             }
 
             if (isToday) {
-                dayNumPaint.setColor(Color.WHITE);
+                dayNumPaint.setColor(androidx.core.content.ContextCompat.getColor(getContext(), com.example.project_pandora.R.color.color_on_accent));
                 float circleX = cellLeft + 28f;
                 float circleY = cellTop + 28f;
                 canvas.drawCircle(circleX, circleY, 22f, todayPaint);
@@ -336,7 +343,7 @@ public class CalendarView extends View {
                     eventTextPaint.setTextSize(24f);
                     canvas.drawText("+" + (events.size() - maxEvents),
                             eventLeft + 6f, cellBottom - 10f, eventTextPaint);
-                    eventTextPaint.setTextSize(28f);
+                    eventTextPaint.setTextSize(getResources().getDimension(com.example.project_pandora.R.dimen.calendar_task_text_size));
                 }
             }
         }
@@ -346,7 +353,7 @@ public class CalendarView extends View {
             spanBgPaint.setStyle(Paint.Style.FILL);
 
             Paint spanTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            spanTextPaint.setTextSize(22f);
+            spanTextPaint.setTextSize(getResources().getDimension(com.example.project_pandora.R.dimen.calendar_task_text_size));
             spanTextPaint.setTextAlign(Paint.Align.LEFT);
 
             float dayNumHeight = 48f;
@@ -424,6 +431,8 @@ public class CalendarView extends View {
 
                     RectF segRect = new RectF(segLeft, lineTop, segRight, lineBottom);
                     canvas.drawRoundRect(segRect, cornerRadius, cornerRadius, spanBgPaint);
+                    canvas.save();
+                    canvas.clipRect(segRect);
 
                     if (row == startRow) {
                         float textMaxWidth = segRight - segLeft - 8f;
@@ -468,6 +477,7 @@ public class CalendarView extends View {
                             }
                         }
                     }
+                    canvas.restore();
                 }
             }
         }

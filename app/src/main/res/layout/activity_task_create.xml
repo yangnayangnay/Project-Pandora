@@ -1,19 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/color_bg_page"
+    android:fitsSystemWindows="true"
     android:orientation="vertical"
-    android:fitsSystemWindows="true">
+    tools:context=".ui.task.TaskCreateActivity">
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary"
+        android:background="@color/color_surface"
         app:title="@string/task_create"
-        app:titleTextColor="@android:color/white"
-        app:navigationIcon="@drawable/ic_back" />
+        app:titleTextColor="@color/color_text_primary"
+        app:navigationIcon="@drawable/ic_back"
+        style="@style/Widget.Pandora.Toolbar"
+        app:navigationIconTint="@color/color_text_primary"
+        android:elevation="0dp" />
 
     <TextView
         android:id="@+id/textAutoSaveStatus"
@@ -21,151 +27,290 @@
         android:layout_height="wrap_content"
         android:padding="4dp"
         android:textAlignment="center"
-        android:textSize="12sp"
         android:textColor="@color/color_text_secondary"
+        android:textSize="12sp"
         android:visibility="gone" />
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="16dp">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="24dp">
 
-            <com.google.android.material.textfield.TextInputLayout
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                app:cardBackgroundColor="@color/color_surface"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/color_divider"
+                app:strokeWidth="1dp">
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/edit_task_name"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="@string/hint_task_name"
-                    android:inputType="textMultiLine"
-                    android:maxLines="5"
-                    android:textColor="@color/color_text_edit_content"
-                    android:gravity="start|top" />
-            </com.google.android.material.textfield.TextInputLayout>
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-            <!-- R39 REQ-C05: 任务正文（必填，多行） -->
-            <com.google.android.material.textfield.TextInputLayout
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="任务内容"
+                        android:textColor="@color/color_text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Pandora.TextInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edit_task_name"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="start|top"
+                            android:hint="@string/hint_task_name"
+                            android:inputType="textMultiLine"
+                            android:maxLines="5"
+                            android:minHeight="48dp"
+                            android:textColor="@color/color_text_edit_content"
+                            tools:text="完成版本迭代" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Pandora.TextInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edit_task_content"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="start|top"
+                            android:hint="@string/hint_task_content"
+                            android:inputType="textMultiLine"
+                            android:maxLines="10"
+                            android:minLines="4"
+                            android:minHeight="48dp"
+                            android:textColor="@color/color_text_edit_content"
+                            tools:text="完成登录、日志与任务模块的联调，补齐异常分支测试。" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="@color/color_surface"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/color_divider"
+                app:strokeWidth="1dp">
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/edit_task_content"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="@string/hint_task_content"
-                    android:inputType="textMultiLine"
-                    android:minLines="4"
-                    android:maxLines="10"
-                    android:textColor="@color/color_text_edit_content"
-                    android:gravity="start|top" />
-            </com.google.android.material.textfield.TextInputLayout>
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-            <TextView
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="优先级"
+                        android:textColor="@color/color_text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="紧急程度"
+                        android:textColor="@color/color_text_secondary" />
+
+                    <RadioGroup
+                        android:id="@+id/rg_urgency"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:orientation="horizontal">
+
+                        <RadioButton
+                            android:id="@+id/rb_urgent"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:minHeight="48dp"
+                            android:text="紧急" />
+
+                        <RadioButton
+                            android:id="@+id/rb_not_urgent"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:checked="true"
+                            android:minHeight="48dp"
+                            android:text="不紧急" />
+                    </RadioGroup>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="重要程度"
+                        android:textColor="@color/color_text_secondary" />
+
+                    <RadioGroup
+                        android:id="@+id/rg_importance"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <RadioButton
+                            android:id="@+id/rb_important"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:minHeight="48dp"
+                            android:text="重要" />
+
+                        <RadioButton
+                            android:id="@+id/rb_not_important"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:checked="true"
+                            android:minHeight="48dp"
+                            android:text="不重要" />
+                    </RadioGroup>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="紧急程度"
-                android:layout_marginBottom="8dp" />
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="@color/color_surface"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/color_divider"
+                app:strokeWidth="1dp">
 
-            <RadioGroup
-                android:id="@+id/rg_urgency"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="16dp">
-
-                <RadioButton
-                    android:id="@+id/rb_urgent"
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="紧急" />
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                <RadioButton
-                    android:id="@+id/rb_not_urgent"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="不紧急"
-                    android:checked="true" />
-            </RadioGroup>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="排期与指派"
+                        android:textColor="@color/color_text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="重要程度"
-                android:layout_marginBottom="8dp" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="开始时间"
+                        android:textColor="@color/color_text_secondary" />
 
-            <RadioGroup
-                android:id="@+id/rg_importance"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="16dp">
+                    <TextView
+                        android:id="@+id/text_start_time"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:background="@drawable/bg_date_picker"
+                        android:backgroundTint="@color/color_calendar_header_bg"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:minHeight="48dp"
+                        android:padding="12dp"
+                        android:text="点击选择日期和时间"
+                        android:textColor="@color/color_text_primary"
+                        tools:text="2026-06-12 09:00" />
 
-                <RadioButton
-                    android:id="@+id/rb_important"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="重要" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="截止时间"
+                        android:textColor="@color/color_text_secondary" />
 
-                <RadioButton
-                    android:id="@+id/rb_not_important"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="不重要"
-                    android:checked="true" />
-            </RadioGroup>
+                    <TextView
+                        android:id="@+id/text_end_time"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:background="@drawable/bg_date_picker"
+                        android:backgroundTint="@color/color_calendar_header_bg"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:minHeight="48dp"
+                        android:padding="12dp"
+                        android:text="点击选择日期和时间"
+                        android:textColor="@color/color_text_primary"
+                        tools:text="2026-06-12 18:00" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="截止日期"
-                android:layout_marginBottom="8dp" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="分配对象"
+                        android:textColor="@color/color_text_secondary" />
 
-            <TextView
-                android:id="@+id/text_end_time"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="点击选择日期"
-                android:padding="12dp"
-                android:background="?attr/colorSurface"
-                android:layout_marginBottom="16dp"
-                android:clickable="true"
-                android:focusable="true" />
+                    <Spinner
+                        android:id="@+id/spinner_assignee"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="48dp"
+                        android:spinnerMode="dialog" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="分配对象"
-                android:layout_marginBottom="8dp" />
+                    <TextView
+                        android:id="@+id/textTaskReviewHint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="全员可派发，创建后按直属上级审核"
+                        android:textColor="@color/color_text_secondary"
+                        android:textSize="13sp" />
 
-            <Spinner
-                android:id="@+id/spinner_assignee"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:spinnerMode="dialog"
-                android:layout_marginBottom="16dp" />
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_create_task"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:layout_marginBottom="24dp"
-                android:text="@string/btn_create_task" />
+                android:layout_marginBottom="8dp"
+                android:minHeight="48dp"
+                android:text="@string/btn_create_task"
+                android:textColor="@color/color_on_accent" />
 
         </LinearLayout>
     </ScrollView>

@@ -9,6 +9,10 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 
+import androidx.core.content.ContextCompat;
+
+import com.example.project_pandora.R;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -53,7 +57,7 @@ public class FourQuadrantView extends View {
         paint.setStyle(Paint.Style.FILL);
 
         textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        textPaint.setColor(Color.WHITE);
+        textPaint.setColor(ContextCompat.getColor(getContext(), R.color.color_text_primary));
         textPaint.setTextSize(36f);
         textPaint.setTextAlign(Paint.Align.CENTER);
         textPaint.setFakeBoldText(true);
@@ -61,7 +65,7 @@ public class FourQuadrantView extends View {
         bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         bgPaint.setStyle(Paint.Style.STROKE);
         bgPaint.setStrokeWidth(2f);
-        bgPaint.setColor(Color.parseColor("#CCCCCC"));
+        bgPaint.setColor(ContextCompat.getColor(getContext(), R.color.color_divider));
     }
 
     public void setQuadrantTasks(Map<String, List<String>> tasks) {
@@ -82,22 +86,22 @@ public class FourQuadrantView extends View {
         int halfWidth = width / 2;
         int halfHeight = height / 2;
 
-        paint.setColor(Color.parseColor("#F44336"));
+        paint.setColor(ContextCompat.getColor(getContext(), R.color.color_surface_soft));
         canvas.drawRect(0, 0, halfWidth, halfHeight, paint);
         canvas.drawText("重要且紧急", halfWidth / 2f, halfHeight / 2f, textPaint);
         canvas.drawText(String.valueOf(quadrantTasks.get("importantUrgent").size()) + "项", halfWidth / 2f, halfHeight / 2f + 40f, textPaint);
 
-        paint.setColor(Color.parseColor("#FF9800"));
+        paint.setColor(ContextCompat.getColor(getContext(), R.color.color_surface));
         canvas.drawRect(halfWidth, 0, width, halfHeight, paint);
         canvas.drawText("重要不紧急", halfWidth + halfWidth / 2f, halfHeight / 2f, textPaint);
         canvas.drawText(String.valueOf(quadrantTasks.get("importantNotUrgent").size()) + "项", halfWidth + halfWidth / 2f, halfHeight / 2f + 40f, textPaint);
 
-        paint.setColor(Color.parseColor("#2196F3"));
+        paint.setColor(ContextCompat.getColor(getContext(), R.color.color_surface));
         canvas.drawRect(0, halfHeight, halfWidth, height, paint);
         canvas.drawText("紧急不重要", halfWidth / 2f, halfHeight + halfHeight / 2f, textPaint);
         canvas.drawText(String.valueOf(quadrantTasks.get("notImportantUrgent").size()) + "项", halfWidth / 2f, halfHeight + halfHeight / 2f + 40f, textPaint);
 
-        paint.setColor(Color.parseColor("#4CAF50"));
+        paint.setColor(ContextCompat.getColor(getContext(), R.color.color_surface_soft));
         canvas.drawRect(halfWidth, halfHeight, width, height, paint);
         canvas.drawText("不重要不紧急", halfWidth + halfWidth / 2f, halfHeight + halfHeight / 2f, textPaint);
         canvas.drawText(String.valueOf(quadrantTasks.get("notImportantNotUrgent").size()) + "项", halfWidth + halfWidth / 2f, halfHeight + halfHeight / 2f + 40f, textPaint);

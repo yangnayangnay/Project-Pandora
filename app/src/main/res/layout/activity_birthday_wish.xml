@@ -10,10 +10,13 @@
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary"
+        android:background="@color/color_surface"
         app:title="@string/birthday_title"
-        app:titleTextColor="@android:color/white"
-        app:navigationIcon="@drawable/ic_back" />
+        app:titleTextColor="@color/color_text_primary"
+        app:navigationIcon="@drawable/ic_back"
+        style="@style/Widget.Pandora.Toolbar"
+        app:navigationIconTint="@color/color_text_primary"
+        android:elevation="0dp" />
 
     <ScrollView
         android:layout_width="match_parent"
@@ -29,8 +32,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp">
+                app:cardCornerRadius="18dp"
+                app:cardElevation="1dp"
+                app:cardBackgroundColor="@color/color_surface">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -82,7 +86,8 @@
                         android:id="@+id/btn_save_birthday"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/birthday_save" />
+                        android:text="@string/birthday_save"
+                        android:textColor="@color/color_on_accent" />
 
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
@@ -90,8 +95,9 @@
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp">
+                app:cardCornerRadius="18dp"
+                app:cardElevation="1dp"
+                app:cardBackgroundColor="@color/color_surface">
 
                 <LinearLayout
                     android:layout_width="match_parent"

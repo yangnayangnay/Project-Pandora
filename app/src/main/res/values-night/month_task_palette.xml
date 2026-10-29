@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="calendar_month_detail_colors">
+        <item>#5D4E00</item>
+        <item>#5D2327</item>
+        <item>#4A2A5E</item>
+        <item>#1B3A5C</item>
+        <item>#1E4620</item>
+        <item>#5C3A12</item>
+        <item>#0F3D3A</item>
+        <item>#55223A</item>
+    </string-array>
+
+    <string-array name="calendar_month_detail_text_colors">
+        <item>#E0C097</item>
+        <item>#F48B8B</item>
+        <item>#CE93D8</item>
+        <item>#90CAF9</item>
+        <item>#A5D6A7</item>
+        <item>#FFB74D</item>
+        <item>#80CBC4</item>
+        <item>#F48FB1</item>
+    </string-array>
+</resources>

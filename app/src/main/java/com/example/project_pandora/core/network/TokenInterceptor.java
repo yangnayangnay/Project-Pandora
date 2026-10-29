@@ -34,6 +34,10 @@ public class TokenInterceptor implements Interceptor {
         }
 
         Response response = chain.proceed(request);
+        String liveRole = response.header("X-User-Role");
+        if (response.isSuccessful() && liveRole != null && tokenManager.getUserId() != null && tokenManager.getUserId() > 0) {
+            tokenManager.saveUserInfo(tokenManager.getUserId(), liveRole);
+        }
 
         // R40 REQ-40-A: 401 会话过期治理——清 token + 弹"会话已过期"通知（一次性，id=900001 系统去重）。
         // 根因（R39 部署实证）：后端重启清 SessionStore → 旧 token 全部 401 → 轮询静默失败，

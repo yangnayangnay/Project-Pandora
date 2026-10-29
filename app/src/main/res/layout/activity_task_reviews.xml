@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical"
+    android:background="?android:attr/colorBackground" tools:context=".ui.task.TaskReviewsActivity">
+    <com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar"
+        android:layout_width="match_parent" android:layout_height="wrap_content" app:title="任务审核"
+        style="@style/Widget.Pandora.Toolbar"
+        android:background="@color/color_surface"
+        app:titleTextColor="@color/color_text_primary"
+        app:navigationIconTint="@color/color_text_primary"
+        android:elevation="0dp" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:padding="16dp" android:text="普通职级的创建、编辑和删除申请，经对应上级审核后生效。创始人和管理员免审。"
+        android:textColor="?android:attr/textColorSecondary" />
+    <com.google.android.material.tabs.TabLayout android:id="@+id/tabs"
+        android:layout_width="match_parent" android:layout_height="wrap_content" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/btnRefresh"
+        style="?attr/materialButtonOutlinedStyle" android:layout_width="wrap_content"
+        android:layout_height="wrap_content" android:layout_gravity="end" android:layout_marginEnd="16dp" android:text="刷新" />
+    <ProgressBar android:id="@+id/progress" android:layout_width="wrap_content"
+        android:layout_height="wrap_content" android:layout_gravity="center" android:visibility="gone" />
+    <TextView android:id="@+id/textEmpty" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:gravity="center" android:padding="24dp" android:visibility="gone" android:text="暂无申请" />
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/recyclerReviews"
+        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:padding="16dp" android:clipToPadding="false" tools:listitem="@layout/item_task_review" tools:itemCount="3"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+</LinearLayout>

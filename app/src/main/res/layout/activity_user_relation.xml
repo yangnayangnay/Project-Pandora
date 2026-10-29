@@ -10,9 +10,12 @@
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary"
+        android:background="@color/color_surface"
         app:title="人员关系"
-        app:titleTextColor="@android:color/white" />
+        app:titleTextColor="@color/color_text_primary"
+        style="@style/Widget.Pandora.Toolbar"
+        app:navigationIconTint="@color/color_text_primary"
+        android:elevation="0dp" />
 
     <ScrollView
         android:layout_width="match_parent"
@@ -86,7 +89,7 @@
                 android:layout_height="wrap_content"
                 android:text="加载失败，请重试"
                 android:textSize="16sp"
-                android:textColor="#F44336"
+                android:textColor="@color/color_error"
                 android:gravity="center"
                 android:padding="32dp"
                 android:visibility="gone" />
@@ -97,7 +100,8 @@
                 android:layout_height="wrap_content"
                 android:text="重试"
                 android:layout_gravity="center"
-                android:visibility="gone" />
+                android:visibility="gone"
+                android:textColor="@color/color_on_accent" />
 
         </LinearLayout>
     </ScrollView>

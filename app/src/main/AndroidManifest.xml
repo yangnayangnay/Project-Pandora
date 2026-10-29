@@ -32,6 +32,8 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <activity android:name=".ui.mine.ChangePasswordActivity" android:exported="false" />
+        <activity android:name=".ui.task.TaskReviewsActivity" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="false"

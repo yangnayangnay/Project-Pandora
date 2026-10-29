@@ -30,7 +30,7 @@ public class NetworkClient {
                 .create();
 
         HttpLoggingInterceptor loggingInterceptor = new HttpLoggingInterceptor();
-        loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
+        loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BASIC);
         // Round28 风险R1 强制项: 透传 API Key 禁止完整泄露 logcat（BODY 级日志下必须掩码）
         loggingInterceptor.redactHeader("X-AI-Api-Key");
 

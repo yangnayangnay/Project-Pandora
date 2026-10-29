@@ -15,11 +15,14 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
+            android:background="@color/color_surface"
             app:title="AI 模型配置"
-            app:titleTextColor="@android:color/white"
+            app:titleTextColor="@color/color_text_primary"
             app:navigationIcon="@drawable/ic_back"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            style="@style/Widget.Pandora.Toolbar"
+            app:navigationIconTint="@color/color_text_primary"
+            android:elevation="0dp" />
 
         <ScrollView
             android:layout_width="match_parent"
@@ -39,8 +42,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="2dp">
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@color/color_surface">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -76,8 +80,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="2dp">
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@color/color_surface">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -87,7 +92,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/til_api_url"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.Pandora.TextInput"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginBottom="12dp"
@@ -104,7 +109,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/til_api_key"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.Pandora.TextInput"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginBottom="12dp"
@@ -122,7 +127,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/til_model"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.Pandora.TextInput"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:hint="模型名称（如 qwen2.5:7b）">
@@ -141,7 +146,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_test"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    style="@style/Widget.Pandora.Button.Outlined"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
@@ -152,7 +157,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
-                    android:text="保存" />
+                    android:text="保存"
+                    android:textColor="@color/color_on_accent" />
 
                 <TextView
                     android:layout_width="match_parent"

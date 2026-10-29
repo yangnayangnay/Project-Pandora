@@ -16,6 +16,15 @@ import retrofit2.http.Query;
 
 public interface TaskApi {
 
+    @GET("task/assignees")
+    Observable<ApiResponse<List<Map<String, Object>>>> getAssignees();
+
+    @GET("task/reviews")
+    Observable<ApiResponse<List<Map<String, Object>>>> getReviews(@Query("mine") boolean mine);
+
+    @POST("task/reviews/{id}/decision")
+    Observable<ApiResponse<Map<String, Object>>> review(@Path("id") long id, @Body Map<String, Object> request);
+
     @POST("task")
     Observable<ApiResponse<Map<String, Object>>> createTask(@Body Map<String, Object> task);
 
@@ -59,5 +68,5 @@ public interface TaskApi {
     Observable<ApiResponse<List<Map<String, Object>>>> getSubordinateUsers();
 
     @DELETE("task/{taskId}")
-    Observable<ApiResponse<Void>> deleteTask(@Path("taskId") Long taskId);
+    Observable<ApiResponse<Map<String, Object>>> deleteTask(@Path("taskId") Long taskId);
 }

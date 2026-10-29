@@ -95,11 +95,11 @@ public class SubordinateLogAdapter extends RecyclerView.Adapter<SubordinateLogAd
                 Glide.with(binding.imageAvatar.getContext())
                         .load(fullUrl)
                         .apply(RequestOptions.circleCropTransform())
-                        .placeholder(R.mipmap.ic_launcher)
-                        .error(R.mipmap.ic_launcher)
+                        .placeholder(R.drawable.ic_profile_placeholder)
+                        .error(R.drawable.ic_profile_placeholder)
                         .into(binding.imageAvatar);
             } else {
-                binding.imageAvatar.setImageResource(R.mipmap.ic_launcher);
+                binding.imageAvatar.setImageResource(R.drawable.ic_profile_placeholder);
             }
 
             itemView.setOnClickListener(v -> {

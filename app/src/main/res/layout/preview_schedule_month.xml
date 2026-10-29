@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.example.project_pandora.ui.widget.MonthCalendarLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+                    android:background="@color/color_month_page">
+
+    <FrameLayout
+        android:id="@+id/monthHeader"
+        android:layout_width="match_parent"
+        android:layout_height="440dp"
+        android:background="@color/color_month_page">
+
+        <LinearLayout
+            android:id="@+id/expandedMonthHeader"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/layoutMonthNav"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPreviousMonth"
+                    style="@style/Widget.Pandora.Button.Text"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingHorizontal="0dp"
+                    android:text="‹"
+                    android:textSize="24sp"
+                    android:contentDescription="上个月" />
+
+                <TextView
+                    android:id="@+id/textMonthLabel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="start|center_vertical"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/color_text_primary"
+                    tools:text="2026年10月" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnNextMonth"
+                    style="@style/Widget.Pandora.Button.Text"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingHorizontal="0dp"
+                    android:text="›"
+                    android:textSize="24sp"
+                    android:contentDescription="下个月" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnResetZoom"
+                    style="@style/Widget.Pandora.Button.Text"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingHorizontal="0dp"
+                    android:text="今天"
+                    android:textSize="14sp"
+                    android:contentDescription="回到今天" />
+
+            </LinearLayout>
+
+            <com.example.project_pandora.ui.widget.PhoneMonthView
+                android:id="@+id/calendarView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="12dp" />
+
+            <TextView
+                android:id="@+id/monthDragHandle"
+                android:layout_width="match_parent"
+                android:layout_height="24dp"
+                android:gravity="center"
+                android:text="━"
+                android:textSize="14sp"
+                android:textColor="@color/color_text_secondary"
+                android:contentDescription="上滑查看全部任务，下滑展开每日任务" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/compactMonthHeader"
+            android:layout_width="match_parent"
+            android:layout_height="144dp"
+            android:layout_gravity="top"
+            android:orientation="vertical"
+            android:background="@color/color_month_page"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp">
+
+                <TextView
+                    android:id="@+id/compactMonthLabel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/color_text_primary"
+                    tools:text="2026年10月" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCompactPreviousMonth"
+                    style="@style/Widget.Pandora.Button.Text"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingHorizontal="0dp"
+                    android:text="‹"
+                    android:textSize="24sp"
+                    android:contentDescription="上个月" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCompactNextMonth"
+                    style="@style/Widget.Pandora.Button.Text"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingHorizontal="0dp"
+                    android:text="›"
+                    android:textSize="24sp"
+                    android:contentDescription="下个月" />
+
+            </LinearLayout>
+
+            <com.example.project_pandora.ui.widget.WeekDateStrip
+                android:id="@+id/monthWeekStrip"
+                android:layout_width="match_parent"
+                android:layout_height="88dp" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollPanelTaskTable"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:clipToPadding="false">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="88dp">
+
+            <TextView
+                android:id="@+id/monthTaskHeading"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="12dp"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/color_text_primary"
+                tools:text="全部任务 · 1 项" />
+
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/tabPanelTasks"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:tabMode="fixed" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_task_card"
+                android:padding="16dp"
+                android:textColor="@color/color_text_primary"
+                android:textSize="15sp"
+                tools:text="会议 18:30–19:30" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</com.example.project_pandora.ui.widget.MonthCalendarLayout>

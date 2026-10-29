@@ -5,7 +5,8 @@
     android:layout_height="wrap_content"
     android:layout_margin="6dp"
     app:cardCornerRadius="8dp"
-    app:cardElevation="2dp">
+    app:cardElevation="1dp"
+    app:cardBackgroundColor="@color/color_surface">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -84,7 +85,7 @@
                 android:layout_marginStart="4dp"
                 android:text="@string/reset_request_reject"
                 android:textSize="13sp"
-                style="@style/Widget.Material3.Button.OutlinedButton" />
+                style="@style/Widget.Pandora.Button.Outlined" />
         </LinearLayout>
 
     </LinearLayout>
