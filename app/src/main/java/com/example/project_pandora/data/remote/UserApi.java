@@ -19,14 +19,8 @@ import retrofit2.http.Query;
 
 public interface UserApi {
 
-    @PUT("user/me/password")
-    Observable<ApiResponse<Void>> changePassword(@Body Map<String, String> request);
-
     @GET("user/me")
     Observable<ApiResponse<Map<String, Object>>> getCurrentUser();
-
-    @PUT("user/me")
-    Observable<ApiResponse<Void>> updateProfile(@Body Map<String, Object> request);
 
     @Multipart
     @POST("user/me/avatar")

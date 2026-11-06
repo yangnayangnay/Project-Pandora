@@ -25,6 +25,6 @@ public final class LogDateWindow {
     }
     static boolean isWritable(String date, Date now) {
         if (date == null || !date.matches("\\d{4}-\\d{2}-\\d{2}")) return false;
-        return date.equals(daysAgo(1, now)) || date.equals(daysAgo(0, now)) || date.equals(daysAgo(-1, now));
+        return date.equals(daysAgo(2, now)) || date.equals(daysAgo(1, now)) || date.equals(daysAgo(0, now));
     }
 }

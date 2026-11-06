@@ -25,7 +25,6 @@
                 android:background="@color/color_surface"
                 app:title="@string/nav_log"
                 app:titleTextColor="@color/color_text_primary"
-                app:menu="@menu/menu_log"
                 style="@style/Widget.Pandora.Toolbar"
                 app:navigationIconTint="@color/color_text_primary"
                 android:elevation="0dp" />
@@ -40,12 +39,12 @@
                 app:tabSelectedTextColor="?attr/colorPrimary" />
 
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardLogFilters"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:layout_marginTop="12dp"
                 android:layout_marginEnd="16dp"
-                android:layout_marginBottom="8dp"
                 app:cardBackgroundColor="@color/color_surface"
                 app:cardCornerRadius="18dp"
                 app:cardElevation="0dp"
@@ -251,19 +250,39 @@
                         android:textSize="13sp"
                         tools:text="本周 · 共 12 条日志" />
 
-                    <Spinner
-                        android:id="@+id/spinnerSubordinate"
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/buttonSelectLogPerson"
+                        style="@style/Widget.Pandora.Button.Outlined"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:minHeight="48dp"
                         android:padding="8dp"
+                        android:text="全部可查看人员 · 选择部门/人员"
                         android:visibility="gone"
                         tools:visibility="visible" />
 
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
+
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/buttonToggleLogFilters"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="-1dp"
+                android:background="@drawable/bg_log_filter_handle"
+                android:contentDescription="@string/log_filters_collapse"
+                android:elevation="4dp"
+                android:paddingStart="0dp"
+                android:paddingTop="0dp"
+                android:paddingEnd="0dp"
+                android:paddingBottom="24dp"
+                android:scaleType="center"
+                app:backgroundTint="@null"
+                app:srcCompat="@drawable/ic_log_filter_chevron"
+                app:tint="#756D63" />
 
             <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
                 android:id="@+id/swipeRefresh"

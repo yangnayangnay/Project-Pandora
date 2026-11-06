@@ -4,10 +4,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.UUID;
 
 @Service
 public class FileStorageService {
@@ -28,16 +28,10 @@ public class FileStorageService {
             ext = "jpg";
         }
 
-        String timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
-        String fileName = userId + "_" + timestamp + "." + ext;
-
-        File avatarDir = new File(uploadDir + "/avatars/");
-        if (!avatarDir.exists()) {
-            avatarDir.mkdirs();
-        }
-
-        File destFile = new File(avatarDir, fileName);
-        file.transferTo(destFile);
+        String fileName = userId + "_" + UUID.randomUUID() + "." + ext;
+        Path avatarDir = Path.of(uploadDir, "avatars").toAbsolutePath().normalize();
+        Files.createDirectories(avatarDir);
+        file.transferTo(avatarDir.resolve(fileName));
 
         return "/uploads/avatars/" + fileName;
     }

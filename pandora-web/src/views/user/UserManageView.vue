@@ -5,7 +5,7 @@
         <div>
           <div class="eyebrow">ORGANIZATION DIRECTORY</div>
           <h2>人员管理</h2>
-          <p>查看全员资料与组织关系。管理员可调整职级、部门、团队及直接上级。</p>
+          <p>查看全员资料与组织关系。管理员可编辑账号资料，并调整职级、部门、团队及直接上级。</p>
         </div>
         <div class="header-actions">
           <el-tag :type="isAdmin ? 'warning' : 'info'" effect="plain">{{ isAdmin ? 'ADMIN 可编辑' : 'FOUNDER 只读' }}</el-tag>
@@ -19,7 +19,7 @@
     <el-tabs v-model="activeTab" class="directory-tabs">
       <el-tab-pane label="人员总表" name="directory">
         <div class="filters">
-          <el-input v-model="keyword" placeholder="搜索姓名、账号、邮箱或手机号" clearable aria-label="搜索人员" />
+          <el-input v-model="keyword" placeholder="搜索姓名、工号、邮箱或手机号" clearable aria-label="搜索人员" />
           <el-select v-model="filterRole" placeholder="全部职级" clearable aria-label="按职级筛选">
             <el-option v-for="(name, role) in roleMap" :key="role" :label="name" :value="role" />
           </el-select>
@@ -28,7 +28,7 @@
 
         <el-table :data="filteredUsers" stripe row-key="id" empty-text="暂无符合条件的人员" style="width: 100%">
           <el-table-column prop="real_name" label="姓名" min-width="110" fixed />
-          <el-table-column prop="username" label="用户名" min-width="140" />
+          <el-table-column prop="username" label="工号" min-width="140" />
           <el-table-column label="职级" min-width="120"><template #default="{ row }">{{ roleMap[row.role] || row.role }}</template></el-table-column>
           <el-table-column prop="department_name" label="部门" min-width="120" />
           <el-table-column prop="team_name" label="团队" min-width="120" />
@@ -37,8 +37,12 @@
           <el-table-column prop="phone" label="手机号" min-width="140" />
           <el-table-column prop="email" label="邮箱" min-width="200" />
           <el-table-column label="账号状态" min-width="110"><template #default="{ row }">{{ statusNames[row.approval_status] || row.approval_status }}</template></el-table-column>
-          <el-table-column label="操作" :width="isAdmin ? 190 : 110" fixed="right">
-            <template #default="{ row }"><el-button link type="primary" @click="detail = row">全部资料</el-button><el-button v-if="isAdmin" link type="primary" @click="startEdit(row)">调整关系</el-button></template>
+          <el-table-column label="操作" :width="isAdmin ? 270 : 110" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="detail = row">全部资料</el-button>
+              <el-button v-if="isAdmin" link type="primary" @click="startProfileEdit(row)">编辑资料</el-button>
+              <el-button v-if="isAdmin" link type="primary" @click="startEdit(row)">调整关系</el-button>
+            </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
@@ -100,6 +104,30 @@
         <el-descriptions-item label="直接上级">{{ relationNames(detail.superiors, 'superior_name') }}</el-descriptions-item>
         <el-descriptions-item label="直接下属">{{ relationNames(detail.subordinates, 'subordinate_name') }}</el-descriptions-item>
       </el-descriptions>
+      <template #footer>
+        <el-button @click="detail = null">关闭</el-button>
+        <el-button v-if="isAdmin && detail" type="primary" @click="editDetailProfile">编辑资料</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="profileVisible" title="编辑账号资料" width="min(680px, 94vw)" destroy-on-close
+      :close-on-click-modal="!profileSaving" :show-close="!profileSaving" :close-on-press-escape="!profileSaving">
+      <p class="profile-intro">{{ profileSelected?.real_name || profileSelected?.username }} · 修改工号后，请使用新工号登录。</p>
+      <el-alert v-if="profileError" :title="profileError" type="error" :closable="false" show-icon class="load-alert" />
+      <el-form ref="profileFormRef" :model="profileForm" :rules="profileRules" label-position="top" :disabled="profileSaving" @submit.prevent="saveProfile">
+        <div class="profile-grid">
+          <el-form-item label="工号" prop="employeeNo"><el-input v-model.trim="profileForm.employeeNo" maxlength="64" placeholder="请输入工号，保留前导零" autocomplete="off" /></el-form-item>
+          <el-form-item label="真实姓名" prop="realName"><el-input v-model.trim="profileForm.realName" maxlength="64" placeholder="请输入真实姓名" /></el-form-item>
+          <el-form-item label="邮箱" prop="email"><el-input v-model.trim="profileForm.email" maxlength="128" placeholder="请输入邮箱" /></el-form-item>
+          <el-form-item label="手机号" prop="phone"><el-input v-model.trim="profileForm.phone" maxlength="11" inputmode="tel" placeholder="请输入手机号" /></el-form-item>
+          <el-form-item label="身份证号" prop="idCard"><el-input v-model.trim="profileForm.idCard" maxlength="18" placeholder="请输入18位身份证号" /></el-form-item>
+          <el-form-item label="生日" prop="birthday"><el-date-picker v-model="profileForm.birthday" type="date" value-format="YYYY-MM-DD" placeholder="请选择生日" :disabled-date="isFutureBirthday" /></el-form-item>
+        </div>
+      </el-form>
+      <template #footer>
+        <el-button :disabled="profileSaving" @click="profileVisible = false">取消</el-button>
+        <el-button type="primary" :loading="profileSaving" @click="saveProfile">保存资料</el-button>
+      </template>
     </el-dialog>
 
     <el-dialog v-model="editVisible" title="调整职级与人员关系" width="min(540px, 94vw)" :close-on-click-modal="!saving" :show-close="!saving" :close-on-press-escape="!saving">
@@ -117,11 +145,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onActivated } from 'vue'
+import { ref, computed, nextTick, onMounted, onActivated } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/userStore'
 import request from '@/utils/request'
 import { roleMap } from '@/utils/roleConstants'
+import { updateAccountProfile } from '@/api/user'
+import { accountProfileForm, profileChanges, profileFieldError } from '@/utils/accountProfile'
+import { isFutureBirthday } from '@/utils/accountCreation'
+import { setUser } from '@/utils/auth'
 
 const userStore = useUserStore()
 const isAdmin = computed(() => userStore.role === 'ADMIN')
@@ -129,10 +161,19 @@ const users = ref([]), departments = ref([]), teams = ref([])
 const loading = ref(false), saving = ref(false), loadError = ref('')
 const activeTab = ref('directory'), keyword = ref(''), filterRole = ref('')
 const detail = ref(null), selected = ref(null), editVisible = ref(false)
+const profileSelected = ref(null), profileVisible = ref(false), profileSaving = ref(false), profileError = ref('')
+const profileFormRef = ref(), profileForm = ref(accountProfileForm({})), profileOriginal = ref({})
+const profileRules = Object.fromEntries(Object.keys(profileForm.value).map(field => [field, [{
+  validator: (_rule, _value, done) => {
+    const changes = profileChanges(profileOriginal.value, profileForm.value)
+    const error = Object.hasOwn(changes, field) ? profileFieldError(field, changes[field]) : ''
+    done(error ? new Error(error) : undefined)
+  }, trigger: field === 'birthday' ? 'change' : 'blur'
+}]]))
 const form = ref({ role: '', departmentId: null, teamId: null, superiorId: null })
 const statusNames = { APPROVED: '已批准', PENDING: '待审批', REJECTED: '已拒绝' }
 const ranks = ['ADMIN', 'FOUNDER', 'DEPT_HEAD', 'TEAM_LEADER', 'EMPLOYEE']
-const fieldLabels = { id: '人员 ID', username: '用户名', real_name: '真实姓名', role: '职级', department_id: '部门 ID', department_name: '部门', team_id: '团队 ID', team_name: '团队', email: '邮箱', phone: '手机号', id_card: '身份证号', birthday: '生日', last_birthday_change: '上次生日变更', avatar: '头像地址', approval_status: '账号状态', theme_mode: '主题模式', manual_theme: '手动主题', show_completed_tasks: '显示已完成任务', show_yesterday_log: '显示昨日日志', created_at: '创建时间', updated_at: '更新时间' }
+const fieldLabels = { id: '人员 ID', username: '工号', real_name: '真实姓名', role: '职级', department_id: '部门 ID', department_name: '部门', team_id: '团队 ID', team_name: '团队', email: '邮箱', phone: '手机号', id_card: '身份证号', birthday: '生日', last_birthday_change: '上次生日变更', avatar: '头像地址', approval_status: '账号状态', theme_mode: '主题模式', manual_theme: '手动主题', show_completed_tasks: '显示已完成任务', show_yesterday_log: '显示昨日日志', created_at: '创建时间', updated_at: '更新时间' }
 const displayField = (key, value) => value == null || value === '' ? '—' : key === 'role' ? roleMap[value] || value : key === 'approval_status' ? statusNames[value] || value : value
 const relationNames = (rows, key) => rows?.map(r => r[key]).filter(Boolean).join('、') || '未配置'
 const relationSummary = user => user.superiors?.length ? `上级：${relationNames(user.superiors, 'superior_name')}` : '未配置上级'
@@ -157,6 +198,7 @@ const loadUsers = async () => {
   try {
     const [directory, options] = await Promise.all([request.get('/user/directory'), request.get('/user/directory/options')])
     users.value = directory.data || []; departments.value = options.data?.departments || []; teams.value = options.data?.teams || []
+    if (detail.value) detail.value = users.value.find(user => String(user.id) === String(detail.value.id)) || null
   } catch (e) { loadError.value = '人员资料加载失败，请点击刷新重试。' }
   finally { loading.value = false }
 }
@@ -165,6 +207,40 @@ const startEdit = row => {
   selected.value = row
   form.value = { role: row.role, departmentId: row.department_id, teamId: row.team_id, superiorId: row.superiors?.[0]?.superior_id || null }
   editVisible.value = true
+}
+const startProfileEdit = row => {
+  if (!isAdmin.value || profileSaving.value) return
+  profileSelected.value = row
+  profileOriginal.value = accountProfileForm(row)
+  profileForm.value = { ...profileOriginal.value }
+  profileError.value = ''; profileVisible.value = true
+  nextTick(() => profileFormRef.value?.clearValidate())
+}
+const editDetailProfile = () => {
+  const row = detail.value
+  detail.value = null
+  if (row) startProfileEdit(row)
+}
+const saveProfile = async () => {
+  if (!isAdmin.value || profileSaving.value || !profileSelected.value || !profileFormRef.value) return
+  profileSaving.value = true; profileError.value = ''
+  try {
+    try { await profileFormRef.value.validate() } catch { return }
+    const changes = profileChanges(profileOriginal.value, profileForm.value)
+    if (!Object.keys(changes).length) { ElMessage.info('资料未修改'); return }
+    const response = await updateAccountProfile(profileSelected.value.id, changes)
+    const updated = { ...profileSelected.value, ...response.data }
+    users.value = users.value.map(user => String(user.id) === String(updated.id) ? updated : user)
+    if (String(detail.value?.id) === String(updated.id)) detail.value = updated
+    if (String(userStore.user.id) === String(updated.id)) {
+      userStore.user = { ...userStore.user, username: updated.username, realname: updated.real_name }
+      setUser(userStore.user)
+    }
+    ElMessage.success('账号资料已更新'); profileVisible.value = false
+    await loadUsers()
+  } catch (error) {
+    profileError.value = error.response?.data?.message || error.message || '保存失败，请重试。'
+  } finally { profileSaving.value = false }
 }
 const saveEmployment = async () => {
   if (!isAdmin.value || saving.value) return
@@ -214,5 +290,9 @@ p { color: var(--el-text-color-secondary); line-height: 1.6; }
 .empty-team { display: block; padding: 10px 0 2px; }
 .unassigned-card { background: var(--el-fill-color-extra-light); }
 .el-form .el-select { width: 100%; }
+.profile-intro { margin-bottom: 20px; }
+.profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
+.profile-grid :deep(.el-date-editor) { width: 100%; }
+@media (max-width: 600px) { .profile-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 720px) { .directory-header, .organization-intro { align-items: flex-start; flex-direction: column; } .header-actions { width: 100%; justify-content: flex-end; } }
 </style>

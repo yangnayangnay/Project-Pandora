@@ -40,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (!requireAppSession()) return;
         EdgeToEdge.enable(this);
 
         PandoraLogger.init(this);
@@ -158,6 +159,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (isFinishing() || !requireAppSession()) return;
         ServerConnectivityMonitor.getInstance().onAppForeground();
     }
 
@@ -169,11 +171,29 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        if (isFinishing() || !requireAppSession()) return;
         if (TokenManager.getInstance(this).isLoggedIn()) {
             NotificationPollWorker.enqueueOneTimeWork(this);
             com.example.project_pandora.notification.PollingForegroundService.startIfLoggedIn(this);
             NotificationPermissionHelper.requestOnce(this);
         }
+    }
+
+    private boolean requireAppSession() {
+        TokenManager tm = TokenManager.getInstance(this);
+        boolean admin = "ADMIN".equals(tm.getRole());
+        if (tm.isLoggedIn() && !admin) return true;
+        if (admin) {
+            tm.clear();
+            android.widget.Toast.makeText(this, "管理员仅可登录管理员 Web 端", android.widget.Toast.LENGTH_LONG).show();
+        }
+        com.example.project_pandora.notification.PollingForegroundService.stop(this);
+        android.content.Intent login = new android.content.Intent(this,
+                com.example.project_pandora.ui.login.LoginActivity.class);
+        login.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(login);
+        finish();
+        return false;
     }
 
     /**

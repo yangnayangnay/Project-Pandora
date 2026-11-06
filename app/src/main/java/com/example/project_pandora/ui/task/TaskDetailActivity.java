@@ -13,7 +13,6 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.example.project_pandora.R;
 import com.example.project_pandora.core.network.TokenManager;
-import com.example.project_pandora.core.sync.SyncRouteResult;
 import com.example.project_pandora.databinding.ActivityTaskDetailBinding;
 import com.example.project_pandora.repository.SyncRoutingRepository;
 import com.example.project_pandora.repository.TaskRepository;
@@ -31,6 +30,9 @@ public class TaskDetailActivity extends AppCompatActivity {
     private SyncRoutingRepository syncRoutingRepository;
     private Long taskId;
     private Map<String, Object> currentTask;
+    private final io.reactivex.rxjava3.disposables.CompositeDisposable tagActions = new io.reactivex.rxjava3.disposables.CompositeDisposable();
+    private androidx.appcompat.app.AlertDialog tagDialog;
+    private TaskTagPickerView tagPicker;
 
 
 
@@ -83,31 +85,17 @@ public class TaskDetailActivity extends AppCompatActivity {
     @SuppressWarnings("unchecked")
     private void displayTask(Map<String, Object> task) {
         binding.textTaskName.setText((String) task.get("name"));
+        displayTags(task);
 
         Object endTime = task.get("end_time");
-        binding.textSummaryDeadline.setText(formatDateTime(endTime));
-
-        // Round26 观察K: 摘要位判定口径由 priority 改为 is_urgent（与象限判定/手动调整区统一，消除双口径）
-        boolean isUrgent = com.example.project_pandora.core.util.NumberCompat.toBool(task.get("is_urgent"));
-        binding.textSummaryUrgency.setText(isUrgent ? "紧急" : "不紧急");
-        binding.textSummaryUrgency.setBackgroundColor(androidx.core.content.ContextCompat.getColor(this, isUrgent ? com.example.project_pandora.R.color.color_urgent_bg : com.example.project_pandora.R.color.color_not_urgent_bg));
 
         String status = (String) task.get("status");
-        boolean isCompleted = "COMPLETED".equals(status) || "CONFIRMED".equals(status);
-        binding.textSummaryCompletion.setText(isCompleted ? "已完成" : "未完成");
-        binding.textSummaryCompletion.setBackgroundColor(androidx.core.content.ContextCompat.getColor(this, isCompleted ? com.example.project_pandora.R.color.color_status_completed_bg : com.example.project_pandora.R.color.color_status_pending_bg));
-        binding.textSummaryCompletion.setTextColor(androidx.core.content.ContextCompat.getColor(this, isCompleted ? com.example.project_pandora.R.color.color_status_completed_text : com.example.project_pandora.R.color.color_status_pending_text));
-
 
         Object assigneeName = task.get("assignee_name");
         if (assigneeName == null) assigneeName = task.get("assigneeName");
-        binding.textSummaryAssignee.setText(assigneeName != null ? assigneeName.toString() : "-");
+        binding.textAssignee.setText("负责人：" + (assigneeName != null ? assigneeName.toString() : "-"));
 
         binding.textStatus.setText(getStatusDisplayName(status));
-
-        // Round26 观察K: priority 保留字段区展示（摘要位已改 is_urgent）
-        String priority = (String) task.get("priority");
-        binding.textPriority.setText(getPriorityDisplayName(priority));
 
         Object isImportantObj = task.get("is_important");
         Object isUrgentObj = task.get("is_urgent");
@@ -171,6 +159,53 @@ public class TaskDetailActivity extends AppCompatActivity {
         return local != null ? local : "未设置";
     }
 
+    private void displayTags(Map<String, Object> task) {
+        binding.taskTagChips.removeAllViews();
+        for (Map<String, Object> tag : com.example.project_pandora.core.util.TaskTags.of(task)) {
+            com.google.android.material.chip.Chip chip = new com.google.android.material.chip.Chip(this);
+            chip.setText("#" + com.example.project_pandora.core.util.TaskTags.value(tag, "name"));
+            chip.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.color_text_primary));
+            Long index = com.example.project_pandora.core.util.NumberCompat.toLong(com.example.project_pandora.core.util.TaskTags.value(tag, "color_index"));
+            chip.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(TaskTagColors.color(this, index == null ? 0 : index.intValue())));
+            chip.setClickable(false); binding.taskTagChips.addView(chip);
+        }
+        String role = TokenManager.getInstance(this).getRole(); Long actor = TokenManager.getInstance(this).getUserId();
+        boolean canEdit = "ADMIN".equals(role) || "FOUNDER".equals(role)
+                || java.util.Objects.equals(actor, com.example.project_pandora.core.util.NumberCompat.toLong(task.get("dispatcher_id")))
+                || java.util.Objects.equals(actor, com.example.project_pandora.core.util.NumberCompat.toLong(task.get("assignee_id")));
+        binding.btnEditTaskTags.setVisibility(canEdit ? View.VISIBLE : View.GONE);
+        binding.btnEditTaskTags.setOnClickListener(v -> editTags());
+    }
+
+    private void editTags() {
+        if (tagDialog != null && tagDialog.isShowing()) return;
+        tagPicker = new TaskTagPickerView(this);
+        tagPicker.setSelectedIds(com.example.project_pandora.core.util.TaskTags.ids(currentTask));
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this); scroll.addView(tagPicker);
+        tagDialog = new androidx.appcompat.app.AlertDialog.Builder(this).setTitle("调整任务标签").setView(scroll)
+                .setNegativeButton("取消", null).setPositiveButton("保存", null).create();
+        tagDialog.setOnShowListener(ignored -> tagDialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            if (!tagPicker.isLoaded()) { Toast.makeText(this, "请先加载标签列表", Toast.LENGTH_SHORT).show(); return; }
+            Map<String, Object> body = new java.util.HashMap<>(); body.put("tagIds", tagPicker.getSelectedIds());
+            tagDialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+            tagDialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEGATIVE).setEnabled(false);
+            tagDialog.setCancelable(false);
+            tagActions.add(taskRepository.updateTask(taskId, body).observeOn(AndroidSchedulers.mainThread()).subscribe(result -> {
+                tagDialog.dismiss(); Toast.makeText(this, java.util.Objects.toString(result.get("message"), "操作成功"), Toast.LENGTH_LONG).show(); loadTaskDetail();
+            }, error -> { tagDialog.setCancelable(true); tagDialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setEnabled(true); tagDialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEGATIVE).setEnabled(true); Toast.makeText(this, error.getMessage(), Toast.LENGTH_LONG).show(); }));
+        })); tagDialog.show();
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (tagDialog != null && tagDialog.isShowing() && tagPicker != null) tagPicker.reload();
+        if (currentTask != null) loadTaskDetail();
+    }
+
+    @Override protected void onDestroy() {
+        tagActions.dispose(); if (tagDialog != null) tagDialog.dismiss(); super.onDestroy();
+    }
+
     private void updateButtonVisibility(String status) {
         Long currentUserId = TokenManager.getInstance(this).getUserId();
         // Round26: 解析统一收敛至 NumberCompat（原裸强转 (Number)，串形态会 ClassCastException）
@@ -187,7 +222,6 @@ public class TaskDetailActivity extends AppCompatActivity {
         // R39 REQ-B02: 切回未完成（责任人+COMPLETED；二元口径）
         binding.btnReopen.setVisibility(isAssignee && "COMPLETED".equals(status) ? View.VISIBLE : View.GONE);
         binding.btnConfirm.setVisibility(isDispatcher && "COMPLETED".equals(status) ? View.VISIBLE : View.GONE);
-        binding.btnReject.setVisibility(isDispatcher && "COMPLETED".equals(status) ? View.VISIBLE : View.GONE);
 
         String role = TokenManager.getInstance(this).getRole();
         boolean canDelete = isDispatcher || "ADMIN".equals(role) || "FOUNDER".equals(role);
@@ -213,7 +247,6 @@ public class TaskDetailActivity extends AppCompatActivity {
                     null);
         });
         binding.btnConfirm.setOnClickListener(v -> transitionStatus("CONFIRMED"));
-        binding.btnReject.setOnClickListener(v -> transitionStatus("REJECTED"));
         binding.btnDelete.setOnClickListener(v -> {
             new AlertDialog.Builder(this)
                     .setTitle("确认删除")
@@ -267,17 +300,6 @@ public class TaskDetailActivity extends AppCompatActivity {
             case "CONFIRMED": return "已确认";
             case "REJECTED": return "已退回";
             default: return status;
-        }
-    }
-
-    private String getPriorityDisplayName(String priority) {
-        if (priority == null) return "中";
-        switch (priority) {
-            case "LOW": return "低";
-            case "MEDIUM": return "中";
-            case "HIGH": return "高";
-            case "URGENT": return "紧急";
-            default: return priority;
         }
     }
 

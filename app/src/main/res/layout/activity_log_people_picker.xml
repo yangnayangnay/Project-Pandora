@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical"
+    android:fitsSystemWindows="true" android:background="@color/color_bg_page">
+    <com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar" style="@style/Widget.Pandora.Toolbar"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@color/color_surface"
+        app:title="选择日志人员" app:titleTextColor="@color/color_text_primary" app:navigationIconTint="@color/color_text_primary" />
+    <com.example.project_pandora.ui.people.PeopleDirectoryView android:id="@+id/peopleDirectory"
+        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+</LinearLayout>

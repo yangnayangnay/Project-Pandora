@@ -174,10 +174,11 @@ router.beforeEach((to, from, next) => {
     return
   }
   const token = getToken()
-  if (to.meta.requiresAuth !== false && !isTokenValid()) {
-    if (token) { removeToken(); removeUser() }
+  const authenticated = isTokenValid()
+  if (token && !authenticated) { removeToken(); removeUser() }
+  if (to.meta.requiresAuth !== false && !authenticated) {
     next('/login')
-  } else if ((to.path === '/login' || to.path === '/register') && token) {
+  } else if ((to.path === '/login' || to.path === '/register') && authenticated) {
     next('/')
   } else {
     next()

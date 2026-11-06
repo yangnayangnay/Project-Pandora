@@ -32,7 +32,7 @@
             android:clipToPadding="false"
             android:fillViewport="true"
             app:layout_constraintTop_toBottomOf="@id/toolbar"
-            app:layout_constraintBottom_toTopOf="@id/btnSave">
+            app:layout_constraintBottom_toBottomOf="parent">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -74,96 +74,54 @@
                             android:layout_marginTop="16dp"
                             android:clickable="true"
                             android:focusable="true"
+                            android:contentDescription="修改头像"
                             android:src="@drawable/ic_profile_placeholder" />
 
+                        <ProgressBar
+                            android:id="@+id/progressAvatarUpload"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_gravity="center_horizontal"
+                            android:layout_marginTop="8dp"
+                            android:visibility="gone" />
+
                         <TextView
+                            android:id="@+id/textAvatarHint"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_gravity="center_horizontal"
                             android:layout_marginTop="4dp"
-                            android:text="点击头像修改"
+                            android:text="@string/avatar_upload_hint"
                             android:textColor="@color/color_text_secondary"
                             android:textSize="12sp" />
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/layoutUsername"
-                            style="@style/Widget.Pandora.TextInput"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:hint="用户名"
-                            app:helperText="由组织维护，不可编辑">
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:layout_marginTop="20dp" android:text="工号" android:labelFor="@id/textUsername"
+                            android:textSize="13sp" android:textColor="@color/color_text_secondary" />
+                        <TextView android:id="@+id/textUsername" android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp" android:textSize="16sp" android:textColor="@color/color_text_primary"
+                            tools:text="000123" />
 
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/editUsername"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:clickable="false"
-                                android:cursorVisible="false"
-                                android:enabled="false"
-                                android:focusable="false"
-                                android:textColor="@color/color_text_edit_content"
-                                tools:text="zhangsan" />
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp" android:text="真实姓名" android:labelFor="@id/textRealName"
+                            android:textSize="13sp" android:textColor="@color/color_text_secondary" />
+                        <TextView android:id="@+id/textRealName" android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp" android:textSize="16sp" android:textColor="@color/color_text_primary"
+                            tools:text="张三" />
 
-                        </com.google.android.material.textfield.TextInputLayout>
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp" android:text="邮箱" android:labelFor="@id/textEmail"
+                            android:textSize="13sp" android:textColor="@color/color_text_secondary" />
+                        <TextView android:id="@+id/textEmail" android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp" android:textSize="16sp" android:textColor="@color/color_text_primary"
+                            tools:text="zhangsan@example.com" />
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/layoutRealName"
-                            style="@style/Widget.Pandora.TextInput"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:hint="真实姓名"
-                            app:helperText="由组织维护，不可编辑">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/editRealName"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:clickable="false"
-                                android:cursorVisible="false"
-                                android:enabled="false"
-                                android:focusable="false"
-                                android:textColor="@color/color_text_edit_content"
-                                tools:text="张三" />
-
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/layoutEmail"
-                            style="@style/Widget.Pandora.TextInput"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:hint="邮箱">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/editEmail"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="textEmailAddress"
-                                android:textColor="@color/color_text_edit_content"
-                                tools:text="zhangsan@example.com" />
-
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/layoutPhone"
-                            style="@style/Widget.Pandora.TextInput"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:hint="手机号">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/editPhone"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="phone"
-                                android:textColor="@color/color_text_edit_content"
-                                tools:text="13800138000" />
-
-                        </com.google.android.material.textfield.TextInputLayout>
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp" android:text="手机号" android:labelFor="@id/textPhone"
+                            android:textSize="13sp" android:textColor="@color/color_text_secondary" />
+                        <TextView android:id="@+id/textPhone" android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp" android:textSize="16sp" android:textColor="@color/color_text_primary"
+                            tools:text="13800138000" />
 
                     </LinearLayout>
 
@@ -188,7 +146,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="账号安全"
+                            android:text="账号维护"
                             android:textColor="@color/color_text_primary"
                             android:textSize="16sp"
                             android:textStyle="bold" />
@@ -197,19 +155,10 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="修改登录密码以保护账号安全。"
+                            android:id="@+id/textAccountMaintenance"
+                            android:text="真实姓名、邮箱、工号、手机号及密码由管理员统一维护，如需变更请联系管理员。"
                             android:textColor="@color/color_text_secondary"
                             android:textSize="13sp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnChangePassword"
-                            style="@style/Widget.Pandora.Button.Outlined"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:minHeight="48dp"
-                            android:text="修改密码"
-                            app:cornerRadius="8dp" />
 
                     </LinearLayout>
 
@@ -297,19 +246,6 @@
             </LinearLayout>
 
         </ScrollView>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSave"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="16dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="16dp"
-            android:minHeight="48dp"
-            android:text="保存"
-            app:layout_constraintBottom_toBottomOf="parent"
-            android:textColor="@color/color_on_accent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </layout>

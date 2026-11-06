@@ -210,7 +210,8 @@ public class Top10Controller {
     @GetMapping("/company-dispatch")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCompanyDispatch() {
         List<Map<String, Object>> list = jdbcTemplate.queryForList(
-                "SELECT t.*, tk.name AS task_name, u.real_name AS assignee_name, u.username AS assignee_username " +
+                "SELECT t.*, tk.name AS task_name, CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.real_name END AS assignee_name, " +
+                "CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.username END AS assignee_username " +
                 "FROM top10_works t LEFT JOIN tasks tk ON t.related_task_id = tk.id " +
                 "LEFT JOIN users u ON tk.assignee_id = u.id " +
                 "WHERE t.work_type = 'COMPANY_DISPATCH' AND t.deleted = 0 ORDER BY t.rank_order");
@@ -383,6 +384,15 @@ public class Top10Controller {
             throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "承接人不能为空");
         }
         Long assigneeId = ((Number) assigneeIdObj).longValue();
+        List<String> assigneeRoles = jdbcTemplate.queryForList(
+                "SELECT role FROM users WHERE id = ? AND deleted = 0 AND approval_status = 'APPROVED'",
+                String.class, assigneeId);
+        if (assigneeRoles.isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择有效责任人");
+        }
+        if ("ADMIN".equals(assigneeRoles.get(0))) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "管理员不能作为任务发布对象");
+        }
 
         String priority = (String) request.getOrDefault("priority", "MEDIUM");
         String endTimeStr = (String) request.get("endTime");

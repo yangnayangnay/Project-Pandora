@@ -36,134 +36,34 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <LinearLayout
+                <TextView
+                    android:id="@+id/textTaskName"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:background="@color/color_surface_soft"
-                    android:paddingHorizontal="6dp"
-                    android:paddingVertical="8dp"
-                    android:weightSum="6"
-                    android:layout_marginTop="12dp">
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/color_text_primary" />
 
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="2"
-                        android:text="任务名称"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/color_text_primary" />
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="截止日期"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/color_text_primary"
-                        android:gravity="center" />
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="紧急程度"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/color_text_primary"
-                        android:gravity="center" />
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="完成情况"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/color_text_primary"
-                        android:gravity="center" />
-
-                    <!-- R39 REQ-A01: 摘要区删'进度备注'格（weightSum 7→6） -->
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="负责人"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/color_text_primary"
-                        android:gravity="center" />
-
-                </LinearLayout>
-
-                <LinearLayout
+                <TextView
+                    android:id="@+id/textAssignee"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="6dp"
-                    android:paddingVertical="8dp"
-                    android:weightSum="6">
+                    android:layout_marginTop="8dp"
+                    android:textSize="14sp"
+                    android:textColor="@color/color_text_secondary" />
 
-                    <TextView
-                        android:id="@+id/textTaskName"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="2"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/color_text_primary"
-                        android:maxLines="2"
-                        android:ellipsize="end" />
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/taskTagChips"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
 
-                    <TextView
-                        android:id="@+id/textSummaryDeadline"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textSize="11sp"
-                        android:textColor="@color/color_text_secondary"
-                        android:gravity="center"
-                        android:maxLines="1"
-                        android:ellipsize="end" />
-
-                    <TextView
-                        android:id="@+id/textSummaryUrgency"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textSize="11sp"
-                        android:gravity="center"
-                        android:textColor="@android:color/white"
-                        android:paddingHorizontal="4dp"
-                        android:paddingVertical="2dp" />
-
-                    <TextView
-                        android:id="@+id/textSummaryCompletion"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textSize="11sp"
-                        android:gravity="center"
-                        android:textColor="@android:color/white"
-                        android:paddingHorizontal="4dp"
-                        android:paddingVertical="2dp" />
-
-                    <!-- R39 REQ-A01: 摘要区删进度数据格 -->
-                    <TextView
-                        android:id="@+id/textSummaryAssignee"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textSize="10sp"
-                        android:textColor="@color/color_text_secondary"
-                        android:gravity="center"
-                        android:maxLines="2"
-                        android:ellipsize="end" />
-
-                </LinearLayout>
-
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnEditTaskTags"
+                    style="@style/Widget.Pandora.Button.Text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:text="调整标签"
+                    android:visibility="gone" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -179,17 +79,6 @@
                         android:paddingVertical="4dp"
                         android:textSize="14sp"
                         android:background="@drawable/bg_status_tag"
-                        android:textColor="@android:color/white" />
-
-                    <TextView
-                        android:id="@+id/textPriority"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:paddingHorizontal="12dp"
-                        android:paddingVertical="4dp"
-                        android:textSize="14sp"
-                        android:background="@drawable/bg_priority_tag"
                         android:textColor="@android:color/white" />
 
                     <TextView
@@ -317,9 +206,14 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnStart"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="52dp"
                 android:layout_weight="1"
                 android:layout_margin="4dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="8dp"
+                android:maxLines="1"
                 android:text="开始"
                 android:textSize="14sp"
                 android:textColor="@color/color_on_accent" />
@@ -328,9 +222,14 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnReopen"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="52dp"
                 android:layout_weight="1"
                 android:layout_margin="4dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="8dp"
+                android:maxLines="1"
                 android:text="@string/btn_reopen_task"
                 android:textSize="14sp"
                 android:visibility="gone"
@@ -339,9 +238,14 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnComplete"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="52dp"
                 android:layout_weight="1"
                 android:layout_margin="4dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="8dp"
+                android:maxLines="1"
                 android:text="完成"
                 android:textSize="14sp"
                 android:textColor="@color/color_on_accent" />
@@ -349,29 +253,29 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnConfirm"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="52dp"
                 android:layout_weight="1"
                 android:layout_margin="4dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="8dp"
+                android:maxLines="1"
                 android:text="确认"
-                android:textSize="14sp"
-                android:textColor="@color/color_on_accent" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnReject"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_margin="4dp"
-                android:text="退回"
                 android:textSize="14sp"
                 android:textColor="@color/color_on_accent" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnDelete"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="52dp"
                 android:layout_weight="1"
                 android:layout_margin="4dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="8dp"
+                android:maxLines="1"
                 android:text="删除"
                 android:textSize="14sp"
                 android:backgroundTint="@color/color_error"

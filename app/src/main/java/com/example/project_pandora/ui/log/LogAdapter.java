@@ -8,10 +8,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.request.RequestOptions;
 import com.example.project_pandora.R;
-import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.databinding.ItemLogBinding;
 
 import java.util.ArrayList;
@@ -96,20 +93,8 @@ public class LogAdapter extends RecyclerView.Adapter<LogAdapter.LogViewHolder> {
 
             // Round19 REQ-19-09: 移除时间字段展示（后端API不变）
 
-            Object avatar = log.get("avatar");
-            if (avatar != null && !avatar.toString().isEmpty()) {
-                String baseUrl = NetworkClient.getBaseUrl();
-                if (baseUrl.endsWith("/")) baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
-                String fullUrl = baseUrl + avatar;
-                Glide.with(binding.imageAvatar.getContext())
-                        .load(fullUrl)
-                        .apply(RequestOptions.circleCropTransform())
-                        .placeholder(R.drawable.ic_profile_placeholder)
-                        .error(R.drawable.ic_profile_placeholder)
-                        .into(binding.imageAvatar);
-            } else {
-                binding.imageAvatar.setImageResource(R.drawable.ic_profile_placeholder);
-            }
+            com.example.project_pandora.ui.mine.AvatarLoader.load(binding.imageAvatar,
+                    com.example.project_pandora.ui.people.PeopleDirectory.text(log, "avatar"));
 
             itemView.setOnClickListener(v -> listener.onLogClick(log));
             itemView.setOnLongClickListener(v -> {

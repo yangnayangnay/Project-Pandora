@@ -1,137 +1,115 @@
 package com.example.project_pandora.ui.mine;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
-import android.widget.Toast;
-
+import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
-
-import com.example.project_pandora.R;
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.core.network.TokenManager;
 import com.example.project_pandora.core.util.BackToolbarHelper;
-import com.example.project_pandora.core.util.PermissionLevel;
+import com.example.project_pandora.core.util.NumberCompat;
+import com.example.project_pandora.core.util.RoleDisplayUtil;
 import com.example.project_pandora.data.remote.UserApi;
 import com.example.project_pandora.databinding.ActivityUserRelationBinding;
-import com.example.project_pandora.model.UserRelationItem;
 import com.example.project_pandora.ui.login.LoginActivity;
-
+import com.example.project_pandora.ui.people.PeopleDirectory;
+import com.google.android.material.tabs.TabLayout;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
-import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.disposables.SerialDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import retrofit2.HttpException;
 
 public class UserRelationActivity extends AppCompatActivity {
-
     private ActivityUserRelationBinding binding;
-    private final CompositeDisposable disposables = new CompositeDisposable();
-    private final UserRelationAdapter superiorsAdapter = new UserRelationAdapter();
-    private final UserRelationAdapter subordinatesAdapter = new UserRelationAdapter();
+    private final SerialDisposable request = new SerialDisposable();
+    private final List<Map<String, Object>> people = new ArrayList<>();
+    private int relationTab;
+    private boolean loaded;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    @Override protected void onCreate(Bundle state) {
+        super.onCreate(state);
         binding = ActivityUserRelationBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
-        BackToolbarHelper.setupBack(binding.toolbar, this::finish);
-
-        binding.recyclerSuperiors.setLayoutManager(new LinearLayoutManager(this));
-        binding.recyclerSuperiors.setAdapter(superiorsAdapter);
-        binding.recyclerSubordinates.setLayoutManager(new LinearLayoutManager(this));
-        binding.recyclerSubordinates.setAdapter(subordinatesAdapter);
-
-        binding.btnRetry.setOnClickListener(v -> loadRelations());
-
+        BackToolbarHelper.setupBack(binding.toolbar, this::back);
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override public void handleOnBackPressed() { back(); }
+        });
+        binding.peopleDirectory.configure("按部门查看与你有上下级关系的人员，支持搜索姓名、账号或小组。", "暂无人员关系数据", this::loadRelations,
+                this::showPerson, null);
+        if (state != null) {
+            relationTab = state.getInt("relationTab", 0);
+            binding.peopleDirectory.restoreDirectoryState(state.getBundle("directory"));
+        }
+        for (String title : new String[]{"全部关系", "上级", "下级"}) binding.tabsRelations.addTab(binding.tabsRelations.newTab().setText(title));
+        binding.tabsRelations.getTabAt(Math.max(0, Math.min(2, relationTab))).select();
+        binding.tabsRelations.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override public void onTabSelected(TabLayout.Tab tab) {
+                relationTab = tab.getPosition();
+                if (loaded) renderPeople();
+            }
+            @Override public void onTabUnselected(TabLayout.Tab tab) {}
+            @Override public void onTabReselected(TabLayout.Tab tab) {}
+        });
         loadRelations();
     }
-
     private void loadRelations() {
-        binding.textError.setVisibility(View.GONE);
-        binding.btnRetry.setVisibility(View.GONE);
-        binding.textEmpty.setVisibility(View.GONE);
-
-        UserApi userApi = NetworkClient.getInstance(this).createService(UserApi.class);
-        disposables.add(userApi.getUserRelations()
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        response -> {
-                            if (response.isSuccess() && response.getData() != null) {
-                                Map<String, Object> data = response.getData();
-                                List<UserRelationItem> superiors = parseList(data.get("superiors"));
-                                List<UserRelationItem> subordinates = parseList(data.get("subordinates"));
-
-                                Collections.sort(superiors, PermissionLevel.descendingComparator());
-                                Collections.sort(subordinates, PermissionLevel.descendingComparator());
-
-                                superiorsAdapter.setItems(superiors);
-                                subordinatesAdapter.setItems(subordinates);
-
-                                String role = TokenManager.getInstance(this).getRole();
-                                if ("FOUNDER".equals(role)) {
-                                    binding.superiorsSection.setVisibility(View.GONE);
-                                } else if ("EMPLOYEE".equals(role) || "ADMIN".equals(role)) {
-                                    binding.subordinatesSection.setVisibility(View.GONE);
-                                }
-
-                                if (superiors.isEmpty() && subordinates.isEmpty()) {
-                                    binding.textEmpty.setVisibility(View.VISIBLE);
-                                }
-                            } else {
-                                binding.textError.setVisibility(View.VISIBLE);
-                                binding.btnRetry.setVisibility(View.VISIBLE);
-                            }
-                        },
-                        error -> {
-                            if (error instanceof HttpException && ((HttpException) error).code() == 401) {
-                                TokenManager.getInstance(this).clear();
-                                startActivity(new Intent(this, LoginActivity.class));
-                                finish();
-                            } else {
-                                binding.textError.setVisibility(View.VISIBLE);
-                                binding.btnRetry.setVisibility(View.VISIBLE);
-                            }
-                        }
-                ));
+        loaded = false;
+        binding.peopleDirectory.showLoading();
+        request.set(NetworkClient.getInstance(this).createService(UserApi.class).getUserRelations()
+                .subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(response -> {
+                    if (!response.isSuccess() || response.getData() == null) { binding.peopleDirectory.showError(); return; }
+                    people.clear();
+                    append(response.getData().get("superiors"), "上级");
+                    append(response.getData().get("subordinates"), "下级");
+                    loaded = true;
+                    renderPeople();
+                }, error -> {
+                    if (error instanceof HttpException && ((HttpException) error).code() == 401) {
+                        TokenManager.getInstance(this).clear();
+                        startActivity(new Intent(this, LoginActivity.class)); finish();
+                    } else binding.peopleDirectory.showError();
+                }));
     }
-
-    @SuppressWarnings("unchecked")
-    private List<UserRelationItem> parseList(Object raw) {
-        List<UserRelationItem> result = new ArrayList<>();
-        if (raw instanceof List) {
-            for (Object item : (List<?>) raw) {
-                if (item instanceof Map) {
-                    Map<String, Object> m = (Map<String, Object>) item;
-                    // Round26: id/depth 解析统一收敛至 NumberCompat（原 id 为裸强转、depth 缺省 0，语义保持）
-                    Long id = com.example.project_pandora.core.util.NumberCompat.toLong(m.get("id"));
-                    String realName = getStr(m, "realName");
-                    String role = getStr(m, "role");
-                    String deptName = getStr(m, "departmentName");
-                    String teamName = getStr(m, "teamName");
-                    int depth = com.example.project_pandora.core.util.NumberCompat.toIntOrDefault(m.get("depth"), 0);
-                    result.add(new UserRelationItem(id, realName, role, deptName, teamName, depth));
-                }
-            }
+    @SuppressWarnings("unchecked") private void append(Object raw, String kind) {
+        if (!(raw instanceof List)) return;
+        for (Object value : (List<?>) raw) if (value instanceof Map) {
+            Map<String, Object> person = new HashMap<>((Map<String, Object>) value);
+            if (!PeopleDirectory.isMobilePerson(person)) continue;
+            person.put("relation_kind", kind);
+            people.add(person);
         }
-        return result;
     }
-
-    private String getStr(Map<String, Object> map, String key) {
-        Object val = map.get(key);
-        return val != null ? val.toString() : "";
+    private void renderPeople() {
+        List<Map<String, Object>> visible = new ArrayList<>();
+        for (Map<String, Object> person : people) {
+            String kind = PeopleDirectory.text(person, "relation_kind");
+            if (relationTab == 0 || relationTab == 1 && kind.equals("上级") || relationTab == 2 && kind.equals("下级")) visible.add(person);
+        }
+        binding.peopleDirectory.setPeople(visible);
     }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        disposables.clear();
+    private void showPerson(Map<String, Object> person) {
+        int depth = NumberCompat.toIntOrDefault(PeopleDirectory.value(person, "depth"), 0);
+        String relation = PeopleDirectory.text(person, "relation_kind");
+        String detail = "账号：" + display(PeopleDirectory.text(person, "username"))
+                + "\n职务：" + RoleDisplayUtil.toChinese(PeopleDirectory.text(person, "role"))
+                + "\n部门：" + display(PeopleDirectory.text(person, "department_name"))
+                + "\n小组：" + display(PeopleDirectory.text(person, "team_name"))
+                + "\n关系：" + (depth == 1 ? "直属" : depth > 1 ? "间接" : "") + relation
+                + (depth > 0 ? "（第" + depth + "层）" : "");
+        new AlertDialog.Builder(this).setTitle(PeopleDirectory.name(person)).setMessage(detail).setPositiveButton("关闭", null).show();
     }
+    private String display(String value) { return value.isEmpty() ? "未设置" : value; }
+    private void back() { if (!binding.peopleDirectory.back()) finish(); }
+    @Override protected void onSaveInstanceState(@NonNull Bundle state) {
+        state.putInt("relationTab", relationTab);
+        state.putBundle("directory", binding.peopleDirectory.saveDirectoryState());
+        super.onSaveInstanceState(state);
+    }
+    @Override protected void onDestroy() { request.dispose(); super.onDestroy(); }
 }

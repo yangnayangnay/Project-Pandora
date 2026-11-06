@@ -42,6 +42,7 @@ public class Top10Adapter extends RecyclerView.Adapter<Top10Adapter.Top10ViewHol
     static class Top10ViewHolder extends RecyclerView.ViewHolder {
         private final ItemTop10Binding binding;
         private Map<String, Object> item;
+        private TextWatcher contentWatcher;
 
         Top10ViewHolder(ItemTop10Binding binding) {
             super(binding.getRoot());
@@ -49,22 +50,24 @@ public class Top10Adapter extends RecyclerView.Adapter<Top10Adapter.Top10ViewHol
         }
 
         void bind(Map<String, Object> item) {
+            if (contentWatcher != null) binding.editContent.removeTextChangedListener(contentWatcher);
             this.item = item;
             Object rankOrder = item.get("rankOrder");
             binding.textRank.setText("第" + rankOrder + "位");
             String content = (String) item.get("content");
             binding.editContent.setText(content != null ? content : "");
 
-            binding.editContent.addTextChangedListener(new TextWatcher() {
+            contentWatcher = new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
                 @Override
                 public void onTextChanged(CharSequence s, int start, int before, int count) {}
                 @Override
                 public void afterTextChanged(Editable s) {
-                    item.put("content", s.toString());
+                    Top10ViewHolder.this.item.put("content", s.toString());
                 }
-            });
+            };
+            binding.editContent.addTextChangedListener(contentWatcher);
         }
     }
 }

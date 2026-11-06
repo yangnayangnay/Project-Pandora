@@ -27,6 +27,10 @@ public class PersonnelController {
 
     @GetMapping("/directory")
     public ApiResponse<List<Map<String, Object>>> directory() {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        boolean administrator = authentication != null && !db.queryForList(
+                "SELECT id FROM users WHERE id=? AND role='ADMIN' AND deleted=0", Long.class,
+                authentication.getPrincipal()).isEmpty();
         List<Map<String, Object>> users = db.queryForList("SELECT u.id, u.username, u.real_name, u.role, u.email, u.phone, u.id_card, " +
                 "u.birthday, u.last_birthday_change, u.department_id, u.team_id, u.avatar, u.approval_status, u.theme_mode, u.manual_theme, " +
                 "u.show_completed_tasks, u.show_yesterday_log, u.created_at, u.updated_at, " +
@@ -34,7 +38,9 @@ public class PersonnelController {
                 "LEFT JOIN teams t ON t.id = u.team_id WHERE u.deleted = 0 ORDER BY u.id");
         List<Map<String, Object>> relations = db.queryForList("SELECT h.superior_id, h.subordinate_id, COALESCE(s.real_name,s.username) AS superior_name, " +
                 "COALESCE(u.real_name,u.username) AS subordinate_name FROM user_hierarchy h JOIN users s ON s.id = h.superior_id " +
-                "JOIN users u ON u.id = h.subordinate_id WHERE s.deleted = 0 AND u.deleted = 0");
+                "JOIN users u ON u.id = h.subordinate_id WHERE s.deleted = 0 AND u.deleted = 0 "
+                        + (administrator ? "" : "AND s.role <> 'ADMIN' AND u.role <> 'ADMIN'"));
+        if (!administrator) users.removeIf(user -> "ADMIN".equals(user.get("role")));
         for (Map<String, Object> user : users) {
             Object id = user.get("id");
             user.put("superiors", relations.stream().filter(r -> Objects.equals(r.get("subordinate_id"), id)).toList());
@@ -63,6 +69,9 @@ public class PersonnelController {
         Long department = id(body.get("departmentId"));
         Long team = id(body.get("teamId"));
         Long superior = id(body.get("superiorId"));
+        if (!"ADMIN".equals(role) && department == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "必须为人员分配部门");
+        }
         if (department != null && db.queryForList("SELECT id FROM departments WHERE id = ? AND deleted = 0", Long.class, department).isEmpty()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "部门不存在");
         }

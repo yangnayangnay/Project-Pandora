@@ -374,35 +374,6 @@
                         </LinearLayout>
 
                         <LinearLayout
-                            android:id="@+id/btnUploadData"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:padding="16dp"
-                            android:minHeight="56dp"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:visibility="gone"
-                            android:background="?attr/selectableItemBackground">
-
-                            <TextView
-                                android:id="@+id/textUploadData"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="上传数据"
-                                android:textSize="15sp" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="›"
-                                android:textSize="20sp"
-                                android:textColor="@color/color_text_secondary" />
-                        </LinearLayout>
-
-                        <LinearLayout
                             android:id="@+id/btnLogout"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"

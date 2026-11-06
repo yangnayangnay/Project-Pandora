@@ -9,16 +9,23 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.project_pandora.core.network.TokenManager;
 import com.example.project_pandora.core.util.NumberCompat;
+import com.example.project_pandora.R;
 import com.example.project_pandora.databinding.FragmentViewBinding;
 import com.example.project_pandora.repository.SyncRoutingRepository;
 import com.example.project_pandora.repository.TaskRepository;
+import com.example.project_pandora.repository.TaskDisplaySettingsRepository;
 import com.example.project_pandora.ui.task.TaskCreateActivity;
 import com.example.project_pandora.ui.task.TaskDetailActivity;
 import com.example.project_pandora.ui.widget.MonthCalendarLayout;
+import com.example.project_pandora.ui.widget.DayTaskSelection;
+import com.example.project_pandora.ui.widget.DayTasksPopup;
+import com.example.project_pandora.ui.widget.CalendarDates;
+import com.example.project_pandora.ui.widget.QuickDatePickerDialog;
 import com.google.android.material.tabs.TabLayout;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -35,6 +42,7 @@ import io.reactivex.rxjava3.disposables.SerialDisposable;
 public class ViewFragment extends Fragment {
     private FragmentViewBinding binding;
     private TaskRepository taskRepository;
+    private TaskDisplaySettingsRepository taskDisplaySettings;
     private SyncRoutingRepository syncRoutingRepository;
     private Long currentUserId;
     private int currentViewMode;
@@ -46,6 +54,8 @@ public class ViewFragment extends Fragment {
     private final CompositeDisposable actions = new CompositeDisposable();
     private boolean switchingInFlight, statusDialogShowing;
     private boolean loading, loadFailed;
+    private AlertDialog datePicker;
+    private DayTasksPopup dayTasksPopup;
 
     @Nullable @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
@@ -55,12 +65,15 @@ public class ViewFragment extends Fragment {
 
     @Override public void onViewCreated(@NonNull View view, @Nullable Bundle state) {
         super.onViewCreated(view, state);
+        binding.scrollMonthCalendar.setNestedScrollingEnabled(false);
         taskRepository = new TaskRepository(requireContext());
+        taskDisplaySettings = new TaskDisplaySettingsRepository(requireContext());
         syncRoutingRepository = new SyncRoutingRepository(requireContext());
         currentUserId = TokenManager.getInstance(requireContext()).getUserId();
         binding.recyclerPanelTaskTable.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerPanelTaskTable.setNestedScrollingEnabled(false);
         setupTabs();
+        binding.btnTaskDetails.setOnClickListener(v -> startActivity(new Intent(requireContext(), com.example.project_pandora.ui.task.TaskDetailsActivity.class)));
         binding.calendarView.setOnDateSelectedListener((year, month, day) -> {
             selectedDate.set(year, month - 1, day); renderDates();
         });
@@ -68,9 +81,18 @@ public class ViewFragment extends Fragment {
             @Override public void onSwipeUp() { binding.containerMonthView.swipeUp(); }
             @Override public void onSwipeDown() { binding.containerMonthView.swipeDown(); }
         });
-        binding.monthWeekStrip.setOnDateSelected(date -> { selectedDate = date; renderDates(); });
+        binding.monthWeekStrip.setOnDateSelected(date -> {
+            selectedDate = (Calendar) date.clone(); renderDates();
+        });
+        binding.calendarView.setOnPeriodSwipe(this::shiftMonth);
+        binding.monthWeekStrip.setOnPeriodSwipe(this::shiftMonth);
         binding.monthWeekStrip.setSelectionColor(androidx.core.content.ContextCompat.getColor(requireContext(), com.example.project_pandora.R.color.color_month_selected));
         binding.calendarView.setOnTaskClick(this::openTaskDetail);
+        binding.calendarView.setOnDayTasksClick(this::showDayTasks);
+        binding.textMonthLabel.setOnClickListener(v -> showDatePicker());
+        binding.compactMonthLabel.setOnClickListener(v -> showDatePicker());
+        binding.weekSchedule.setOnDatePickerRequested(this::showDatePicker);
+        binding.daySchedule.setOnDatePickerRequested(this::showDatePicker);
         binding.weekSchedule.setOnDateChanged(date -> { selectedDate = date; renderDates(); if (loadFailed) refreshTasks(); });
         binding.daySchedule.setOnDateChanged(date -> { selectedDate = date; renderDates(); if (loadFailed) refreshTasks(); });
         binding.weekSchedule.setOnTaskClick(this::openTaskDetail);
@@ -83,12 +105,14 @@ public class ViewFragment extends Fragment {
             selectedDate = Calendar.getInstance();
             binding.containerMonthView.setState(MonthCalendarLayout.NORMAL, true);
             renderDates();
+            revealSelectedDate();
         });
         binding.containerMonthView.setOnStateChanged(monthState -> {
             if (binding == null) return;
             binding.expandedMonthHeader.setVisibility(monthState == MonthCalendarLayout.LIST ? View.GONE : View.VISIBLE);
             binding.compactMonthHeader.setVisibility(monthState == MonthCalendarLayout.LIST ? View.VISIBLE : View.GONE);
             binding.calendarView.setDetailed(monthState == MonthCalendarLayout.DETAIL);
+            if (monthState == MonthCalendarLayout.DETAIL) revealSelectedDate();
             binding.monthDragHandle.setText(monthState == MonthCalendarLayout.DETAIL ? "⌃" : "━");
             binding.scrollPanelTaskTable.scrollTo(0, 0);
         });
@@ -138,9 +162,10 @@ public class ViewFragment extends Fragment {
     }
 
     private void shiftMonth(int direction) {
-        selectedDate.set(Calendar.DAY_OF_MONTH, 1);
-        selectedDate.add(Calendar.MONTH, direction);
+        selectedDate = CalendarDates.shift(selectedDate, CalendarDates.MONTH, direction);
         renderDates();
+        revealSelectedDate();
+        if (loadFailed) refreshTasks();
     }
 
     private void updateView(int mode) {
@@ -155,10 +180,54 @@ public class ViewFragment extends Fragment {
         if (binding == null) return;
         String title = new SimpleDateFormat("yyyy年M月", Locale.CHINA).format(selectedDate.getTime());
         binding.textMonthLabel.setText(title); binding.compactMonthLabel.setText(title);
+        binding.textMonthLabel.setContentDescription(title + "，选择日期");
+        binding.compactMonthLabel.setContentDescription(title + "，选择日期");
         binding.calendarView.setDate(selectedDate);
+        binding.calendarView.setContentDescription(new SimpleDateFormat("yyyy年M月d日 EEEE", Locale.CHINA)
+                .format(selectedDate.getTime()) + "，日历");
         binding.monthWeekStrip.setDate(selectedDate);
         if (currentViewMode == 1) binding.weekSchedule.setDate(selectedDate);
         if (currentViewMode == 2) binding.daySchedule.setDate(selectedDate);
+        renderTaskTable();
+    }
+
+    private void showDatePicker() {
+        if (binding == null || (datePicker != null && datePicker.isShowing())) return;
+        datePicker = QuickDatePickerDialog.create(requireContext(), selectedDate, date -> {
+            if (binding == null) return;
+            selectedDate = date;
+            renderDates();
+            revealSelectedDate();
+            if (loadFailed) refreshTasks();
+        });
+        datePicker.show();
+    }
+
+    private void revealSelectedDate() {
+        if (binding == null) return;
+        FragmentViewBinding current = binding;
+        current.calendarView.getViewTreeObserver().addOnPreDrawListener(new android.view.ViewTreeObserver.OnPreDrawListener() {
+            @Override public boolean onPreDraw() {
+                if (current.calendarView.getViewTreeObserver().isAlive()) {
+                    current.calendarView.getViewTreeObserver().removeOnPreDrawListener(this);
+                }
+                if (binding == current) current.scrollMonthCalendar.scrollTo(0, current.calendarView.selectedDateTop());
+                return true;
+            }
+        });
+        current.calendarView.invalidate();
+    }
+
+    private void showDayTasks(Calendar day) {
+        if (binding == null) return;
+        if (dayTasksPopup != null && dayTasksPopup.isShowing()) return;
+        selectedDate = (Calendar) day.clone();
+        renderDates();
+        List<Map<String, Object>> rows = DayTaskSelection.onDate(mergedTasks(),
+                new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(day.getTime()));
+        if (rows.isEmpty()) return;
+        dayTasksPopup = new DayTasksPopup(requireContext(), day, rows, this::openTaskDetail);
+        dayTasksPopup.show(binding.calendarView, binding.calendarView.getDayTasksAnchor());
     }
 
     private void refreshTasks() {
@@ -166,10 +235,10 @@ public class ViewFragment extends Fragment {
         loading = true; loadFailed = false;
         binding.progressBar.setVisibility(View.VISIBLE);
         binding.textPanelTaskError.setVisibility(View.GONE);
-        request.set(Observable.zip(
-                taskRepository.listTasksExtended(null, currentUserId, null, true),
-                taskRepository.listTasksExtended(null, null, currentUserId, true),
-                (assigned, created) -> new TaskLists(assigned, created))
+        request.set(taskDisplaySettings.showCompletedForLists().flatMap(showCompleted -> Observable.zip(
+                taskRepository.listTasksExtended(null, currentUserId, null, showCompleted),
+                taskRepository.listTasksExtended(null, null, currentUserId, showCompleted),
+                (assigned, created) -> new TaskLists(assigned, created)))
                 .observeOn(AndroidSchedulers.mainThread()).subscribe(result -> {
                     if (binding == null) return;
                     loading = false;
@@ -195,8 +264,8 @@ public class ViewFragment extends Fragment {
 
     private List<Map<String, Object>> mergedTasks() {
         Map<Object, Map<String, Object>> unique = new LinkedHashMap<>();
-        for (Map<String, Object> task : mine) unique.put(task.get("id"), task);
-        for (Map<String, Object> task : dispatched) unique.put(task.get("id"), task);
+        for (Map<String, Object> task : mine) unique.put(DayTaskSelection.value(task, "id"), task);
+        for (Map<String, Object> task : dispatched) unique.put(DayTaskSelection.value(task, "id"), task);
         return new ArrayList<>(unique.values());
     }
 
@@ -204,11 +273,12 @@ public class ViewFragment extends Fragment {
         if (binding == null) return;
         List<Map<String, Object>> rows = currentPanelTab == 0 ? mergedTasks()
                 : new ArrayList<>(currentPanelTab == 1 ? mine : dispatched);
-        rows.sort(java.util.Comparator.comparing(task -> java.util.Objects.toString(task.get("start_time"), "9999")));
+        rows = DayTaskSelection.onDate(rows, new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(selectedDate.getTime()));
         String scope = currentPanelTab == 0 ? "全部任务" : currentPanelTab == 1 ? "我的任务" : "我布置的任务";
-        binding.monthTaskHeading.setText(scope + " · " + rows.size() + " 项");
+        binding.monthTaskHeading.setText(new SimpleDateFormat("M月d日", Locale.CHINA).format(selectedDate.getTime())
+                + " · " + scope + " · " + rows.size() + " 项");
         binding.recyclerPanelTaskTable.setAdapter(new MonthTaskAdapter(rows, this::openTaskDetail, this::performQuickToggle));
-        binding.textPanelTaskEmpty.setText("暂无任务");
+        binding.textPanelTaskEmpty.setText("当天暂无任务");
         binding.textPanelTaskError.setVisibility(loadFailed ? View.VISIBLE : View.GONE);
         binding.textPanelTaskEmpty.setVisibility(!loading && !loadFailed && rows.isEmpty() ? View.VISIBLE : View.GONE);
     }
@@ -297,6 +367,8 @@ public class ViewFragment extends Fragment {
 
     @Override public void onDestroyView() {
         request.set(null); actions.clear(); switchingInFlight = false; statusDialogShowing = false;
+        if (datePicker != null) { datePicker.dismiss(); datePicker = null; }
+        if (dayTasksPopup != null) { dayTasksPopup.dismiss(); dayTasksPopup = null; }
         binding = null;
         super.onDestroyView();
     }

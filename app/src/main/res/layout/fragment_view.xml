@@ -17,21 +17,42 @@
             android:layout_height="match_parent"
             android:orientation="vertical">
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
             <com.google.android.material.tabs.TabLayout
                 android:id="@+id/tabLayout"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_schedule_tabs"
                 android:layout_marginHorizontal="12dp"
                 android:layout_marginVertical="8dp"
+                android:minHeight="48dp"
                 android:contentDescription="@string/a11y_tab_view_mode"
                 app:tabMode="fixed"
                 app:tabGravity="fill"
                 app:tabIndicator="@drawable/bg_schedule_tab_selected"
-                app:tabIndicatorHeight="40dp"
+                app:tabIndicatorHeight="36dp"
                 app:tabIndicatorGravity="center"
-                app:tabIndicatorFullWidth="false"
-                app:tabSelectedTextColor="@color/color_text_primary" />
+                app:tabIndicatorFullWidth="true"
+                app:tabIndicatorColor="@color/color_schedule_tab_selected_background"
+                app:tabSelectedTextColor="@color/color_schedule_tab_selected_text" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnTaskDetails"
+                    style="@style/Widget.Pandora.Button.Text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:layout_marginEnd="8dp"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="8dp"
+                    android:text="任务明细"
+                    android:contentDescription="查看全部相关任务及筛选" />
+            </LinearLayout>
 
             <FrameLayout
                 android:layout_width="match_parent"
@@ -82,10 +103,15 @@
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_weight="1"
+                                    android:minHeight="48dp"
                                     android:gravity="start|center_vertical"
                                     android:textSize="24sp"
                                     android:textStyle="bold"
                                     android:textColor="@color/color_text_primary"
+                                    android:clickable="true"
+                                    android:focusable="true"
+                                    android:background="?attr/selectableItemBackground"
+                                    android:contentDescription="选择日期"
                                     tools:text="2026年10月" />
 
                                 <com.google.android.material.button.MaterialButton
@@ -114,12 +140,20 @@
 
                             </LinearLayout>
 
-                            <com.example.project_pandora.ui.widget.PhoneMonthView
-                                android:id="@+id/calendarView"
+                            <androidx.core.widget.NestedScrollView
+                                android:id="@+id/scrollMonthCalendar"
                                 android:layout_width="match_parent"
                                 android:layout_height="0dp"
                                 android:layout_weight="1"
-                                android:layout_marginHorizontal="12dp" />
+                                android:layout_marginHorizontal="12dp"
+                                android:fillViewport="true">
+
+                                <com.example.project_pandora.ui.widget.PhoneMonthView
+                                    android:id="@+id/calendarView"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content" />
+
+                            </androidx.core.widget.NestedScrollView>
 
                             <TextView
                                 android:id="@+id/monthDragHandle"
@@ -154,10 +188,15 @@
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_weight="1"
+                                    android:minHeight="48dp"
                                     android:gravity="center"
                                     android:textSize="20sp"
                                     android:textStyle="bold"
                                     android:textColor="@color/color_text_primary"
+                                    android:clickable="true"
+                                    android:focusable="true"
+                                    android:background="?attr/selectableItemBackground"
+                                    android:contentDescription="选择日期"
                                     tools:text="2026年10月" />
 
                                 <com.google.android.material.button.MaterialButton

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/homeBoardsRoot" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="@color/color_bg_page">
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="56dp"
+        android:background="@color/color_surface" app:title="看板详情" app:titleTextColor="@color/color_text_primary"
+        app:navigationIcon="@drawable/ic_back" app:navigationIconTint="@color/color_text_primary"
+        app:navigationContentDescription="返回首页" />
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/boardTabs" android:layout_width="match_parent" android:layout_height="48dp"
+        android:background="@color/color_surface" app:tabMode="fixed" app:tabGravity="fill" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:minHeight="56dp" android:gravity="center_vertical" android:paddingHorizontal="16dp">
+        <TextView android:id="@+id/boardCount" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:paddingVertical="12dp" android:textSize="13sp" android:textColor="@color/color_text_secondary" />
+        <Spinner android:id="@+id/taskFilter" android:layout_width="144dp" android:layout_height="48dp"
+            android:spinnerMode="dropdown" android:contentDescription="任务看板状态筛选" />
+    </LinearLayout>
+    <ProgressBar android:id="@+id/boardProgress" style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent" android:layout_height="3dp" android:indeterminate="true" android:visibility="invisible" />
+    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+        <androidx.recyclerview.widget.RecyclerView android:id="@+id/eventsList"
+            android:layout_width="match_parent" android:layout_height="match_parent" android:paddingHorizontal="12dp"
+            android:paddingBottom="12dp" android:clipToPadding="false" android:scrollbars="vertical" />
+        <androidx.recyclerview.widget.RecyclerView android:id="@+id/tasksList"
+            android:layout_width="match_parent" android:layout_height="match_parent" android:paddingHorizontal="12dp"
+            android:paddingBottom="12dp" android:clipToPadding="false" android:scrollbars="vertical" android:visibility="gone" />
+        <LinearLayout android:id="@+id/boardFeedback" android:layout_width="match_parent" android:layout_height="match_parent"
+            android:orientation="vertical" android:gravity="center" android:padding="24dp">
+            <TextView android:id="@+id/boardMessage" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:gravity="center" android:textSize="15sp" android:textColor="@color/color_text_secondary"
+                android:accessibilityLiveRegion="polite" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/retryBoard"
+                style="@style/Widget.Pandora.Button.Outlined" android:layout_width="wrap_content" android:layout_height="48dp"
+                android:layout_marginTop="16dp" android:text="重新加载" android:visibility="gone" />
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>

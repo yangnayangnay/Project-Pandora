@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.project_pandora.core.network.TokenManager;
 import com.example.project_pandora.core.util.BackToolbarHelper;
@@ -15,9 +16,12 @@ import com.example.project_pandora.repository.LogRepository;
 
 
 import java.util.Map;
+import java.util.List;
+import java.util.Collections;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.disposables.SerialDisposable;
 
 public class LogDetailActivity extends AppCompatActivity {
 
@@ -26,6 +30,9 @@ public class LogDetailActivity extends AppCompatActivity {
     private ActivityLogDetailBinding binding;
     private LogRepository logRepository;
     private final CompositeDisposable disposables = new CompositeDisposable();
+    private final SerialDisposable detailRequest = new SerialDisposable(), commentRequest = new SerialDisposable();
+    private final LogCommentAdapter commentAdapter = new LogCommentAdapter();
+    private boolean sendingComment, commentsFailed;
 
     private long logId;
     private String currentRole;
@@ -75,12 +82,16 @@ public class LogDetailActivity extends AppCompatActivity {
                     .show();
         });
 
-        loadDetail();
+        binding.recyclerComments.setLayoutManager(new LinearLayoutManager(this));
+        binding.recyclerComments.setNestedScrollingEnabled(false);
+        binding.recyclerComments.setAdapter(commentAdapter);
+        binding.btnSendComment.setOnClickListener(v -> sendComment());
+        binding.textCommentsState.setOnClickListener(v -> { if (commentsFailed) loadComments(); });
     }
 
     private void loadDetail() {
         binding.progressBar.setVisibility(View.VISIBLE);
-        disposables.add(logRepository.getLogDetail(logId)
+        detailRequest.set(logRepository.getLogDetail(logId)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         this::bindDetail,
@@ -112,19 +123,6 @@ public class LogDetailActivity extends AppCompatActivity {
         Object date = log.get("log_date");
         editLogDate = date != null ? date.toString() : null;
 
-        Object status = log.get("completion_status");
-        String statusText = "进行中";
-        if (status != null) {
-            String s = status.toString();
-            switch (s) {
-                case "COMPLETED": statusText = "已完成"; break;
-                case "PENDING": statusText = "待处理"; break;
-                case "IN_PROGRESS": statusText = "进行中"; break;
-                default: statusText = s;
-            }
-        }
-        binding.textStatus.setText(statusText);
-
         Object username = log.get("username");
         Object realName = log.get("real_name");
         String nameStr = realName != null ? realName.toString() : (username != null ? username.toString() : "");
@@ -142,6 +140,51 @@ public class LogDetailActivity extends AppCompatActivity {
             binding.btnEdit.setVisibility(View.GONE);
             binding.btnDelete.setVisibility(View.GONE);
         }
+        loadComments();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void loadComments() {
+        commentsFailed = false;
+        binding.progressComments.setVisibility(View.VISIBLE);
+        binding.textCommentsState.setVisibility(View.GONE);
+        binding.commentComposer.setVisibility(View.GONE);
+        commentRequest.set(logRepository.getLogComments(logId).observeOn(AndroidSchedulers.mainThread()).subscribe(data -> {
+            binding.progressComments.setVisibility(View.GONE);
+            Object raw = data.get("comments");
+            List<Map<String, Object>> comments = raw instanceof List ? (List<Map<String, Object>>) raw : Collections.emptyList();
+            commentAdapter.setComments(comments);
+            binding.textCommentsState.setText("暂无评论");
+            binding.textCommentsState.setVisibility(comments.isEmpty() ? View.VISIBLE : View.GONE);
+            binding.commentComposer.setVisibility(Boolean.TRUE.equals(data.get("cancomment")) ? View.VISIBLE : View.GONE);
+        }, error -> {
+            commentsFailed = true; binding.progressComments.setVisibility(View.GONE);
+            commentAdapter.setComments(Collections.emptyList());
+            binding.textCommentsState.setText("评论加载失败，点击重试"); binding.textCommentsState.setVisibility(View.VISIBLE);
+        }));
+    }
+
+    private void sendComment() {
+        if (sendingComment) return;
+        String content = binding.editComment.getText() == null ? "" : binding.editComment.getText().toString().trim();
+        if (content.isEmpty()) { binding.commentInputLayout.setError("请输入评论内容"); return; }
+        if (content.length() > 2000) { binding.commentInputLayout.setError("评论不能超过2000字"); return; }
+        binding.commentInputLayout.setError(null); sendingComment = true;
+        binding.btnSendComment.setEnabled(false); binding.btnSendComment.setText("发送中…");
+        binding.editComment.setEnabled(false);
+        disposables.add(logRepository.addLogComment(logId, content).observeOn(AndroidSchedulers.mainThread()).subscribe(result -> {
+            finishCommentSend(); binding.editComment.setText(""); loadComments();
+            Toast.makeText(this, "评论已发表", Toast.LENGTH_SHORT).show();
+        }, error -> {
+            finishCommentSend(); binding.commentInputLayout.setError("发送失败：" + error.getMessage());
+            if (error instanceof com.example.project_pandora.core.exception.BusinessException
+                    && ((com.example.project_pandora.core.exception.BusinessException) error).getCode() == 403) loadComments();
+        }));
+    }
+
+    private void finishCommentSend() {
+        sendingComment = false; binding.btnSendComment.setEnabled(true); binding.btnSendComment.setText("发表评论");
+        binding.editComment.setEnabled(true);
     }
 
     private void deleteLog() {
@@ -169,5 +212,6 @@ public class LogDetailActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         disposables.clear();
+        detailRequest.dispose(); commentRequest.dispose();
     }
 }

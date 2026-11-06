@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <TextView android:id="@+id/textDescription" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_margin="16dp" android:textColor="@color/color_text_secondary" android:textSize="14sp" />
+    <com.google.android.material.textfield.TextInputLayout android:id="@+id/searchLayout"
+        style="@style/Widget.Pandora.TextInput" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp" android:hint="搜索部门、姓名、账号或小组" app:endIconMode="clear_text">
+        <com.google.android.material.textfield.TextInputEditText android:id="@+id/editSearch"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp"
+            android:singleLine="true" android:saveEnabled="false" android:inputType="text" android:imeOptions="actionSearch" />
+    </com.google.android.material.textfield.TextInputLayout>
+    <com.google.android.material.button.MaterialButton android:id="@+id/buttonDepartments"
+        style="@style/Widget.Pandora.Button.Text" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_marginStart="16dp" android:minHeight="48dp" android:text="返回全部部门" android:visibility="gone" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical"
+        android:orientation="horizontal" android:paddingHorizontal="16dp" android:paddingTop="12dp" android:paddingBottom="8dp">
+        <TextView android:id="@+id/textDirectoryTitle" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:text="选择部门" android:textSize="16sp" android:textStyle="bold"
+            android:textColor="@color/color_text_primary" />
+        <TextView android:id="@+id/textCount" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:textColor="@color/color_text_secondary" android:textSize="13sp" />
+    </LinearLayout>
+    <com.google.android.material.button.MaterialButton android:id="@+id/buttonAll"
+        style="@style/Widget.Pandora.Button.Outlined" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp" android:minHeight="48dp" android:text="全部可查看人员" android:visibility="gone" />
+    <ProgressBar android:id="@+id/progressBar" android:layout_width="32dp" android:layout_height="32dp"
+        android:layout_gravity="center_horizontal" android:layout_margin="16dp" android:visibility="gone" />
+    <TextView android:id="@+id/textEmpty" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:padding="24dp" android:gravity="center" android:textSize="14sp"
+        android:textColor="@color/color_text_secondary" android:visibility="gone" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/buttonRetry" style="@style/Widget.Pandora.Button.Outlined"
+        android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center_horizontal"
+        android:minHeight="48dp" android:text="重试" android:visibility="gone" />
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/recyclerPeople" android:layout_width="match_parent"
+        android:layout_height="0dp" android:layout_weight="1" android:paddingHorizontal="16dp" android:paddingBottom="16dp"
+        android:clipToPadding="false" />
+</merge>

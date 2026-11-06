@@ -70,6 +70,7 @@ public class HierarchyController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRelations() {
         List<Map<String, Object>> rawRelations = hierarchyService.getHierarchyTree();
         List<Map<String, Object>> result = new ArrayList<>();
+        boolean includeAdministrators = includesAdministrators();
         for (Map<String, Object> rel : rawRelations) {
             Map<String, Object> entry = new HashMap<>();
             entry.put("superior_id", rel.get("SUPERIOR_ID") != null ? rel.get("SUPERIOR_ID") : rel.get("superior_id"));
@@ -83,6 +84,7 @@ public class HierarchyController {
             entry.put("sub_name", subName != null ? subName : "");
             Object subRole = rel.get("SUB_ROLE") != null ? rel.get("SUB_ROLE") : rel.get("sub_role");
             entry.put("sub_role", subRole != null ? subRole : "");
+            if (!includeAdministrators && ("ADMIN".equals(supRole) || "ADMIN".equals(subRole))) continue;
             result.add(entry);
         }
         return ResponseEntity.ok(ApiResponse.success(result));
@@ -135,8 +137,8 @@ public class HierarchyController {
         }
 
         Map<String, Object> resultBody = new HashMap<>();
-        resultBody.put("roots", roots);
-        resultBody.put("orphanNodes", orphanNodes);
+        resultBody.put("roots", visiblePeople(roots));
+        resultBody.put("orphanNodes", visiblePeople(orphanNodes));
         return ResponseEntity.ok(ApiResponse.success(resultBody));
     }
 
@@ -223,12 +225,41 @@ public class HierarchyController {
 
     @GetMapping("/superiors/{userId}")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSuperiors(@PathVariable Long userId) {
-        return ResponseEntity.ok(ApiResponse.success(hierarchyService.getSuperiors(userId)));
+        return ResponseEntity.ok(ApiResponse.success(visiblePeople(hierarchyService.getSuperiors(userId))));
     }
 
     @GetMapping("/subordinates/{userId}")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSubordinates(@PathVariable Long userId) {
-        return ResponseEntity.ok(ApiResponse.success(hierarchyService.getSubordinates(userId)));
+        return ResponseEntity.ok(ApiResponse.success(visiblePeople(hierarchyService.getSubordinates(userId))));
+    }
+
+    private boolean includesAdministrators() {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getPrincipal() instanceof Long
+                && !jdbcTemplate.queryForList("SELECT id FROM users WHERE id=? AND role='ADMIN' AND deleted=0",
+                Long.class, authentication.getPrincipal()).isEmpty();
+    }
+
+    private List<Map<String, Object>> visiblePeople(List<Map<String, Object>> people) {
+        return includesAdministrators() ? people : withoutAdministrators(people);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> withoutAdministrators(List<Map<String, Object>> people) {
+        List<Map<String, Object>> visible = new ArrayList<>();
+        for (Map<String, Object> person : people) {
+            Map<String, Object> row = new HashMap<>(person);
+            Object rawChildren = row.get("children");
+            List<Map<String, Object>> children = rawChildren instanceof List
+                    ? withoutAdministrators((List<Map<String, Object>>) rawChildren) : Collections.emptyList();
+            if ("ADMIN".equals(row.get("role")) || "ADMIN".equals(row.get("ROLE"))) {
+                visible.addAll(children);
+            } else {
+                if (rawChildren instanceof List) row.put("children", children);
+                visible.add(row);
+            }
+        }
+        return visible;
     }
 
     @GetMapping("/is-subordinate")

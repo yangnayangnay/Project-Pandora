@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="color_day_task_marker">#91BDCE</color>
+    <color name="color_time_picker_accent">#FF906C</color>
+</resources>

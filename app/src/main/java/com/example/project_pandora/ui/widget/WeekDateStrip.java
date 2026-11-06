@@ -15,7 +15,7 @@ import java.util.Locale;
 import java.util.function.Consumer;
 
 /** Shared Monday-to-Sunday date header for month collapse, week and day. */
-public class WeekDateStrip extends LinearLayout {
+public class WeekDateStrip extends PeriodSwipeLayout {
     private Calendar selected = Calendar.getInstance();
     private Consumer<Calendar> listener;
     private Integer selectionColor;

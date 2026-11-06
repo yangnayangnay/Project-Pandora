@@ -195,18 +195,18 @@ public class LogCreateActivity extends AppCompatActivity {
         updateDateControls();
         binding.chipGroupDate.setOnCheckedStateChangeListener((group, checked) -> {
             if (syncingDateControls || isEditMode || checked.isEmpty()) return;
-            int days = checked.get(0) == R.id.chipYesterday ? 1 : checked.get(0) == R.id.chipTomorrow ? -1 : 0;
+            int days = checked.get(0) == R.id.chipDayBeforeYesterday ? 2 : checked.get(0) == R.id.chipYesterday ? 1 : 0;
             selectDate(LogDateWindow.daysAgo(days));
         });
     }
 
     private void updateDateControls() {
         syncingDateControls = true;
-        binding.chipGroupDate.check(selectedDate.equals(LogDateWindow.daysAgo(1)) ? R.id.chipYesterday
-                : selectedDate.equals(LogDateWindow.daysAgo(-1)) ? R.id.chipTomorrow : R.id.chipToday);
+        binding.chipGroupDate.check(selectedDate.equals(LogDateWindow.daysAgo(2)) ? R.id.chipDayBeforeYesterday
+                : selectedDate.equals(LogDateWindow.daysAgo(1)) ? R.id.chipYesterday : R.id.chipToday);
         binding.chipToday.setEnabled(!isEditMode);
         binding.chipYesterday.setEnabled(!isEditMode);
-        binding.chipTomorrow.setEnabled(!isEditMode);
+        binding.chipDayBeforeYesterday.setEnabled(!isEditMode);
         binding.textLogDate.setText(selectedDate + (isEditMode ? " · 编辑时日期锁定" : ""));
         binding.textLogDate.setEnabled(!isEditMode);
         if (!LogDateWindow.isWritable(selectedDate)) {
@@ -232,10 +232,13 @@ public class LogCreateActivity extends AppCompatActivity {
                                 Map<String, Object> existing = logs.get(0);
                                 Long id = com.example.project_pandora.core.util.NumberCompat.toLong(existing.get("id"));
                                 if (id == null) return;
-                                editLogId = id; isEditMode = true;
-                                binding.editWorkItem.setText(existing.get("work_item") == null ? "" : existing.get("work_item").toString());
-                                binding.editWorkContent.setText(existing.get("work_content") == null ? "" : existing.get("work_content").toString());
-                                binding.toolbar.setTitle("编辑日志"); binding.btnSave.setText("更新日志"); updateDateControls();
+                                Intent intent = new Intent(this, LogCreateActivity.class);
+                                intent.putExtra("editMode", true);
+                                intent.putExtra("logId", id.longValue());
+                                intent.putExtra("workItem", java.util.Objects.toString(existing.get("work_item"), ""));
+                                intent.putExtra("workContent", java.util.Objects.toString(existing.get("work_content"), ""));
+                                intent.putExtra("logDate", date);
+                                startActivity(intent);
                             }).setNegativeButton("取消", (dialog, which) -> { selectedDate = previous; updateDateControls(); })
                             .setOnCancelListener(dialog -> { selectedDate = previous; updateDateControls(); }).show();
                 }, error -> { /* Offline saves still go through the queue; the server enforces date uniqueness. */ }));
@@ -255,10 +258,9 @@ public class LogCreateActivity extends AppCompatActivity {
         Calendar today = Calendar.getInstance(zone);
         today.set(Calendar.HOUR_OF_DAY, 0); today.set(Calendar.MINUTE, 0); today.set(Calendar.SECOND, 0); today.set(Calendar.MILLISECOND, 0);
         Calendar min = (Calendar) today.clone();
-        min.add(Calendar.DAY_OF_YEAR, -1);
+        min.add(Calendar.DAY_OF_YEAR, -2);
         Calendar max = (Calendar) today.clone();
         max.set(Calendar.HOUR_OF_DAY, 23); max.set(Calendar.MINUTE, 59); max.set(Calendar.SECOND, 59); max.set(Calendar.MILLISECOND, 999);
-        max.add(Calendar.DAY_OF_YEAR, 1);
         DatePickerDialog picker = new DatePickerDialog(this, (view, year, month, day) ->
                 selectDate(String.format(Locale.ROOT, "%04d-%02d-%02d", year, month + 1, day)),
                 selected.get(Calendar.YEAR), selected.get(Calendar.MONTH), selected.get(Calendar.DAY_OF_MONTH));
@@ -269,7 +271,7 @@ public class LogCreateActivity extends AppCompatActivity {
 
     private void handleSave() {
         if (!LogDateWindow.isWritable(selectedDate)) {
-            Toast.makeText(this, "仅可填写或编辑昨天、今天、明天的日志", Toast.LENGTH_LONG).show(); return;
+            Toast.makeText(this, "仅可填写或编辑前天、昨天、今天的日志", Toast.LENGTH_LONG).show(); return;
         }
         String workItem = binding.editWorkItem.getText().toString().trim();
         if (workItem.isEmpty()) {
@@ -308,7 +310,12 @@ public class LogCreateActivity extends AppCompatActivity {
                             }
                     ));
         } else {
-            disposables.add(syncRoutingRepository.createLog(workItem, workContent, "PENDING", null, selectedDate)
+            String saveDate = selectedDate;
+            disposables.add(logRepository.listLogs(saveDate, saveDate, null)
+                    .onErrorReturnItem(java.util.Collections.emptyList())
+                    .flatMap(logs -> logs.isEmpty()
+                            ? syncRoutingRepository.createLog(workItem, workContent, "PENDING", null, saveDate)
+                            : io.reactivex.rxjava3.core.Observable.error(new com.example.project_pandora.core.exception.BusinessException(4030, "该日期已有日志，请打开编辑")))
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                             result -> {
@@ -327,6 +334,8 @@ public class LogCreateActivity extends AppCompatActivity {
                                 Toast.makeText(this, "保存失败: " + mapError(error), Toast.LENGTH_SHORT).show();
                                 binding.btnSave.setEnabled(true);
                                 binding.btnSave.setText("保存");
+                                if (saveDate.equals(selectedDate) && error instanceof com.example.project_pandora.core.exception.BusinessException
+                                        && ((com.example.project_pandora.core.exception.BusinessException) error).getCode() == 4030) selectDate(saveDate);
                             }
                     ));
         }

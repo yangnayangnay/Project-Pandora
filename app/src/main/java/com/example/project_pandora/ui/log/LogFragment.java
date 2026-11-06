@@ -2,20 +2,21 @@ package com.example.project_pandora.ui.log;
 
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.graphics.Outline;
+import android.graphics.Path;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.Spinner;
+import android.view.ViewOutlineProvider;
 import android.widget.Toast;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -44,6 +45,7 @@ public class LogFragment extends Fragment {
 
     private static final int TAB_MY_LOG = 0;
     private static final int TAB_OTHER_LOG = 1;
+    private static final String STATE_FILTERS_EXPANDED = "filtersExpanded";
 
     private FragmentLogBinding binding;
     private LogRepository logRepository;
@@ -52,16 +54,26 @@ public class LogFragment extends Fragment {
     private LogDisplayLimitConfig logDisplayLimitConfig;
     private final CompositeDisposable disposables = new CompositeDisposable();
     private final SerialDisposable logLoad = new SerialDisposable();
-    private final SerialDisposable directoryLoad = new SerialDisposable();
     private final SerialDisposable roleRefresh = new SerialDisposable();
 
     private String currentRole;
     private boolean isMyLogTab = true;
     private boolean hasOtherLogTab = false;
     private boolean keyboardVisible = false;
+    private boolean filtersExpanded = true;
     private long currentUserId = -1L;
 
-    private final List<Map<String, Object>> subordinateList = new ArrayList<>();
+    private Long selectedSubordinateId, selectedDepartmentId;
+    private String selectedPersonLabel = "全部可查看人员";
+    private final ActivityResultLauncher<Intent> peoplePicker = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() != android.app.Activity.RESULT_OK || result.getData() == null) return;
+                Intent data = result.getData();
+                selectedSubordinateId = data.hasExtra(LogPeoplePickerActivity.EXTRA_USER) ? data.getLongExtra(LogPeoplePickerActivity.EXTRA_USER, -1) : null;
+                selectedDepartmentId = data.hasExtra(LogPeoplePickerActivity.EXTRA_DEPARTMENT) ? data.getLongExtra(LogPeoplePickerActivity.EXTRA_DEPARTMENT, -1) : null;
+                selectedPersonLabel = data.getStringExtra(LogPeoplePickerActivity.EXTRA_LABEL);
+                if (binding != null) { updatePersonSelection(); applyFilters(); }
+            });
 
     @Nullable
     @Override
@@ -81,15 +93,20 @@ public class LogFragment extends Fragment {
         currentUserId = uid != null ? uid : -1L;
         isMyLogTab = true;
         keyboardVisible = false;
+        if (savedInstanceState != null) {
+            filtersExpanded = savedInstanceState.getBoolean(STATE_FILTERS_EXPANDED, true);
+            selectedSubordinateId = savedInstanceState.containsKey("filterUser") ? savedInstanceState.getLong("filterUser") : null;
+            selectedDepartmentId = savedInstanceState.containsKey("filterDepartment") ? savedInstanceState.getLong("filterDepartment") : null;
+            selectedPersonLabel = savedInstanceState.getString("filterPersonLabel", "全部可查看人员");
+        }
 
         setupAdapters();
         setupTabs();
         setupSearch();
+        setupFilterToggle();
         setupFab();
         setupSwipeRefresh();
         setupKeyboardFabToggle();
-        setHasOptionsMenu(true);
-        setupToolbarMenu();
 
         if (binding.tabLayout.getTabCount() > 0) {
             binding.tabLayout.getTabAt(TAB_MY_LOG).select();
@@ -146,7 +163,7 @@ public class LogFragment extends Fragment {
                     isMyLogTab = true;
                     binding.recyclerLogs.setVisibility(View.VISIBLE);
                     binding.recyclerSubordinateLogs.setVisibility(View.GONE);
-                    binding.spinnerSubordinate.setVisibility(View.GONE);
+                    binding.buttonSelectLogPerson.setVisibility(View.GONE);
                     updateFabVisibility();
                     clearSearchInputs();
                     applyFilters();
@@ -154,10 +171,10 @@ public class LogFragment extends Fragment {
                     isMyLogTab = false;
                     binding.recyclerLogs.setVisibility(View.GONE);
                     binding.recyclerSubordinateLogs.setVisibility(View.VISIBLE);
-                    binding.spinnerSubordinate.setVisibility(View.VISIBLE);
+                    binding.buttonSelectLogPerson.setVisibility(View.VISIBLE);
+                    updatePersonSelection();
                     updateFabVisibility();
                     clearSearchInputs();
-                    loadSubordinateList();
                     applyFilters();
                 }
             }
@@ -179,9 +196,8 @@ public class LogFragment extends Fragment {
         boolean allowed = canViewOtherLogs();
         if (allowed == hasOtherLogTab) return;
         hasOtherLogTab = allowed;
-        directoryLoad.set(null);
-        subordinateList.clear();
-        updateSubordinateSpinner();
+        selectedSubordinateId = null; selectedDepartmentId = null; selectedPersonLabel = "全部可查看人员";
+        updatePersonSelection();
         if (allowed) {
             binding.tabLayout.addTab(binding.tabLayout.newTab().setText("他人日志"));
         } else {
@@ -196,17 +212,53 @@ public class LogFragment extends Fragment {
         binding.editEndDate.setOnClickListener(v -> pickFilterDate(binding.editEndDate));
         binding.btnSearch.setOnClickListener(v -> applyFilters());
         binding.btnResetFilters.setOnClickListener(v -> {
-            clearSearchInputs(); binding.spinnerSubordinate.setSelection(0);
+            clearSearchInputs(); selectedSubordinateId = null; selectedDepartmentId = null;
+            selectedPersonLabel = "全部可查看人员"; updatePersonSelection();
             binding.chipFilterToday.setChecked(false); binding.chipFilterWeek.setChecked(false); binding.chipFilterAll.setChecked(true);
             applyFilters();
         });
         binding.chipFilterToday.setOnClickListener(v -> setDateRange(0));
         binding.chipFilterWeek.setOnClickListener(v -> setDateRange(6));
         binding.chipFilterAll.setOnClickListener(v -> { binding.editStartDate.setText(""); binding.editEndDate.setText(""); applyFilters(); });
-        binding.spinnerSubordinate.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) { if (!isMyLogTab) applyFilters(); }
-            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        binding.buttonSelectLogPerson.setOnClickListener(v -> peoplePicker.launch(new Intent(requireContext(), LogPeoplePickerActivity.class)));
+    }
+
+    private void setupFilterToggle() {
+        binding.buttonToggleLogFilters.setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, Outline outline) {
+                int width = view.getWidth();
+                int handleHeight = view.getHeight() - view.getPaddingBottom();
+                if (width <= 0 || handleHeight <= 0) {
+                    outline.setEmpty();
+                    return;
+                }
+                // Match the visible semicircle, excluding the transparent touch area below it.
+                Path semicircle = new Path();
+                semicircle.moveTo(0f, 0f);
+                semicircle.lineTo(width, 0f);
+                semicircle.arcTo(0f, -handleHeight, width, handleHeight, 0f, 180f, false);
+                semicircle.close();
+                outline.setConvexPath(semicircle);
+            }
         });
+        updateFilterVisibility();
+        binding.buttonToggleLogFilters.setOnClickListener(v -> {
+            filtersExpanded = !filtersExpanded;
+            if (!filtersExpanded) {
+                binding.editKeyword.clearFocus();
+                WindowCompat.getInsetsController(requireActivity().getWindow(), binding.getRoot())
+                        .hide(WindowInsetsCompat.Type.ime());
+            }
+            updateFilterVisibility();
+        });
+    }
+
+    private void updateFilterVisibility() {
+        binding.cardLogFilters.setVisibility(filtersExpanded ? View.VISIBLE : View.GONE);
+        binding.buttonToggleLogFilters.setImageLevel(filtersExpanded ? 0 : 10000);
+        binding.buttonToggleLogFilters.setContentDescription(getString(filtersExpanded
+                ? R.string.log_filters_collapse : R.string.log_filters_expand));
     }
 
     private void pickFilterDate(android.widget.EditText field) {
@@ -233,65 +285,20 @@ public class LogFragment extends Fragment {
             Toast.makeText(requireContext(), "开始日期不能晚于结束日期", Toast.LENGTH_SHORT).show();
             binding.swipeRefresh.setRefreshing(false); return;
         }
-        binding.textFilterSummary.setText((isMyLogTab ? "我的日志" : "授权范围内的他人日志")
+        binding.textFilterSummary.setText((isMyLogTab ? "我的日志" : selectedPersonLabel)
                 + " · " + (start.isEmpty() ? "不限起始日期" : start) + " 至 " + (end.isEmpty() ? "不限结束日期" : end)
                 + (keyword.isEmpty() ? "" : " · 关键词：" + keyword));
         if (isMyLogTab) loadMyLogs(start.isEmpty() ? null : start, end.isEmpty() ? null : end, keyword.isEmpty() ? null : keyword);
-        else loadSubordinateLogs(getSelectedSubordinateId(), start.isEmpty() ? null : start, end.isEmpty() ? null : end, keyword.isEmpty() ? null : keyword);
-    }
-
-    private void setupToolbarMenu() {
-        binding.toolbar.setOnMenuItemClickListener(item -> {
-            int id = item.getItemId();
-            if (id == R.id.action_stat) {
-                showLogStats();
-                return true;
-            } else if (id == R.id.action_template) {
-                navigateToLogEntry();
-                return true;
-            }
-            return false;
-        });
+        else loadSubordinateLogs(selectedSubordinateId, start.isEmpty() ? null : start, end.isEmpty() ? null : end, keyword.isEmpty() ? null : keyword);
     }
 
     private void setupFab() {
         binding.fabAddLog.setOnClickListener(v -> navigateToLogEntry());
     }
 
-    /** REQ-31-07: FAB/模板入口当日路由防双击标志 */
-    private boolean logEntryNavigating = false;
-
-    /**
-     * REQ-31-07: "添加日志"统一入口路由——当日已有本人日志（唯一约束至多一条）跳编辑模式，
-     * 无/查询失败降级新建（点击时单独查询，规避列表截断与搜索态数据替换风险）。
-     * 顺带根治 DEF-31-01：入口侧消除当日重复新建撞 4030 的场景。
-     */
+    /** The + entry starts a fresh date-selectable log form. */
     private void navigateToLogEntry() {
-        if (logEntryNavigating) return;
-        logEntryNavigating = true;
-        String today = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                .format(new java.util.Date());
-        disposables.add(logRepository.listLogs(today, today, null)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        logs -> {
-                            logEntryNavigating = false;
-                            Intent intent = new Intent(requireContext(), LogCreateActivity.class);
-                            if (logs != null && !logs.isEmpty()) {
-                                Map<String, Object> todayLog = logs.get(0);
-                                intent.putExtra("editMode", true);
-                                intent.putExtra("logId", com.example.project_pandora.core.util.NumberCompat.toLong(todayLog.get("id")));
-                                intent.putExtra("workItem", todayLog.get("work_item") != null ? todayLog.get("work_item").toString() : "");
-                                intent.putExtra("workContent", todayLog.get("work_content") != null ? todayLog.get("work_content").toString() : "");
-                                intent.putExtra("logDate", today);
-                            }
-                            startActivity(intent);
-                        },
-                        error -> {
-                            logEntryNavigating = false;
-                            startActivity(new Intent(requireContext(), LogCreateActivity.class));
-                        }
-                ));
+        startActivity(new Intent(requireContext(), LogCreateActivity.class));
     }
 
     private void setupKeyboardFabToggle() {
@@ -317,47 +324,6 @@ public class LogFragment extends Fragment {
 
     private void setupSwipeRefresh() {
         binding.swipeRefresh.setOnRefreshListener(this::applyFilters);
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_stat) {
-            showLogStats();
-            return true;
-        } else if (id == R.id.action_template) {
-            navigateToLogEntry();
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
-    private void showLogStats() {
-        disposables.add(logRepository.getLogStats()
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        stats -> {
-                            StringBuilder sb = new StringBuilder();
-                            Object total = stats.get("total");
-                            if (total == null) total = stats.get("TOTAL");
-                            Object pending = stats.get("pending");
-                            if (pending == null) pending = stats.get("PENDING");
-                            Object completed = stats.get("completed");
-                            if (completed == null) completed = stats.get("COMPLETED");
-                            Object totalTime = stats.get("totalTime");
-                            if (totalTime == null) totalTime = stats.get("TOTAL_TIME");
-                            sb.append("总日志数: ").append(total != null ? total : 0).append("\n");
-                            sb.append("待完成: ").append(pending != null ? pending : 0).append("\n");
-                            sb.append("已完成: ").append(completed != null ? completed : 0).append("\n");
-                            sb.append("总工时: ").append(totalTime != null ? totalTime : 0).append("小时");
-                            new AlertDialog.Builder(requireContext())
-                                    .setTitle("日志统计")
-                                    .setMessage(sb.toString())
-                                    .setPositiveButton("确定", null)
-                                    .show();
-                        },
-                        error -> Toast.makeText(requireContext(), "统计加载失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
-                ));
     }
 
     private void clearSearchInputs() {
@@ -417,56 +383,12 @@ public class LogFragment extends Fragment {
         return new ArrayList<>(logs.subList(0, countLimit));
     }
 
-    private void loadSubordinateList() {
-        directoryLoad.set(logRepository.getSubordinates()
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        list -> {
-                            subordinateList.clear();
-                            subordinateList.add(null);
-                            subordinateList.addAll(list);
-                            updateSubordinateSpinner();
-                        },
-                        error -> {
-                            subordinateList.clear();
-                            subordinateList.add(null);
-                            updateSubordinateSpinner();
-                        }
-                ));
-    }
-
-    private void updateSubordinateSpinner() {
-        if (binding == null) return;
-        List<String> names = new ArrayList<>();
-        names.add("全部可查看人员");
-        for (Map<String, Object> sub : subordinateList) {
-            if (sub == null) continue;
-            Object realName = sub.get("real_name");
-            Object username = sub.get("username");
-            names.add(realName != null ? realName.toString()
-                    : (username != null ? username.toString() : "未知"));
-        }
-        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(
-                requireContext(), android.R.layout.simple_spinner_item, names);
-        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        binding.spinnerSubordinate.setAdapter(spinnerAdapter);
-    }
-
-    private Long getSelectedSubordinateId() {
-        int pos = binding.spinnerSubordinate.getSelectedItemPosition();
-        if (pos <= 0) return null;
-        if (pos < subordinateList.size()) {
-            Map<String, Object> sub = subordinateList.get(pos);
-            if (sub != null) {
-                // Round26: 解析统一收敛至 NumberCompat（原 instanceof Number 判定语义保持）
-                return com.example.project_pandora.core.util.NumberCompat.toLong(sub.get("id"));
-            }
-        }
-        return null;
+    private void updatePersonSelection() {
+        if (binding != null) binding.buttonSelectLogPerson.setText(selectedPersonLabel + " · 选择部门/人员");
     }
 
     private void loadSubordinateLogs(Long subordinateId, String startDate, String endDate, String keyword) {
-        logLoad.set(logRepository.getSubordinateLogs(subordinateId, startDate, endDate, keyword)
+        logLoad.set(logRepository.getSubordinateLogs(subordinateId, selectedDepartmentId, startDate, endDate, keyword)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         logs -> {
@@ -513,11 +435,18 @@ public class LogFragment extends Fragment {
                 if (role != null) currentRole = role.toString();
                 refreshRoleTabs();
             }
-            if (!isMyLogTab) loadSubordinateList();
             applyFilters();
         }, error -> {
             if (binding != null) applyFilters();
         }));
+    }
+
+    @Override public void onSaveInstanceState(@NonNull Bundle state) {
+        state.putBoolean(STATE_FILTERS_EXPANDED, filtersExpanded);
+        if (selectedSubordinateId != null) state.putLong("filterUser", selectedSubordinateId);
+        if (selectedDepartmentId != null) state.putLong("filterDepartment", selectedDepartmentId);
+        state.putString("filterPersonLabel", selectedPersonLabel);
+        super.onSaveInstanceState(state);
     }
 
     @Override
@@ -525,7 +454,6 @@ public class LogFragment extends Fragment {
         super.onDestroyView();
         disposables.clear();
         logLoad.set(null);
-        directoryLoad.set(null);
         roleRefresh.set(null);
         binding = null;
     }

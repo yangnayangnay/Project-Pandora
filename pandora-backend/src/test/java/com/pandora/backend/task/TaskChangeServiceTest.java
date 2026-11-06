@@ -2,6 +2,7 @@ package com.pandora.backend.task;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pandora.backend.common.BusinessException;
+import com.pandora.backend.common.ErrorCode;
 import com.pandora.backend.hierarchy.HierarchyService;
 import com.pandora.backend.notification.NotificationService;
 import com.pandora.backend.user.PersonnelController;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.context.annotation.*;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -51,7 +53,8 @@ class TaskChangeServiceTest {
             ReflectionTestUtils.setField(h, "maxDepth", 10);
             ReflectionTestUtils.setField(h, "cycleDetect", true); return h;
         }
-        @Bean TaskChangeService changes(JdbcTemplate db, HierarchyService h) { return new TaskChangeService(db, new ObjectMapper(), h, new NotificationService() { @Override public void detectNewTask(Long taskId, Long assigneeId, Long dispatcherId) {} }); }
+        @Bean TaskTagService tags(JdbcTemplate db) { return new TaskTagService(db); }
+        @Bean TaskChangeService changes(JdbcTemplate db, HierarchyService h, TaskTagService tags) { return new TaskChangeService(db, new ObjectMapper(), h, new NotificationService() { @Override public void detectNewTask(Long taskId, Long assigneeId, Long dispatcherId) {} }, tags); }
         @Bean PersonnelController personnel(JdbcTemplate db, HierarchyService h) { return new PersonnelController(db, h); }
     }
     @Autowired JdbcTemplate db;
@@ -140,37 +143,41 @@ class TaskChangeServiceTest {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(1L, null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
         var directory = personnel.directory().getData();
         assertEquals(7, directory.size()); assertFalse(directory.get(0).containsKey("password_hash"));
-        personnel.employment(SecurityContextHolder.getContext().getAuthentication(), 6, Map.of("role", "TEAM_LEADER", "superiorId", 3));
+        db.update("INSERT INTO departments (id,name) VALUES (100,'测试部门')");
+        personnel.employment(SecurityContextHolder.getContext().getAuthentication(), 6,
+                Map.of("role", "TEAM_LEADER", "superiorId", 3, "departmentId", 100));
         assertEquals("TEAM_LEADER", db.queryForObject("SELECT role FROM users WHERE id=6", String.class));
+        assertEquals(100L, db.queryForObject("SELECT department_id FROM users WHERE id=6", Long.class));
         assertEquals(3L, service.approver(6));
     }
 
     private void login(long id) {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(id, null, List.of(new SimpleGrantedAuthority("ROLE_EMPLOYEE"))));
     }
-    @Test void selfProfileAllowsContactButRejectsIdentityAndRank() {
+    @Test void selfProfileRejectsContactIdentityAndRank() {
         login(5);
         var controller = new com.pandora.backend.user.UserController();
         ReflectionTestUtils.setField(controller, "jdbcTemplate", db);
         assertThrows(BusinessException.class, () -> controller.updateProfile(Map.of("username", "replacement")));
         assertThrows(BusinessException.class, () -> controller.updateProfile(Map.of("realName", "替代姓名")));
         assertThrows(BusinessException.class, () -> controller.updateProfile(Map.of("role", "ADMIN")));
-        controller.updateProfile(Map.of("email", "member@example.com", "phone", "13812345678"));
+        assertEquals(ErrorCode.FORBIDDEN, assertThrows(BusinessException.class,
+                () -> controller.updateProfile(Map.of("email", "member@example.com", "phone", "13812345678"))).getErrorCode());
         assertEquals("user5", db.queryForObject("SELECT username FROM users WHERE id=5", String.class));
-        assertEquals("member@example.com", db.queryForObject("SELECT email FROM users WHERE id=5", String.class));
+        assertNull(db.queryForObject("SELECT email FROM users WHERE id=5", String.class));
     }
-    @Test void selfPasswordChecksOldPasswordAndStoresOnlyHash() {
-        login(5);
+    @Test void adminSelfPasswordChecksOldPasswordAndStoresOnlyHash() {
+        login(1);
         var controller = new com.pandora.backend.user.UserController();
         var encoder = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
         ReflectionTestUtils.setField(controller, "jdbcTemplate", db);
         ReflectionTestUtils.setField(controller, "passwordEncoder", encoder);
-        db.update("UPDATE users SET password_hash=? WHERE id=5", encoder.encode("old-test-value"));
+        db.update("UPDATE users SET password_hash=? WHERE id=1", encoder.encode("old-test-value"));
         assertThrows(BusinessException.class, () -> controller.changePassword(Map.of("oldPassword", "wrong", "newPassword", "new-test-value")));
         assertThrows(BusinessException.class, () -> controller.changePassword(Map.of("oldPassword", "old-test-value", "newPassword", "短")));
         assertThrows(BusinessException.class, () -> controller.changePassword(Map.of("oldPassword", "old-test-value", "newPassword", "密".repeat(25))));
         controller.changePassword(Map.of("oldPassword", "old-test-value", "newPassword", "new-test-value"));
-        String stored = db.queryForObject("SELECT password_hash FROM users WHERE id=5", String.class);
+        String stored = db.queryForObject("SELECT password_hash FROM users WHERE id=1", String.class);
         assertNotEquals("new-test-value", stored); assertTrue(encoder.matches("new-test-value", stored));
     }
     @Test void logEditingPreservesDateAndCompletionAndRejectsOldDates() {
@@ -205,5 +212,84 @@ class TaskChangeServiceTest {
         result = controller.sync(Map.of("items", List.of(item))).getBody().getData();
         assertEquals("SYNCED", ((List<Map<String, Object>>) result.get("synced")).get(0).get("status"));
         assertEquals("COMPLETED", db.queryForObject("SELECT completion_status FROM work_logs WHERE user_id=5", String.class));
+    }
+
+    private long countRequests() { return db.queryForObject("SELECT COUNT(*) FROM task_change_requests", Long.class); }
+
+    @Test void assigneesExcludeAdminPendingAndDeletedUsers() {
+        db.update("INSERT INTO users (id, username, password_hash, role, approval_status) VALUES (8, 'pending8', 'hash', 'EMPLOYEE', 'PENDING')");
+        db.update("INSERT INTO users (id, username, password_hash, role, approval_status, deleted) VALUES (9, 'deleted9', 'hash', 'EMPLOYEE', 'APPROVED', 1)");
+        TaskController tasks = new TaskController();
+        ReflectionTestUtils.setField(tasks, "jdbcTemplate", db);
+
+        List<Map<String, Object>> assignees = tasks.assignees().getBody().getData();
+        Set<Long> ids = new HashSet<>();
+        for (Map<String, Object> assignee : assignees) {
+            ids.add(number(assignee, "id"));
+            assertNotEquals("ADMIN", assignee.get("role"));
+        }
+        assertEquals(6, assignees.size());
+        assertEquals(Set.of(2L, 3L, 4L, 5L, 6L, 7L), ids);
+        assertFalse(ids.contains(8L));
+        assertFalse(ids.contains(9L));
+    }
+
+    @ParameterizedTest @ValueSource(longs = {1L, 2L, 5L})
+    void createTargetingAdminAssigneeIsRejectedWithoutAnySideEffect(long actor) {
+        Map<String, Object> data = creation();
+        data.put("assigneeId", 1L);
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.submit(actor, "CREATE", null, data));
+
+        assertEquals(ErrorCode.BAD_REQUEST, error.getErrorCode());
+        assertTrue(error.getMessage().contains("管理员"));
+        assertEquals(0, countTasks());
+        assertEquals(0L, countRequests());
+    }
+
+    @Test void updateTargetingAdminAssigneeIsRejectedAndOriginalAssigneeStays() {
+        long id = directTask();
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.submit(1, "UPDATE", id, Map.of("assigneeId", 1L)));
+
+        assertEquals(ErrorCode.BAD_REQUEST, error.getErrorCode());
+        assertTrue(error.getMessage().contains("管理员"));
+        assertEquals(2L, db.queryForObject("SELECT assignee_id FROM tasks WHERE id = ?", Long.class, id).longValue());
+        assertEquals(0L, countRequests());
+    }
+
+    @Test void pendingCreateRejectedWhenItsAssigneeBecomesAdmin() {
+        Map<String, Object> data = creation();
+        data.put("assigneeId", 6L);
+        long request = number(service.submit(5, "CREATE", null, data), "requestId");
+        db.update("UPDATE users SET role = 'ADMIN' WHERE id = 6");
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.decide(4, request, true, ""));
+
+        assertEquals(ErrorCode.BAD_REQUEST, error.getErrorCode());
+        assertTrue(error.getMessage().contains("管理员"));
+        assertEquals(0, countTasks());
+        assertEquals("PENDING", db.queryForObject(
+                "SELECT status FROM task_change_requests WHERE id = ?", String.class, request));
+    }
+
+    @Test void pendingUpdateRejectedWhenItsNewAssigneeBecomesAdmin() {
+        Map<String, Object> create = creation();
+        create.put("assigneeId", 5L);
+        long id = number(service.submit(1, "CREATE", null, create), "id");
+        long request = number(service.submit(5, "UPDATE", id, Map.of("assigneeId", 6L)), "requestId");
+        db.update("UPDATE users SET role = 'ADMIN' WHERE id = 6");
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.decide(4, request, true, ""));
+
+        assertEquals(ErrorCode.BAD_REQUEST, error.getErrorCode());
+        assertTrue(error.getMessage().contains("管理员"));
+        assertEquals(5L, db.queryForObject("SELECT assignee_id FROM tasks WHERE id = ?", Long.class, id).longValue());
+        assertEquals("PENDING", db.queryForObject(
+                "SELECT status FROM task_change_requests WHERE id = ?", String.class, request));
     }
 }

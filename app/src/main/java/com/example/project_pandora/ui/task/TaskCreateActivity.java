@@ -1,7 +1,5 @@
 package com.example.project_pandora.ui.task;
 
-import android.app.DatePickerDialog;
-import android.app.TimePickerDialog;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -9,6 +7,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AlertDialog;
 
 import com.example.project_pandora.R;
 import com.example.project_pandora.core.autosave.AutoSaveManager;
@@ -20,6 +19,8 @@ import com.example.project_pandora.core.util.TaskDateTimes;
 import com.example.project_pandora.data.remote.TaskApi;
 import com.example.project_pandora.databinding.ActivityTaskCreateBinding;
 import com.example.project_pandora.repository.DraftRepository;
+import com.example.project_pandora.ui.widget.QuickDatePickerDialog;
+import com.example.project_pandora.ui.widget.WheelTimePickerDialog;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -42,6 +43,8 @@ public class TaskCreateActivity extends AppCompatActivity {
     private AutoSaveManager autoSaveManager;
     private String selectedStartTime;
     private String selectedEndTime;
+    private AlertDialog datePicker;
+    private WheelTimePickerDialog timePicker;
     private final List<Long> assigneeIds = new ArrayList<>();
     private final List<String> assigneeNames = new ArrayList<>();
     private final CompositeDisposable disposables = new CompositeDisposable();
@@ -72,8 +75,8 @@ public class TaskCreateActivity extends AppCompatActivity {
         loadAssigneeOptions();
         String role = TokenManager.getInstance(this).getRole();
         binding.textTaskReviewHint.setText("ADMIN".equals(role) || "FOUNDER".equals(role)
-                ? "可派发给全公司任意人员；当前职级的任务操作免审。"
-                : "可派发给全公司任意人员；创建、编辑和删除须经对应上级审核后生效。");
+                ? "可派发给公司内非管理员人员；当前职级的任务操作免审。"
+                : "可派发给公司内非管理员人员；创建、编辑和删除须经对应上级审核后生效。");
 
         selectedStartTime = savedInstanceState == null ? TaskDateTimes.format(new Date())
                 : savedInstanceState.getString("taskStartTime", TaskDateTimes.format(new Date()));
@@ -85,6 +88,11 @@ public class TaskCreateActivity extends AppCompatActivity {
         binding.btnCreateTask.setOnClickListener(v -> handleCreateTask());
 
         setupAutoSave();
+        binding.taskTags.setOnChanged(this::onContentChanged);
+        if (savedInstanceState != null) {
+            Object ids = savedInstanceState.getSerializable("taskTagIds");
+            if (ids instanceof java.util.ArrayList) binding.taskTags.setSelectedIds((java.util.ArrayList<Long>) ids);
+        }
         if (savedInstanceState == null) checkDraftRestore();
     }
 
@@ -96,6 +104,7 @@ public class TaskCreateActivity extends AppCompatActivity {
                     content.put("content", binding.editTaskContent.getText().toString()); // R39 REQ-C07: 草稿覆盖正文
                     content.put("startTime", selectedStartTime);
                     content.put("endTime", selectedEndTime);
+                    content.put("tagIds", binding.taskTags.getSelectedIds());
                     boolean isUrgent = binding.rgUrgency.getCheckedRadioButtonId() == R.id.rb_urgent;
                     content.put("isUrgent", isUrgent);
                     boolean isImportant = binding.rgImportance.getCheckedRadioButtonId() == R.id.rb_important;
@@ -172,6 +181,15 @@ public class TaskCreateActivity extends AppCompatActivity {
         // R39 REQ-C07: 草稿恢复回显正文（旧草稿无 content 键 null 守卫天然兼容）
         Object draftContent = content.get("content");
         if (draftContent != null) binding.editTaskContent.setText(draftContent.toString());
+        Object tagIds = content.get("tagIds");
+        if (tagIds instanceof List) {
+            List<Long> ids = new ArrayList<>();
+            for (Object item : (List<?>) tagIds) {
+                Long id = com.example.project_pandora.core.util.NumberCompat.toLong(item);
+                if (id != null) ids.add(id);
+            }
+            binding.taskTags.setSelectedIds(ids);
+        }
         String start = TaskDateTimes.restore(content.get("startTime"), false);
         if (start != null) selectedStartTime = start;
         selectedEndTime = TaskDateTimes.restore(content.get("endTime"), true);
@@ -205,12 +223,15 @@ public class TaskCreateActivity extends AppCompatActivity {
 
     private void loadAssigneeOptions() {
         Long currentUserId = TokenManager.getInstance(this).getUserId();
+        String currentRole = TokenManager.getInstance(this).getRole();
         String currentUserName = "自己";
 
         assigneeIds.clear();
         assigneeNames.clear();
-        assigneeIds.add(currentUserId);
-        assigneeNames.add(currentUserName);
+        if (!"ADMIN".equals(currentRole) && currentUserId != null && currentUserId > 0) {
+            assigneeIds.add(currentUserId);
+            assigneeNames.add(currentUserName);
+        }
         setupAssigneeSpinner();
 
         disposables.add(taskApi.getAssignees()
@@ -220,6 +241,7 @@ public class TaskCreateActivity extends AppCompatActivity {
                         response -> {
                             if (response.isSuccess() && response.getData() != null) {
                                 for (Map<String, Object> user : response.getData()) {
+                                    if (!com.example.project_pandora.ui.people.PeopleDirectory.isMobilePerson(user)) continue;
                                     Object id = user.get("id");
                                     if (id == null) id = user.get("ID");
                                     Object name = user.get("real_name");
@@ -282,28 +304,31 @@ public class TaskCreateActivity extends AppCompatActivity {
     }
 
     private void showDateTimePicker(boolean end) {
+        if ((datePicker != null && datePicker.isShowing()) || (timePicker != null && timePicker.isShowing())) return;
         Calendar cal = Calendar.getInstance();
         Date previous = TaskDateTimes.parse(end ? selectedEndTime : selectedStartTime);
         if (previous == null && end) previous = TaskDateTimes.parse(selectedStartTime);
         if (previous != null) cal.setTime(previous);
-        new DatePickerDialog(this, (view, year, month, day) -> {
-            cal.set(year, month, day);
-            TimePickerDialog picker = new TimePickerDialog(this, (timeView, hour, minute) -> {
+        datePicker = QuickDatePickerDialog.create(this, cal, date -> {
+            cal.set(date.get(Calendar.YEAR), date.get(Calendar.MONTH), date.get(Calendar.DAY_OF_MONTH));
+            timePicker = new WheelTimePickerDialog(this, end ? "结束时间" : "开始时间",
+                    cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), (hour, minute) -> {
                 cal.set(Calendar.HOUR_OF_DAY, hour);
                 cal.set(Calendar.MINUTE, minute);
                 String value = TaskDateTimes.format(cal.getTime());
                 if (end) selectedEndTime = value; else selectedStartTime = value;
                 renderTimes();
                 onContentChanged();
-            }, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true);
-            picker.setTitle(end ? "选择截止时间" : "选择开始时间");
-            picker.show();
-        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
+            });
+            timePicker.show();
+        });
+        datePicker.show();
     }
 
     @Override protected void onSaveInstanceState(Bundle outState) {
         outState.putString("taskStartTime", selectedStartTime);
         outState.putString("taskEndTime", selectedEndTime);
+        outState.putSerializable("taskTagIds", binding.taskTags.getSelectedIds());
         super.onSaveInstanceState(outState);
     }
 
@@ -339,6 +364,10 @@ public class TaskCreateActivity extends AppCompatActivity {
         boolean isUrgent = binding.rgUrgency.getCheckedRadioButtonId() == R.id.rb_urgent;
         boolean isImportant = binding.rgImportance.getCheckedRadioButtonId() == R.id.rb_important;
         int assigneePos = binding.spinnerAssignee.getSelectedItemPosition();
+        if (assigneePos < 0 || assigneePos >= assigneeIds.size()) {
+            Toast.makeText(this, "请选择有效责任人", Toast.LENGTH_SHORT).show();
+            return;
+        }
         Long assigneeId = assigneeIds.get(assigneePos);
 
         Map<String, Object> request = new HashMap<>();
@@ -350,6 +379,7 @@ public class TaskCreateActivity extends AppCompatActivity {
         request.put("isUrgent", isUrgent);
         request.put("startTime", selectedStartTime + ":00");
         request.put("endTime", selectedEndTime + ":00");
+        request.put("tagIds", binding.taskTags.getSelectedIds());
 
         binding.btnCreateTask.setEnabled(false);
         binding.btnCreateTask.setText("创建中...");
@@ -383,6 +413,12 @@ public class TaskCreateActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if (binding != null) binding.taskTags.reload();
+    }
+
+    @Override
     protected void onPause() {
         super.onPause();
         if (autoSaveManager != null && !saveCompleted) {
@@ -392,6 +428,8 @@ public class TaskCreateActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (datePicker != null) datePicker.dismiss();
+        if (timePicker != null) timePicker.dismiss();
         super.onDestroy();
         if (autoSaveManager != null) {
             autoSaveManager.stop();

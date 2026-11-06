@@ -71,6 +71,34 @@ CREATE INDEX IF NOT EXISTS `idx_task_dispatcher` ON `tasks` (`dispatcher_id`);
 CREATE INDEX IF NOT EXISTS `idx_task_status` ON `tasks` (`status`);
 CREATE INDEX IF NOT EXISTS `idx_task_quadrant` ON `tasks` (`is_important`, `is_urgent`);
 
+CREATE TABLE IF NOT EXISTS `task_tags` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(32) NOT NULL,
+    `name_key` VARCHAR(128) UNIQUE,
+    `color_index` INT NOT NULL,
+    `deleted` TINYINT NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS `task_tag_links` (
+    `task_id` BIGINT NOT NULL,
+    `tag_id` BIGINT NOT NULL,
+    `sort_order` INT NOT NULL,
+    PRIMARY KEY (`task_id`, `tag_id`),
+    UNIQUE (`task_id`, `sort_order`)
+);
+CREATE INDEX IF NOT EXISTS `idx_task_tag_links_tag` ON `task_tag_links` (`tag_id`);
+
+CREATE TABLE IF NOT EXISTS `daily_items` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `user_id` BIGINT NOT NULL,
+    `content` VARCHAR(500) NOT NULL,
+    `item_date` DATE NOT NULL,
+    `completed` TINYINT NOT NULL DEFAULT 0,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `deleted` TINYINT NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS `idx_daily_items_owner_date` ON `daily_items` (`user_id`, `item_date`, `deleted`);
+
 CREATE TABLE IF NOT EXISTS `work_logs` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT,
     `user_id`          BIGINT       NOT NULL,
@@ -86,6 +114,15 @@ CREATE TABLE IF NOT EXISTS `work_logs` (
 ALTER TABLE `work_logs` ADD COLUMN IF NOT EXISTS `work_content` TEXT DEFAULT NULL;
 CREATE INDEX IF NOT EXISTS `idx_log_user_date` ON `work_logs` (`user_id`, `log_date`);
 CREATE UNIQUE INDEX IF NOT EXISTS `uk_log_user_date_active` ON `work_logs` (`user_id`, `log_date`);
+
+CREATE TABLE IF NOT EXISTS `log_comments` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `log_id` BIGINT NOT NULL,
+    `author_id` BIGINT NOT NULL,
+    `content` VARCHAR(2000) NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS `idx_log_comments_log` ON `log_comments` (`log_id`, `created_at`, `id`);
 
 CREATE TABLE IF NOT EXISTS `top10_works` (
     `id`              BIGINT       NOT NULL AUTO_INCREMENT,

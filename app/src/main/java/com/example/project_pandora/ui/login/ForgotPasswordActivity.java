@@ -38,7 +38,7 @@ public class ForgotPasswordActivity extends AppCompatActivity {
     private void submit() {
         String username = binding.editUsername.getText().toString().trim();
         if (username.isEmpty()) {
-            Toast.makeText(this, "请输入用户名或邮箱", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "请输入工号或邮箱", Toast.LENGTH_SHORT).show();
             return;
         }
         String reason = binding.editReason.getText().toString().trim();

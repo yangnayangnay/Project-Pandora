@@ -44,6 +44,10 @@ public class ApiKeyFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
         String path = request.getRequestURI();
+        if (AvatarResourceAccess.isPublicRead(request)) {
+            chain.doFilter(request, response);
+            return;
+        }
 
         if ("enforce".equalsIgnoreCase(mode) && !isExempt(path)) {
             String provided = request.getHeader(HEADER);

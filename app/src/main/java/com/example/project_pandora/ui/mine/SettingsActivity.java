@@ -26,9 +26,9 @@ import com.example.project_pandora.core.sync.SyncState;
 import com.example.project_pandora.core.sync.SyncWorker;
 import com.example.project_pandora.core.util.BackToolbarHelper;
 import com.example.project_pandora.data.remote.NotificationApi;
-import com.example.project_pandora.data.remote.UserApi;
 import com.example.project_pandora.databinding.ActivitySettingsBinding;
 import com.example.project_pandora.repository.SyncRepository;
+import com.example.project_pandora.repository.TaskDisplaySettingsRepository;
 
 import java.util.HashMap;
 import java.util.List;
@@ -41,7 +41,8 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 public class SettingsActivity extends AppCompatActivity {
 
     private ActivitySettingsBinding binding;
-    private UserApi userApi;
+    private TaskDisplaySettingsRepository taskDisplaySettings;
+    private boolean applyingTaskDisplaySetting;
     private NotificationApi notificationApi;
     private LogDisplayLimitConfig logDisplayLimitConfig;
     private SyncManager syncManager;
@@ -63,7 +64,7 @@ public class SettingsActivity extends AppCompatActivity {
         binding = ActivitySettingsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        userApi = NetworkClient.getInstance(this).createService(UserApi.class);
+        taskDisplaySettings = new TaskDisplaySettingsRepository(this);
         notificationApi = NetworkClient.getInstance(this).createService(NotificationApi.class);
         logDisplayLimitConfig = new LogDisplayLimitConfig(this);
         syncManager = SyncManager.getInstance();
@@ -78,13 +79,8 @@ public class SettingsActivity extends AppCompatActivity {
         loadNotificationPreferences();
 
         binding.switchShowCompleted.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (!buttonView.isPressed()) return;
+            if (applyingTaskDisplaySetting) return;
             updateShowCompleted(isChecked);
-        });
-
-        binding.switchShowYesterdayLog.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (!buttonView.isPressed()) return;
-            updateShowYesterdayLog(isChecked);
         });
 
         // DEF-30-02: 5 类通知开关绑定监听（isPressed 防程序化 setChecked 误触发，同上惯例）
@@ -187,31 +183,27 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void loadSettings() {
-        userApi.getUserSettings()
-                .subscribeOn(Schedulers.io())
+        renderShowCompleted(taskDisplaySettings.cachedShowCompleted());
+        binding.switchShowCompleted.setEnabled(false);
+        disposables.add(taskDisplaySettings.loadShowCompleted()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
-                        response -> {
-                            if (response.isSuccess() && response.getData() != null) {
-                                Map<String, Object> data = response.getData();
-                                Object showCompleted = data.get("showCompletedTasks");
-                                if (showCompleted == null) showCompleted = data.get("SHOW_COMPLETED_TASKS");
-                                // Round26: 设置值解析收敛至 NumberCompat（原 parseInt 裸调，非数字串会崩溃；null/解析失败回退默认开）
-                                binding.switchShowCompleted.setChecked(
-                                        com.example.project_pandora.core.util.NumberCompat.toIntOrDefault(showCompleted, 1) == 1);
-
-                                Object showYesterday = data.get("showYesterdayLog");
-                                if (showYesterday == null) showYesterday = data.get("SHOW_YESTERDAY_LOG");
-                                binding.switchShowYesterdayLog.setChecked(
-                                        com.example.project_pandora.core.util.NumberCompat.toIntOrDefault(showYesterday, 1) == 1);
-                            }
+                        show -> {
+                            renderShowCompleted(show);
+                            binding.switchShowCompleted.setEnabled(true);
                         },
                         error -> {
-                            binding.switchShowCompleted.setChecked(true);
-                            binding.switchShowYesterdayLog.setChecked(true);
-
+                            renderShowCompleted(taskDisplaySettings.cachedShowCompleted());
+                            binding.switchShowCompleted.setEnabled(true);
+                            Toast.makeText(this, "设置读取失败，保留上次选择", Toast.LENGTH_SHORT).show();
                         }
-                );
+                ));
+    }
+
+    private void renderShowCompleted(boolean show) {
+        applyingTaskDisplaySetting = true;
+        binding.switchShowCompleted.setChecked(show);
+        applyingTaskDisplaySetting = false;
     }
 
     private void loadLocalLogDisplaySettings() {
@@ -282,35 +274,17 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void updateShowCompleted(boolean showCompleted) {
-        Map<String, Object> request = new HashMap<>();
-        request.put("showCompletedTasks", showCompleted);
-
-        userApi.updateUserSettings(request)
-                .subscribeOn(Schedulers.io())
+        binding.switchShowCompleted.setEnabled(false);
+        disposables.add(taskDisplaySettings.saveShowCompleted(showCompleted)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
-                        response -> {},
+                        saved -> binding.switchShowCompleted.setEnabled(true),
                         error -> {
-                            binding.switchShowCompleted.setChecked(!showCompleted);
-                            Toast.makeText(this, "\u4FDD\u5B58\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5", Toast.LENGTH_SHORT).show();
+                            renderShowCompleted(taskDisplaySettings.cachedShowCompleted());
+                            binding.switchShowCompleted.setEnabled(true);
+                            Toast.makeText(this, "保存失败，请重试", Toast.LENGTH_SHORT).show();
                         }
-                );
-    }
-
-    private void updateShowYesterdayLog(boolean showYesterday) {
-        Map<String, Object> request = new HashMap<>();
-        request.put("showYesterdayLog", showYesterday);
-
-        userApi.updateUserSettings(request)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        response -> {},
-                        error -> {
-                            binding.switchShowYesterdayLog.setChecked(!showYesterday);
-                            Toast.makeText(this, "\u4FDD\u5B58\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5", Toast.LENGTH_SHORT).show();
-                        }
-                );
+                ));
     }
 
     private void initSyncCard() {

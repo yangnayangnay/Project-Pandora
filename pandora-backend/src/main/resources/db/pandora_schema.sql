@@ -109,6 +109,37 @@ CREATE TABLE `tasks` (
 -- 5. work_logs 工作日志表
 -- =============================================================================
 DROP TABLE IF EXISTS `work_logs`;
+DROP TABLE IF EXISTS `task_tag_links`;
+DROP TABLE IF EXISTS `task_tags`;
+CREATE TABLE `task_tags` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(32) NOT NULL,
+    `name_key` VARCHAR(128) UNIQUE,
+    `color_index` INT NOT NULL,
+    `deleted` TINYINT NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE `task_tag_links` (
+    `task_id` BIGINT NOT NULL,
+    `tag_id` BIGINT NOT NULL,
+    `sort_order` INT NOT NULL,
+    PRIMARY KEY (`task_id`, `tag_id`),
+    UNIQUE KEY `uk_task_tag_sort` (`task_id`, `sort_order`),
+    KEY `idx_task_tag_links_tag` (`tag_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+DROP TABLE IF EXISTS `daily_items`;
+CREATE TABLE `daily_items` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `user_id` BIGINT NOT NULL,
+    `content` VARCHAR(500) NOT NULL,
+    `item_date` DATE NOT NULL,
+    `completed` TINYINT NOT NULL DEFAULT 0,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `deleted` TINYINT NOT NULL DEFAULT 0,
+    KEY `idx_daily_items_owner_date` (`user_id`, `item_date`, `deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE `work_logs` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT         COMMENT '自增主键',
     `user_id`          BIGINT       NOT NULL                        COMMENT '用户ID',
@@ -124,6 +155,17 @@ CREATE TABLE `work_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工作日志表';
 
 -- =============================================================================
+-- Log comments: additive table, safe to apply separately to an existing database.
+CREATE TABLE IF NOT EXISTS `log_comments` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `log_id` BIGINT NOT NULL,
+    `author_id` BIGINT NOT NULL,
+    `content` VARCHAR(2000) NOT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_log_comments_log` (`log_id`, `created_at`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 6. top10_works 十大重要工作表
 -- =============================================================================
 DROP TABLE IF EXISTS `top10_works`;

@@ -30,7 +30,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import request from '@/utils/request'
+import { login } from '@/api/auth'
 import { useUserStore } from '@/stores/userStore'
 
 const router = useRouter()
@@ -52,7 +52,11 @@ const handleLogin = async () => {
   await formRef.value.validate()
   loading.value = true
   try {
-    const res = await request.post('/auth/login', form)
+    const res = await login(form)
+    if (res.data.user.role !== 'ADMIN') {
+      ElMessage.error('管理端仅允许管理员登录')
+      return
+    }
     userStore.setLoginData(res.data)
     ElMessage.success('登录成功')
     router.push('/')

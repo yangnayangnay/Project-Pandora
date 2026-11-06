@@ -5,13 +5,14 @@
     <!-- 注册登录 -->
     <string name="login_title">潘多拉 - 智能掌上工作系统</string>
     <string name="server_checking">服务器检测中...</string>
-    <string name="hint_username">用户名</string>
-    <string name="hint_username_or_email">用户名或邮箱</string>
+    <string name="hint_username">工号</string>
+    <string name="hint_employee_number">工号</string>
+    <string name="hint_username_or_email">工号或邮箱</string>
     <string name="hint_password">密码</string>
     <string name="btn_login">登 录</string>
     <string name="btn_forgot_password">忘记密码？</string>
     <string name="forgot_password_title">忘记密码</string>
-    <string name="forgot_password_hint">请输入您的用户名或邮箱</string>
+    <string name="forgot_password_hint">请输入您的工号或邮箱</string>
     <string name="forgot_password_reason_hint">申请原因（可选）</string>
     <string name="forgot_password_submit">提交重置申请</string>
     <string name="reset_requests_title">密码重置申请</string>
@@ -19,7 +20,7 @@
     <string name="reset_request_reject">拒绝</string>
     <string name="reset_request_custom_pwd">新密码（留空则重置为 pandora123）</string>
 
-    <string name="login_empty_input">用户名和密码不能为空</string>
+    <string name="login_empty_input">工号和密码不能为空</string>
     <string name="login_failed">登录失败: %1$s</string>
     <string name="login_loading">登录中...</string>
     <string name="server_connected">服务器已连接 ✓</string>
@@ -35,8 +36,8 @@
 
     <!-- 底部导航 -->
     <string name="nav_home">首页</string>
-    <string name="nav_mindmap">导图</string>
-    <string name="nav_view">视图</string>
+    <string name="nav_mindmap">首页</string>
+    <string name="nav_view">公司</string>
     <string name="nav_log">日志</string>
     <string name="nav_aimap">AI地图</string>
     <string name="nav_mine">我的</string>
@@ -190,4 +191,7 @@
     <string name="task_content_placeholder">暂无正文</string>
     <string name="session_expired_title">会话已过期</string>
     <string name="session_expired_content">登录状态已失效，请重新登录以恢复消息接收</string>
+    <string name="log_filters_collapse">收起日志筛选栏</string>
+    <string name="log_filters_expand">展开日志筛选栏</string>
+    <string name="avatar_upload_hint">点击头像修改 · 原图不限大小，超过5MB自动压缩</string>
 </resources>

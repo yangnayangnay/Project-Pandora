@@ -7,6 +7,7 @@ import com.pandora.backend.common.ErrorCode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -47,8 +48,7 @@ public class PersonalTop10Controller {
             throw new BusinessException(ErrorCode.TOP10_LIMIT_EXCEEDED);
         }
 
-        // Round23 REQ-23-01: 可选 category 入参——PERSONAL_INFO(个人信息类，进入个人十大信息象限) /
-        // WORK_ITEM(工作事项类，默认，不展示)。
+        // Retain legacy category values; the personal editor and overview share the saved work list.
         // 非法值处理策略：按缺省 WORK_ITEM 处理（宽容策略，旧客户端不带该参数时行为与旧版完全一致）
         Object categoryObj = request.get("category");
         String category = categoryObj != null ? categoryObj.toString().trim() : "";
@@ -56,11 +56,21 @@ public class PersonalTop10Controller {
             category = "WORK_ITEM";
         }
 
-        jdbcTemplate.update(
-                "INSERT INTO top10_works (user_id, work_type, rank_order, content, is_auto_filled, category) VALUES (?, 'PERSONAL_IMPORTANT', ?, ?, 0, ?)",
-                userId, rankOrder, content.trim(), category);
-
-        Long id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        String savedCategory = category;
+        GeneratedKeyHolder keys = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(
+                    "INSERT INTO top10_works (user_id, work_type, rank_order, content, is_auto_filled, category) VALUES (?, 'PERSONAL_IMPORTANT', ?, ?, 0, ?)",
+                    new String[]{"id"});
+            statement.setLong(1, userId);
+            statement.setInt(2, rankOrder);
+            statement.setString(3, content.trim());
+            statement.setString(4, savedCategory);
+            return statement;
+        }, keys);
+        Number generatedId = keys.getKey();
+        if (generatedId == null) throw new BusinessException(ErrorCode.TOP10_SAVE_VERIFY_FAILED);
+        Long id = generatedId.longValue();
         Map<String, Object> result = new HashMap<>();
         result.put("id", id);
         return ResponseEntity.ok(ApiResponse.success(result));

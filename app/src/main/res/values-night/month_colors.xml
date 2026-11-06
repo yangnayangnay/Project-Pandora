@@ -2,4 +2,6 @@
 <resources>
     <color name="color_month_page">@color/color_surface</color>
     <color name="color_month_selected">@color/color_accent</color>
+    <color name="color_schedule_tab_selected_background">#D8C5AD</color>
+    <color name="color_schedule_tab_selected_text">#2C2823</color>
 </resources>

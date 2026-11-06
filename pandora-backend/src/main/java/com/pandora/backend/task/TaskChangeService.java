@@ -19,9 +19,11 @@ public class TaskChangeService {
     private final ObjectMapper json;
     private final HierarchyService hierarchy;
     private final NotificationService notifications;
+    private final TaskTagService tags;
 
-    public TaskChangeService(JdbcTemplate db, ObjectMapper json, HierarchyService hierarchy, NotificationService notifications) {
+    public TaskChangeService(JdbcTemplate db, ObjectMapper json, HierarchyService hierarchy, NotificationService notifications, TaskTagService tags) {
         this.db = db; this.json = json; this.hierarchy = hierarchy; this.notifications = notifications;
+        this.tags = tags;
     }
 
     public static boolean exempt(String role) { return "ADMIN".equals(role) || "FOUNDER".equals(role); }
@@ -65,10 +67,11 @@ public class TaskChangeService {
     }
 
     private void validate(Map<String, Object> data, boolean create) {
-        Set<String> allowed = Set.of("name", "content", "priority", "assigneeId", "isImportant", "isUrgent", "startTime", "endTime", "progressNote");
+        Set<String> allowed = Set.of("name", "content", "priority", "assigneeId", "isImportant", "isUrgent", "startTime", "endTime", "progressNote", "tagIds");
         for (String key : data.keySet()) if (!allowed.contains(key)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的任务编辑字段：" + key + "，执行状态请使用状态流转操作");
         }
+        if (data.containsKey("tagIds")) tags.validate(data.get("tagIds"));
         for (String key : List.of("name", "content")) {
             if (create || data.containsKey(key)) {
                 String value = Objects.toString(data.get(key), "").trim();
@@ -78,8 +81,11 @@ public class TaskChangeService {
             }
         }
         if (create || data.containsKey("assigneeId")) {
-            try { role(Long.parseLong(Objects.toString(data.get("assigneeId"), ""))); }
-            catch (NumberFormatException e) { throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择有效责任人"); }
+            try {
+                if ("ADMIN".equals(role(Long.parseLong(Objects.toString(data.get("assigneeId"), ""))))) {
+                    throw new BusinessException(ErrorCode.BAD_REQUEST, "管理员不能作为任务发布对象");
+                }
+            } catch (NumberFormatException e) { throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择有效责任人"); }
         }
         if (data.containsKey("priority") && !List.of("LOW", "MEDIUM", "HIGH", "URGENT").contains(data.get("priority"))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "优先级无效");
@@ -123,15 +129,23 @@ public class TaskChangeService {
 
     public List<Map<String, Object>> requests(long viewer, boolean mine) {
         List<Map<String, Object>> rows = db.queryForList(
-                "SELECT r.*, COALESCE(u.real_name,u.username) AS requester_name, t.name AS task_name " +
+                "SELECT r.*, CASE WHEN u.role='ADMIN' THEN '系统' ELSE COALESCE(u.real_name,u.username) END AS requester_name, t.name AS task_name " +
                 "FROM task_change_requests r JOIN users u ON u.id = r.requester_id LEFT JOIN tasks t ON t.id = r.task_id " +
                 (mine ? "WHERE r.requester_id = ? " : "WHERE r.status = 'PENDING' ") + "ORDER BY r.created_at DESC", mine ? new Object[]{viewer} : new Object[]{});
         List<Map<String, Object>> visible = new ArrayList<>();
+        Map<Long, String> tagNames = new HashMap<>();
+        for (Map<String, Object> tag : tags.list()) tagNames.put(((Number) tag.get("id")).longValue(), "#" + tag.get("name"));
         for (Map<String, Object> raw : rows) {
             Map<String, Object> row = new LinkedHashMap<>();
             raw.forEach((k, v) -> row.put(k.toLowerCase(Locale.ROOT), v));
             try { row.put("payload", json.readValue(payloadText(row.get("payload")), Map.class)); }
             catch (Exception e) { row.put("payload", Collections.emptyMap()); }
+            Map<?, ?> payload = (Map<?, ?>) row.get("payload");
+            if (payload.containsKey("tagIds")) {
+                List<String> names = new ArrayList<>();
+                for (Long id : tags.ids(payload.get("tagIds"))) names.add(tagNames.getOrDefault(id, "已删除标签（" + id + "）"));
+                row.put("tag_names", names.isEmpty() ? "无标签" : String.join("  ", names));
+            }
             long requester = ((Number) row.get("requester_id")).longValue();
             try {
                 Long current = approver(requester);
@@ -182,6 +196,7 @@ public class TaskChangeService {
             taskId = insert("INSERT INTO tasks (name, content, priority, status, assignee_id, dispatcher_id, is_important, is_urgent, start_time, end_time) VALUES (?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?)",
                     data.get("name"), data.get("content"), data.getOrDefault("priority", "MEDIUM"), assignee, actor,
                     bool(data.get("isImportant")), bool(data.get("isUrgent")), data.getOrDefault("startTime", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString()), data.get("endTime"));
+            if (data.containsKey("tagIds")) tags.replace(taskId, data.get("tagIds"));
             notifications.detectNewTask(taskId, assignee, actor);
             return taskId;
         }
@@ -192,8 +207,9 @@ public class TaskChangeService {
         Map<String, String> columns = Map.of("name", "name", "content", "content", "priority", "priority", "assigneeId", "assignee_id", "isImportant", "is_important", "isUrgent", "is_urgent", "startTime", "start_time", "endTime", "end_time", "progressNote", "progress_note");
         StringBuilder sql = new StringBuilder("UPDATE tasks SET revision = revision + 1, updated_at = CURRENT_TIMESTAMP");
         List<Object> args = new ArrayList<>();
-        data.forEach((key, value) -> { sql.append(", ").append(columns.get(key)).append(" = ?"); args.add(key.startsWith("is") ? bool(value) : value); });
+        data.forEach((key, value) -> { if (!"tagIds".equals(key)) { sql.append(", ").append(columns.get(key)).append(" = ?"); args.add(key.startsWith("is") ? bool(value) : value); } });
         sql.append(" WHERE id = ?"); args.add(taskId); db.update(sql.toString(), args.toArray());
+        if (data.containsKey("tagIds")) tags.replace(taskId, data.get("tagIds"));
         return taskId;
     }
 

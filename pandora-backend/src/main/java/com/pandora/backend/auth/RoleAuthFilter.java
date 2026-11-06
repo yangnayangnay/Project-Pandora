@@ -32,7 +32,7 @@ public class RoleAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String path = request.getRequestURI();
-        if (path.contains("/auth/login") || path.contains("/auth/register")
+        if (AvatarResourceAccess.isPublicRead(request) || path.contains("/auth/login") || path.contains("/auth/register")
                 || path.contains("/auth/refresh") || path.contains("/auth/forgot-password")
                 || path.contains("/actuator")
                 || path.contains("/h2-console")) {

@@ -6,6 +6,7 @@ import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.data.remote.TaskApi;
 
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,7 +20,11 @@ public class TaskRepository {
     private final TaskApi taskApi;
 
     public TaskRepository(Context context) {
-        taskApi = NetworkClient.getInstance(context).createService(TaskApi.class);
+        this(NetworkClient.getInstance(context).createService(TaskApi.class));
+    }
+
+    TaskRepository(TaskApi taskApi) {
+        this.taskApi = taskApi;
     }
 
     public Observable<Map<String, Object>> createTask(String name, String priority, Long assigneeId,
@@ -65,9 +70,13 @@ public class TaskRepository {
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
                     if (response.isSuccess() && response.getData() != null) {
-                        List<Map<String, Object>> list = response.getData();
-                        for (int i = 0; i < list.size(); i++) {
-                            list.set(i, normalizeKeys(list.get(i)));
+                        List<Map<String, Object>> list = new ArrayList<>();
+                        for (Map<String, Object> item : response.getData()) {
+                            Map<String, Object> task = normalizeKeys(item);
+                            Object taskStatus = task.get("status");
+                            if (Boolean.FALSE.equals(showCompleted)
+                                    && ("COMPLETED".equals(taskStatus) || "CONFIRMED".equals(taskStatus))) continue;
+                            list.add(task);
                         }
                         return list;
                     }
@@ -170,9 +179,9 @@ public class TaskRepository {
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
                     if (response.isSuccess() && response.getData() != null) {
-                        List<Map<String, Object>> list = response.getData();
-                        for (int i = 0; i < list.size(); i++) {
-                            list.set(i, normalizeKeys(list.get(i)));
+                        List<Map<String, Object>> list = new ArrayList<>();
+                        for (Map<String, Object> person : response.getData()) {
+                            if (com.example.project_pandora.ui.people.PeopleDirectory.isMobilePerson(person)) list.add(normalizeKeys(person));
                         }
                         return list;
                     }

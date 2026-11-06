@@ -39,7 +39,7 @@ public enum ErrorCode {
     RESET_REQUEST_DUPLICATE(4025, "您已有待审批的重置申请，请等待管理员处理"),
 
     INVALID_PHONE_FORMAT(4026, "手机号格式不正确"),
-    FILE_TOO_LARGE(4027, "图片过大，请选择小于2MB的图片"),
+    FILE_TOO_LARGE(4027, "图片过大，请选择不超过5MB的图片"),
     UNSUPPORTED_IMAGE_FORMAT(4028, "仅支持 JPG/PNG/WEBP 格式"),
 
     AI_TIMEOUT(5001, "AI服务超时"),

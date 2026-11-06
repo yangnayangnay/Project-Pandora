@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipToPadding="false">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="20dp">
+        <TextView android:id="@+id/textEditorTitle"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:accessibilityHeading="true" android:text="新增事项"
+            android:textColor="@color/color_text_primary" android:textSize="22sp" android:textStyle="bold" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" android:text="记录当天要做的事"
+            android:textColor="@color/color_text_secondary" android:textSize="13sp" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp"
+            app:cardBackgroundColor="@color/color_surface" app:cardCornerRadius="18dp"
+            app:cardElevation="0dp" app:strokeColor="@color/color_divider" app:strokeWidth="1dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="16dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="事项内容" android:labelFor="@id/editDailyContent"
+                    android:textColor="@color/color_text_primary" android:textSize="16sp" android:textStyle="bold" />
+                <com.google.android.material.textfield.TextInputLayout android:id="@+id/dailyContentLayout"
+                    style="@style/Widget.Pandora.TextInput"
+                    android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp"
+                    android:hint="写下需要完成的事项" app:counterEnabled="true" app:counterMaxLength="500">
+                    <com.google.android.material.textfield.TextInputEditText android:id="@+id/editDailyContent"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:gravity="start|top" android:inputType="textMultiLine|textCapSentences"
+                        android:minHeight="96dp" android:minLines="3" android:maxLines="6" android:maxLength="500"
+                        android:textColor="@color/color_text_edit_content" android:textSize="16sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp"
+            app:cardBackgroundColor="@color/color_surface" app:cardCornerRadius="18dp"
+            app:cardElevation="0dp" app:strokeColor="@color/color_divider" app:strokeWidth="1dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="16dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="所属日期" android:labelFor="@id/btnDailyDate"
+                    android:textColor="@color/color_text_primary" android:textSize="16sp" android:textStyle="bold" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnDailyDate"
+                    style="@style/Widget.Pandora.Button.Outlined"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" android:minHeight="48dp" android:gravity="start|center_vertical"
+                    android:textColor="@color/color_text_primary" android:textSize="16sp"
+                    app:backgroundTint="@color/color_surface_soft" app:strokeColor="@color/color_divider"
+                    app:cornerRadius="12dp" app:icon="@drawable/ic_calendar" app:iconPadding="12dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView android:id="@+id/textDailyEditorError"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:accessibilityLiveRegion="polite"
+            android:textColor="@color/color_error" android:textSize="14sp" android:visibility="gone" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnSaveDailyItem"
+            style="@style/Widget.Pandora.Button"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="20dp" android:minHeight="48dp" android:text="保存事项" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnDeleteDailyItem"
+                style="@style/Widget.Pandora.Button.Text"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:minHeight="48dp" android:text="删除事项" android:textColor="@color/color_error" android:visibility="gone" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnCancelDailyItem"
+                style="@style/Widget.Pandora.Button.Text"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:minHeight="48dp" android:text="取消" />
+        </LinearLayout>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

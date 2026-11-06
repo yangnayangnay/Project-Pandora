@@ -31,6 +31,9 @@ public class UserController {
     private BCryptPasswordEncoder passwordEncoder;
 
     @Autowired
+    private AccountCreationService accountCreationService;
+
+    @Autowired
     private FileStorageService fileStorageService;
 
     @Autowired
@@ -70,6 +73,7 @@ public class UserController {
             @RequestParam(required = false) Long teamId) {
         StringBuilder sql = new StringBuilder("SELECT id, username, role, real_name, email, phone, department_id, team_id, avatar, approval_status FROM users WHERE deleted = 0");
         List<Object> params = new ArrayList<>();
+        if (!"ADMIN".equals(getCurrentUserRole())) sql.append(" AND role <> 'ADMIN'");
 
         if (role != null) {
             sql.append(" AND role = ?");
@@ -94,6 +98,9 @@ public class UserController {
         try {
             Map<String, Object> user = jdbcTemplate.queryForMap(
                     "SELECT id, username, role, department_id, team_id, avatar FROM users WHERE id = ? AND deleted = 0", userId);
+            if ("ADMIN".equals(user.get("role")) && !"ADMIN".equals(getCurrentUserRole())) {
+                throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+            }
 
             List<Map<String, Object>> tasks = jdbcTemplate.queryForList(
                     "SELECT * FROM tasks WHERE assignee_id = ? AND deleted = 0 ORDER BY created_at DESC LIMIT 20", userId);
@@ -121,6 +128,11 @@ public class UserController {
     @Auditable(operationType = "USER_PROFILE_UPDATE", targetType = "USER")
     public ResponseEntity<ApiResponse<Void>> updateProfile(@RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
+        // APP accounts are maintained by administrators. Reject the entire request before any write.
+        if (!RoleChecker.isAdminOnly(getCurrentUserRole())
+                && request.keySet().stream().anyMatch(key -> !"avatar".equals(key))) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "真实姓名、邮箱、工号、手机号及密码由管理员统一维护，不能自行修改");
+        }
         String username = (String) request.get("username");
         String avatar = (String) request.get("avatar");
         String email = (String) request.get("email");
@@ -176,7 +188,7 @@ public class UserController {
         if (file.isEmpty()) {
             throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "请选择图片文件");
         }
-        if (file.getSize() > 2 * 1024 * 1024) {
+        if (file.getSize() > 5L * 1024 * 1024) {
             throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
         }
         String contentType = file.getContentType();
@@ -199,6 +211,9 @@ public class UserController {
     @Auditable(operationType = "USER_PASSWORD_CHANGE", targetType = "USER")
     public ResponseEntity<ApiResponse<Void>> changePassword(@RequestBody Map<String, String> request) {
         Long userId = getCurrentUserId();
+        if (!RoleChecker.isAdminOnly(getCurrentUserRole())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "密码由管理员统一维护，如需重置请提交申请或联系管理员");
+        }
         String oldPassword = request.get("oldPassword");
         String newPassword = request.get("newPassword");
 
@@ -319,11 +334,13 @@ public class UserController {
 
         List<Map<String, Object>> superiors = new ArrayList<>();
         for (Map<String, Object> s : superiorMaps) {
-            superiors.add(enrichRelationItem(s));
+            Map<String, Object> person = enrichRelationItem(s);
+            if (isOrganizationPerson(person)) superiors.add(person);
         }
         List<Map<String, Object>> subordinates = new ArrayList<>();
         for (Map<String, Object> s : subordinateMaps) {
-            subordinates.add(enrichRelationItem(s));
+            Map<String, Object> person = enrichRelationItem(s);
+            if (isOrganizationPerson(person)) subordinates.add(person);
         }
 
         superiors.sort((a, b) -> Integer.compare(permLevel((String) b.get("role")), permLevel((String) a.get("role"))));
@@ -335,10 +352,16 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
+    private boolean isOrganizationPerson(Map<String, Object> person) {
+        return !"ADMIN".equals(person.get("role")) && person.get("departmentId") != null
+                && !Objects.toString(person.get("departmentName"), "").isBlank();
+    }
+
     private Map<String, Object> enrichRelationItem(Map<String, Object> hierarchyEntry) {
         Long userId = toLong(hierarchyEntry.get("id"));
         Map<String, Object> item = new HashMap<>();
         item.put("id", userId);
+        item.put("username", hierarchyEntry.get("username") != null ? hierarchyEntry.get("username") : hierarchyEntry.get("USERNAME"));
         item.put("realName", hierarchyEntry.get("real_name") != null ? hierarchyEntry.get("real_name") : hierarchyEntry.get("REAL_NAME"));
         item.put("role", hierarchyEntry.get("role") != null ? hierarchyEntry.get("role") : hierarchyEntry.get("ROLE"));
         item.put("permissionLevel", permLevel((String) item.get("role")));
@@ -352,9 +375,14 @@ public class UserController {
         if (userId != null) {
             try {
                 Map<String, Object> user = jdbcTemplate.queryForMap(
-                        "SELECT department_id, team_id FROM users WHERE id = ? AND deleted = 0", userId);
+                        "SELECT d.id AS department_id, t.id AS team_id FROM users u " +
+                        "LEFT JOIN departments d ON d.id = u.department_id AND d.deleted = 0 " +
+                        "LEFT JOIN teams t ON t.id = u.team_id AND t.deleted = 0 " +
+                        "WHERE u.id = ? AND u.deleted = 0", userId);
                 Long dId = toLong(user.get("department_id"));
                 Long tId = toLong(user.get("team_id"));
+                item.put("departmentId", dId);
+                item.put("teamId", tId);
                 item.put("departmentName", dId != null ? getDeptName(dId) : "");
                 item.put("teamName", tId != null ? getTeamName(tId) : "");
             } catch (Exception e) {
@@ -444,11 +472,14 @@ public class UserController {
                 ? Long.valueOf(request.get("departmentId").toString()) : null;
         Long teamId = request.get("teamId") != null
                 ? Long.valueOf(request.get("teamId").toString()) : null;
+        if (departmentId == null || departmentId <= 0 || jdbcTemplate.queryForList(
+                "SELECT id FROM departments WHERE id=? AND deleted=0", Long.class, departmentId).isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "必须选择有效部门，不能清空人员部门归属");
+        }
         // 团队必须挂在部门下（传团队时校验其部门一致性；只传部门则清团队）
         if (teamId != null) {
-            Long teamDept = jdbcTemplate.queryForObject(
-                    "SELECT department_id FROM teams WHERE id = ?", Long.class, teamId);
-            if (departmentId == null || !departmentId.equals(teamDept)) {
+            if (jdbcTemplate.queryForList("SELECT id FROM teams WHERE id=? AND department_id=? AND deleted=0",
+                    Long.class, teamId, departmentId).isEmpty()) {
                 throw new BusinessException(ErrorCode.BAD_REQUEST, "团队与部门不匹配");
             }
         }
@@ -475,61 +506,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "无权操作"));
         }
 
-        String username = (String) request.get("username");
-        String password = (String) request.get("password");
-        String newRole = (String) request.get("role");
-        String realName = (String) request.get("realName");
-        String email = (String) request.get("email");
-        String phone = (String) request.get("phone");
-
-        // 必填字段校验
-        if (username == null || username.trim().isEmpty()) {
-            throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "用户名不能为空");
-        }
-        if (password == null || password.length() < 6) {
-            throw new BusinessException(ErrorCode.PASSWORD_TOO_SHORT);
-        }
-        if (newRole == null || newRole.isEmpty()) {
-            throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "角色不能为空");
-        }
-        // 角色合法性校验
-        if (!Arrays.asList("ADMIN", "FOUNDER", "DEPT_HEAD", "TEAM_LEADER", "EMPLOYEE").contains(newRole)) {
-            throw new BusinessException(ErrorCode.INVALID_ROLE);
-        }
-        if (realName == null || realName.trim().isEmpty()) {
-            throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "真实姓名不能为空");
-        }
-        // 邮箱格式校验（可选字段）
-        if (email != null && !email.isEmpty() && !EMAIL_REGEX.matcher(email).matches()) {
-            throw new BusinessException(ErrorCode.INVALID_EMAIL_FORMAT);
-        }
-        // 手机号格式校验（可选字段）
-        if (phone != null && !phone.isEmpty() && !PHONE_REGEX.matcher(phone).matches()) {
-            throw new BusinessException(ErrorCode.INVALID_PHONE_FORMAT);
-        }
-
-        // 用户名唯一性校验
-        Integer existingCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM users WHERE username = ? AND deleted = 0",
-                Integer.class, username.trim());
-        if (existingCount != null && existingCount > 0) {
-            throw new BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS);
-        }
-
-        // 密码加密后入库
-        String passwordHash = passwordEncoder.encode(password);
-        jdbcTemplate.update(
-                "INSERT INTO users (username, password_hash, role, real_name, email, phone, approval_status, deleted) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, 'APPROVED', 0)",
-                username.trim(), passwordHash, newRole, realName.trim(),
-                (email != null && !email.isEmpty()) ? email : null,
-                (phone != null && !phone.isEmpty()) ? phone : null);
-
-        Long id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("id", id);
-        return ResponseEntity.ok(ApiResponse.success(result));
+        return ResponseEntity.ok(ApiResponse.success(accountCreationService.create(request)));
     }
 
     @PostMapping("/rename-batch")

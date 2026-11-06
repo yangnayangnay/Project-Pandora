@@ -1,324 +1,114 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
-
-    <data>
-
-    </data>
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clipChildren="false"
-        android:clipToPadding="false"
-        android:background="@color/color_bg_page">
-
+<layout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <data />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/color_bg_page">
         <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@color/color_surface"
-            app:title="导图"
-            app:titleTextColor="@color/color_text_primary"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <androidx.constraintlayout.widget.Guideline
-            android:id="@+id/guideline_horizontal"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            app:layout_constraintGuide_percent="0.5" />
-
-        <androidx.constraintlayout.widget.Guideline
-            android:id="@+id/guideline_vertical"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            app:layout_constraintGuide_percent="0.5" />
-
-        <LinearLayout
-            android:id="@+id/quadrant_top_left"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:orientation="vertical"
-            android:background="@drawable/bg_mindmap_section_card"
-            android:elevation="3dp"
-            android:clipToOutline="true"
-            android:outlineProvider="background"
-            android:layout_marginStart="12dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="6dp"
-            android:layout_marginBottom="6dp"
-
-            app:layout_constraintTop_toBottomOf="@id/toolbar"
-            app:layout_constraintBottom_toTopOf="@id/guideline_horizontal"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/guideline_vertical">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@color/color_mindmap_company_header"
-                android:minHeight="60dp"
-                android:orientation="horizontal"
-                android:padding="10dp"
-                android:gravity="center_vertical">
-
-                <ImageView android:layout_width="20dp" android:layout_height="20dp"
-                    android:layout_marginEnd="8dp" android:src="@drawable/ic_data_outline"
-                    android:tint="@color/color_mindmap_company_text" android:importantForAccessibility="no" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="公司10大重要事项展示"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/color_mindmap_company_text" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="管理员集中展示，条型展示，可编辑加入备注"
-                android:textSize="11sp"
-                android:textColor="@color/color_text_secondary"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
-                android:paddingTop="4dp"
-                android:paddingBottom="4dp" />
-
-            <androidx.core.widget.NestedScrollView
-                android:id="@+id/scroll_company_important"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:fillViewport="true">
-
-                <LinearLayout
-                    android:id="@+id/list_company_important"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="4dp" />
+            android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="48dp"
+            android:background="@color/color_surface" app:title="@string/nav_mindmap" app:titleTextColor="@color/color_text_primary" />
+        <androidx.coordinatorlayout.widget.CoordinatorLayout
+            android:id="@+id/homeCoordinator" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+            <com.google.android.material.appbar.AppBarLayout
+                android:id="@+id/homeAppBar" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@color/color_bg_page" app:elevation="0dp">
+                <LinearLayout android:id="@+id/boardPanels"
+                    android:layout_width="match_parent" android:layout_height="160dp" android:orientation="horizontal"
+                    android:paddingHorizontal="12dp" android:paddingTop="8dp" android:paddingBottom="8dp"
+                    android:clipToPadding="false" app:layout_scrollFlags="scroll|snap">
+                    <LinearLayout android:id="@+id/quadrant_top_left"
+                        android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+                        android:layout_marginEnd="4dp" android:orientation="vertical" android:background="@drawable/bg_mindmap_section_card"
+                        android:elevation="1dp" android:clipToOutline="true">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:orientation="vertical" android:paddingStart="12dp" android:paddingEnd="4dp"
+                            android:background="@color/color_mindmap_company_header">
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical">
+                                <TextView android:id="@+id/textEventsTitle" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+                                    android:gravity="center_vertical" android:includeFontPadding="false" android:maxLines="1"
+                                    android:text="事件纪" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/color_mindmap_company_text" />
+                                <com.google.android.material.button.MaterialButton android:id="@+id/btnExpandEvents" style="@style/Widget.Pandora.Button.Text"
+                                    android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:paddingHorizontal="12dp"
+                                    android:contentDescription="展开事件纪，查看完整内容" app:icon="@drawable/ic_open_fullscreen"
+                                    app:iconSize="24dp" app:iconPadding="0dp" app:iconTint="@color/color_mindmap_company_text" />
+                            </LinearLayout>
+                            <TextView android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical"
+                                android:text="公司重要事项" android:textSize="13sp" android:textColor="@color/color_mindmap_company_text" />
+                        </LinearLayout>
+                        <androidx.core.widget.NestedScrollView android:id="@+id/scroll_company_important"
+                            android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true">
+                            <LinearLayout android:id="@+id/list_company_important"
+                                android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp" />
+                        </androidx.core.widget.NestedScrollView>
+                    </LinearLayout>
+                    <LinearLayout android:id="@+id/quadrant_top_right"
+                        android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+                        android:layout_marginStart="4dp" android:orientation="vertical" android:background="@drawable/bg_mindmap_section_card"
+                        android:elevation="1dp" android:clipToOutline="true">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:orientation="vertical" android:paddingStart="12dp" android:paddingEnd="4dp"
+                            android:background="@color/color_mindmap_dispatch_header">
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical">
+                                <TextView android:id="@+id/textTasksTitle" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+                                    android:gravity="center_vertical" android:includeFontPadding="false" android:maxLines="1"
+                                    android:text="任务看板" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/color_mindmap_dispatch_text" />
+                                <com.google.android.material.button.MaterialButton android:id="@+id/btnExpandTasks" style="@style/Widget.Pandora.Button.Text"
+                                    android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:paddingHorizontal="12dp"
+                                    android:contentDescription="展开任务看板，查看完整内容" app:icon="@drawable/ic_open_fullscreen"
+                                    app:iconSize="24dp" app:iconPadding="0dp" app:iconTint="@color/color_mindmap_dispatch_text" />
+                            </LinearLayout>
+                            <Spinner android:id="@+id/spinnerBoardStatus" android:layout_width="match_parent" android:layout_height="48dp"
+                                android:spinnerMode="dropdown" android:contentDescription="任务看板状态筛选" />
+                        </LinearLayout>
+                        <androidx.core.widget.NestedScrollView android:id="@+id/scroll_company_dispatch"
+                            android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true">
+                            <LinearLayout android:id="@+id/list_company_dispatch"
+                                android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp" />
+                        </androidx.core.widget.NestedScrollView>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.appbar.AppBarLayout>
+            <androidx.core.widget.NestedScrollView android:id="@+id/scrollDailyAgenda"
+                android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true"
+                android:clipToPadding="false" app:layout_behavior="@string/appbar_scrolling_view_behavior">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:paddingHorizontal="12dp" android:paddingBottom="24dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                            android:text="每日事项" android:textSize="20sp" android:textStyle="bold" android:textColor="@color/color_text_primary" />
+                        <com.google.android.material.button.MaterialButton android:id="@+id/btnExpandAgenda" style="@style/Widget.Pandora.Button.Text"
+                            android:layout_width="wrap_content" android:layout_height="48dp" android:text="展开日历" />
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                        <com.google.android.material.button.MaterialButton android:id="@+id/btnPreviousDailyMonth" style="@style/Widget.Pandora.Button.Text"
+                            android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:paddingHorizontal="0dp"
+                            android:text="‹" android:textSize="24sp" android:contentDescription="上个月" />
+                        <TextView android:id="@+id/textDailyMonth" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1"
+                            android:gravity="center_vertical" android:textSize="22sp" android:textStyle="bold" android:textColor="@color/color_text_primary"
+                            android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true" android:contentDescription="选择每日事项日期" />
+                        <com.google.android.material.button.MaterialButton android:id="@+id/btnNextDailyMonth" style="@style/Widget.Pandora.Button.Text"
+                            android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:paddingHorizontal="0dp"
+                            android:text="›" android:textSize="24sp" android:contentDescription="下个月" />
+                        <com.google.android.material.button.MaterialButton android:id="@+id/btnDailyToday" style="@style/Widget.Pandora.Button.Text"
+                            android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:paddingHorizontal="0dp" android:text="今天" />
+                    </LinearLayout>
+                    <com.example.project_pandora.ui.home.DailyItemsMonthView android:id="@+id/dailyCalendar"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                        <TextView android:id="@+id/textDailyHeading" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                            android:textSize="16sp" android:textStyle="bold" android:textColor="@color/color_text_primary" />
+                        <com.google.android.material.button.MaterialButton android:id="@+id/btnAddDailyItem" style="@style/Widget.Pandora.Button"
+                            android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:padding="0dp"
+                            android:insetTop="4dp" android:insetBottom="4dp" android:contentDescription="新增事项"
+                            app:icon="@drawable/ic_add" app:iconSize="24dp" app:iconPadding="0dp" app:iconGravity="textStart"
+                            app:cornerRadius="14dp" />
+                    </LinearLayout>
+                    <ProgressBar android:id="@+id/dailyProgress" style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="match_parent" android:layout_height="3dp" android:indeterminate="true" android:visibility="gone" />
+                    <TextView android:id="@+id/textDailyMessage" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp"
+                        android:gravity="center" android:padding="16dp" android:textColor="@color/color_text_secondary" android:textSize="14sp" />
+                    <androidx.recyclerview.widget.RecyclerView android:id="@+id/recyclerDailyItems"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" />
+                </LinearLayout>
             </androidx.core.widget.NestedScrollView>
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/quadrant_top_right"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:orientation="vertical"
-            android:background="@drawable/bg_mindmap_section_card"
-            android:elevation="3dp"
-            android:clipToOutline="true"
-            android:outlineProvider="background"
-            android:layout_marginStart="6dp"
-            android:layout_marginEnd="12dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="6dp"
-            app:layout_constraintTop_toBottomOf="@id/toolbar"
-            app:layout_constraintBottom_toTopOf="@id/guideline_horizontal"
-            app:layout_constraintStart_toStartOf="@id/guideline_vertical"
-            app:layout_constraintEnd_toEndOf="parent">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@color/color_mindmap_dispatch_header"
-                android:minHeight="60dp"
-                android:orientation="horizontal"
-                android:padding="10dp"
-                android:gravity="center_vertical">
-
-                <ImageView android:layout_width="20dp" android:layout_height="20dp"
-                    android:layout_marginEnd="8dp" android:src="@drawable/ic_calendar"
-                    android:tint="@color/color_mindmap_dispatch_text" android:importantForAccessibility="no" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="公司10大任务派发"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/color_mindmap_dispatch_text" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="逻辑分层，信息指令关联，上级领导指令派发"
-                android:textSize="11sp"
-                android:textColor="@color/color_text_secondary"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
-                android:paddingTop="4dp"
-                android:paddingBottom="4dp" />
-
-            <androidx.core.widget.NestedScrollView
-                android:id="@+id/scroll_company_dispatch"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:fillViewport="true">
-
-                <LinearLayout
-                    android:id="@+id/list_company_dispatch"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="4dp" />
-            </androidx.core.widget.NestedScrollView>
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/quadrant_bottom_left"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:orientation="vertical"
-            android:background="@drawable/bg_mindmap_section_card"
-            android:elevation="3dp"
-            android:clipToOutline="true"
-            android:outlineProvider="background"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="6dp"
-            android:layout_marginTop="6dp"
-            android:layout_marginBottom="12dp"
-            app:layout_constraintTop_toTopOf="@id/guideline_horizontal"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/guideline_vertical">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@color/color_mindmap_personal_header"
-                android:minHeight="60dp"
-                android:orientation="horizontal"
-                android:padding="10dp"
-                android:gravity="center_vertical">
-
-                <ImageView android:layout_width="20dp" android:layout_height="20dp"
-                    android:layout_marginEnd="8dp" android:src="@drawable/ic_mine"
-                    android:tint="@color/color_mindmap_personal_text" android:importantForAccessibility="no" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="个人10大信息展示"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/color_mindmap_personal_text" />
-
-                <TextView
-                    android:id="@+id/btn_edit_personal_top10"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="编辑"
-                    android:textSize="12sp"
-                    android:textColor="@color/color_mindmap_personal_text"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="4dp"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="日志自动生成，个人ID注入修改"
-                android:textSize="11sp"
-                android:textColor="@color/color_text_secondary"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
-                android:paddingTop="4dp"
-                android:paddingBottom="4dp" />
-
-            <androidx.core.widget.NestedScrollView
-                android:id="@+id/scroll_personal_important"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:fillViewport="true">
-
-                <LinearLayout
-                    android:id="@+id/list_personal_important"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="4dp" />
-            </androidx.core.widget.NestedScrollView>
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/quadrant_bottom_right"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:orientation="vertical"
-            android:background="@drawable/bg_mindmap_section_card"
-            android:elevation="3dp"
-            android:clipToOutline="true"
-            android:outlineProvider="background"
-            android:layout_marginStart="6dp"
-            android:layout_marginEnd="12dp"
-            android:layout_marginTop="6dp"
-            android:layout_marginBottom="12dp"
-            app:layout_constraintTop_toTopOf="@id/guideline_horizontal"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="@id/guideline_vertical"
-            app:layout_constraintEnd_toEndOf="parent">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@color/color_mindmap_log_header"
-                android:minHeight="60dp"
-                android:orientation="horizontal"
-                android:padding="10dp"
-                android:gravity="center_vertical">
-
-                <ImageView android:layout_width="20dp" android:layout_height="20dp"
-                    android:layout_marginEnd="8dp" android:src="@drawable/ic_log"
-                    android:tint="@color/color_mindmap_log_text" android:importantForAccessibility="no" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="日志展示"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/color_mindmap_log_text" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="当天日志信息流展示"
-                android:textSize="11sp"
-                android:textColor="@color/color_text_secondary"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
-                android:paddingTop="4dp"
-                android:paddingBottom="4dp" />
-
-            <androidx.core.widget.NestedScrollView
-                android:id="@+id/scroll_personal_log"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:fillViewport="true">
-
-                <LinearLayout
-                    android:id="@+id/list_personal_log"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="4dp" />
-            </androidx.core.widget.NestedScrollView>
-        </LinearLayout>
-
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.coordinatorlayout.widget.CoordinatorLayout>
+    </LinearLayout>
 </layout>

@@ -26,6 +26,9 @@ public interface ViewApi {
     @GET("view/mindmap")
     Observable<ApiResponse<Map<String, Object>>> getMindMap();
 
+    @GET("view/home")
+    Observable<ApiResponse<Map<String, Object>>> getHome(@Query("completed") boolean completed);
+
     @GET("view/info-map")
     Observable<ApiResponse<Map<String, Object>>> getInfoMap();
 

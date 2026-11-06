@@ -164,40 +164,53 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<Map<String, Object>>> login(@RequestBody Map<String, String> loginRequest) {
+        String clientType = loginRequest.getOrDefault("clientType", "WEB");
         String usernameOrEmail = loginRequest.get("username");
-        if (usernameOrEmail == null) {
+        if ("APP".equals(clientType)) {
+            String employeeNo = loginRequest.get("employeeNo");
+            if (employeeNo != null) {
+                if (usernameOrEmail != null && !employeeNo.trim().equals(usernameOrEmail.trim()))
+                    throw new BusinessException(ErrorCode.BAD_REQUEST, "工号与兼容账号字段不一致");
+                usernameOrEmail = employeeNo;
+            }
+            if (usernameOrEmail != null) usernameOrEmail = usernameOrEmail.trim();
+        } else if (usernameOrEmail == null) {
             usernameOrEmail = loginRequest.get("email");
         }
         String password = loginRequest.get("password");
 
-        if (usernameOrEmail == null || password == null) {
+        if (usernameOrEmail == null || password == null || "APP".equals(clientType) && usernameOrEmail.isEmpty()) {
             throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD);
         }
 
-        String clientType = loginRequest.get("clientType");
-
         Map<String, Object> user = findUserByUsername(usernameOrEmail);
-        if (user == null && usernameOrEmail.contains("@")) {
+        if (user == null && !"APP".equals(clientType) && usernameOrEmail.contains("@")) {
             user = findUserByEmail(usernameOrEmail);
         }
         if (user == null) {
-            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
+            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS,
+                    "APP".equals(clientType) ? "工号或密码错误" : ErrorCode.INVALID_CREDENTIALS.getMessage());
         }
 
         String passwordHash = (String) user.get("password_hash");
         if (!passwordEncoder.matches(password, passwordHash)) {
-            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
+            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS,
+                    "APP".equals(clientType) ? "工号或密码错误" : ErrorCode.INVALID_CREDENTIALS.getMessage());
         }
 
-        if ((Integer) user.get("deleted") == 1) {
+        if (((Number) user.get("deleted")).intValue() == 1) {
             throw new BusinessException(ErrorCode.ACCOUNT_DISABLED);
         }
 
         String userRole = (String) user.get("role");
-        // Round25 决策A: 放开 ADMIN 的 App 端登录（原 APP+ADMIN 互斥 403 分支已删除），
-        // Web 端分流（非 APP 端仅 ADMIN 可登录）保持不变
-        if (!"APP".equals(clientType) && !"ADMIN".equals(userRole)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN);
+        if (!"APP".equals(clientType) && !"WEB".equals(clientType)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "登录端类型无效");
+        }
+        if ("APP".equals(clientType) && "ADMIN".equals(userRole)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "管理员仅可登录管理员 Web 端");
+        }
+        if ("WEB".equals(clientType) && !"ADMIN".equals(userRole)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "管理端仅允许管理员登录");
         }
 
         String approvalStatus = user.get("approval_status") != null ? (String) user.get("approval_status") : "APPROVED";
@@ -227,6 +240,7 @@ public class AuthController {
         userInfo.put("id", userId);
         userInfo.put("username", username);
         userInfo.put("role", role);
+        if ("APP".equals(clientType)) userInfo.put("employeeNo", username);
         userInfo.put("departmentId", departmentId);
         userInfo.put("teamId", teamId);
         result.put("user", userInfo);

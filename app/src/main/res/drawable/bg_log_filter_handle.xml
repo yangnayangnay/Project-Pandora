@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetBottom="24dp">
+    <ripple android:color="?attr/colorControlHighlight">
+        <item android:drawable="@drawable/bg_log_filter_handle_shape" />
+        <item
+            android:id="@android:id/mask"
+            android:drawable="@drawable/bg_log_filter_handle_shape" />
+    </ripple>
+</inset>

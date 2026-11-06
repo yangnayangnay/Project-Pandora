@@ -79,8 +79,11 @@
             android:id="@+id/edit_username"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/hint_username_or_email"
-            android:inputType="text"
+            android:hint="@string/hint_employee_number"
+            android:inputType="textNoSuggestions"
+            android:maxLength="64"
+            android:autofillHints="username"
+            android:imeOptions="actionNext"
             android:textColor="@color/color_text_edit_content" />
     </com.google.android.material.textfield.TextInputLayout>
 

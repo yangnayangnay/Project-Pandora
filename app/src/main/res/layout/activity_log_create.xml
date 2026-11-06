@@ -151,7 +151,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="仅可填写昨天、今天、明天；编辑时日期锁定。"
+                            android:text="可填写前天、昨天、今天；新建时可自由选择日期。"
                             android:textColor="@color/color_text_secondary"
                             android:textSize="13sp" />
 
@@ -182,6 +182,14 @@
                             app:singleSelection="true">
 
                             <com.google.android.material.chip.Chip
+                                android:id="@+id/chipDayBeforeYesterday"
+                                style="@style/Widget.Pandora.Chip"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:minHeight="48dp"
+                                android:text="前天" />
+
+                            <com.google.android.material.chip.Chip
                                 android:id="@+id/chipYesterday"
                                 style="@style/Widget.Pandora.Chip"
                                 android:layout_width="wrap_content"
@@ -194,17 +202,9 @@
                                 style="@style/Widget.Pandora.Chip"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
+                                android:minHeight="48dp"
                                 android:checked="true"
-                                android:minHeight="48dp"
                                 android:text="今天" />
-
-                            <com.google.android.material.chip.Chip
-                                android:id="@+id/chipTomorrow"
-                                style="@style/Widget.Pandora.Chip"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:minHeight="48dp"
-                                android:text="明天" />
 
                         </com.google.android.material.chip.ChipGroup>
 

@@ -152,7 +152,7 @@ public class LoginActivity extends AppCompatActivity {
         }
 
         String username = binding.editUsername.getText().toString().trim();
-        String password = binding.editPassword.getText().toString().trim();
+        String password = binding.editPassword.getText().toString();
 
         if (username.isEmpty() || password.isEmpty()) {
             Toast.makeText(this, R.string.login_empty_input, Toast.LENGTH_SHORT).show();
@@ -164,6 +164,7 @@ public class LoginActivity extends AppCompatActivity {
 
         Map<String, String> request = new HashMap<>();
         request.put("username", username);
+        request.put("employeeNo", username);
         request.put("password", password);
         request.put("clientType", "APP");
 
@@ -174,11 +175,12 @@ public class LoginActivity extends AppCompatActivity {
                         response -> {
                             if (response.isSuccess() && response.getData() != null) {
                                 Map<String, Object> data = response.getData();
+                                Map<String, Object> user = (Map<String, Object>) data.get("user");
+                                if (rejectAdminLogin(user == null ? null : user.get("role"))) return;
                                 String token = (String) data.get("token");
                                 TokenManager tm = TokenManager.getInstance(this);
                                 tm.saveToken(token);
 
-                                Map<String, Object> user = (Map<String, Object>) data.get("user");
                                 if (user != null) {
                                     Long userId = ((Number) user.get("id")).longValue();
                                     String role = (String) user.get("role");
@@ -229,6 +231,7 @@ public class LoginActivity extends AppCompatActivity {
 
     private void autoLogin() {
         TokenManager tm = TokenManager.getInstance(this);
+        if (rejectAdminLogin(tm.getRole())) return;
         if (tm.getToken() == null) {
             return;
         }
@@ -242,7 +245,11 @@ public class LoginActivity extends AppCompatActivity {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         response -> {
-                            if (response.isSuccess()) {
+                            if (response.isSuccess() && response.getData() != null) {
+                                Map<String, Object> user = response.getData();
+                                if (rejectAdminLogin(user.get("role"))) return;
+                                Long userId = com.example.project_pandora.core.util.NumberCompat.toLong(user.get("id"));
+                                if (userId != null) tm.saveUserInfo(userId, (String) user.get("role"));
                                 startActivity(new Intent(this, MainActivity.class));
         com.example.project_pandora.notification.PollingForegroundService.startIfLoggedIn(this);
                                 finish();
@@ -254,5 +261,15 @@ public class LoginActivity extends AppCompatActivity {
                             }
                         }
                 ));
+    }
+
+    private boolean rejectAdminLogin(Object role) {
+        if (!"ADMIN".equals(role)) return false;
+        TokenManager.getInstance(this).clear();
+        com.example.project_pandora.notification.PollingForegroundService.stop(this);
+        binding.btnLogin.setEnabled(true);
+        binding.btnLogin.setText(R.string.btn_login);
+        Toast.makeText(this, "管理员仅可登录管理员 Web 端", Toast.LENGTH_LONG).show();
+        return true;
     }
 }

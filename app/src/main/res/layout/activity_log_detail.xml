@@ -92,29 +92,6 @@
                         android:layout_width="100dp"
                         android:layout_height="wrap_content"
 
-                        android:text="完成状态"
-                        android:textSize="14sp"
-                        android:textColor="@color/color_text_secondary" />
-
-                    <TextView
-                        android:id="@+id/textStatus"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textSize="14sp"
-                        android:textColor="@color/color_text_primary" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginBottom="8dp">
-
-                    <TextView
-                        android:layout_width="100dp"
-                        android:layout_height="wrap_content"
-
                         android:text="创建人"
                         android:textSize="14sp"
                         android:textColor="@color/color_text_secondary" />
@@ -129,6 +106,32 @@
                 </LinearLayout>
 
 
+
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp" android:text="上级评论" android:textSize="18sp"
+                    android:textStyle="bold" android:textColor="@color/color_text_primary" />
+                <ProgressBar android:id="@+id/progressComments" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:layout_gravity="center" android:visibility="gone" />
+                <TextView android:id="@+id/textCommentsState" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:paddingVertical="12dp" android:minHeight="48dp"
+                    android:text="暂无评论" android:textColor="@color/color_text_secondary" />
+                <androidx.recyclerview.widget.RecyclerView android:id="@+id/recyclerComments"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:overScrollMode="never" />
+                <LinearLayout android:id="@+id/commentComposer" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                    <com.google.android.material.textfield.TextInputLayout android:id="@+id/commentInputLayout"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:hint="评论下级的日志" app:counterEnabled="true" app:counterMaxLength="2000">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/editComment"
+                            android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:minLines="2" android:maxLines="6" android:gravity="top|start"
+                            android:inputType="textMultiLine|textCapSentences" android:maxLength="2000" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/btnSendComment"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_gravity="end" android:minHeight="48dp" android:text="发表评论" />
+                </LinearLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"

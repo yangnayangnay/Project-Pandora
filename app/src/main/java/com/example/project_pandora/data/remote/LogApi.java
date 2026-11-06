@@ -29,8 +29,11 @@ public interface LogApi {
     @GET("log/{logId}")
     Observable<ApiResponse<Map<String, Object>>> getLogDetail(@Path("logId") Long logId);
 
-    @GET("log/stat")
-    Observable<ApiResponse<Map<String, Object>>> getLogStats();
+    @GET("log/{logId}/comments")
+    Observable<ApiResponse<Map<String, Object>>> getLogComments(@Path("logId") Long logId);
+
+    @POST("log/{logId}/comments")
+    Observable<ApiResponse<Map<String, Object>>> addLogComment(@Path("logId") Long logId, @Body Map<String, Object> request);
 
     @PUT("log/{logId}")
     Observable<ApiResponse<Map<String, Object>>> editLog(@Path("logId") Long logId, @Body Map<String, Object> request);
@@ -58,6 +61,7 @@ public interface LogApi {
     @GET("log/subordinate")
     Observable<ApiResponse<List<Map<String, Object>>>> getSubordinateLogs(
             @Query("subordinateId") Long subordinateId,
+            @Query("departmentId") Long departmentId,
             @Query("startDate") String startDate,
             @Query("endDate") String endDate,
             @Query("keyword") String keyword

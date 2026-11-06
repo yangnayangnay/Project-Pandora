@@ -25,6 +25,12 @@ public class LogController {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
+    private LogDirectoryService logDirectoryService;
+
+    @Autowired
+    private com.pandora.backend.view.PersonalImportantWorkService personalImportantWorks;
+
+    @Autowired
     private LogDraftGenerator logDraftGenerator;
 
     @Autowired
@@ -130,6 +136,7 @@ public class LogController {
 
         StringBuilder sql = new StringBuilder(
                 "SELECT l.*, u.username, u.real_name FROM work_logs l JOIN users u ON l.user_id = u.id WHERE l.deleted = 0");
+        if (!"ADMIN".equals(role)) sql.append(" AND u.role <> 'ADMIN'");
         List<Object> params = new ArrayList<>();
         if (userId != null) {
             sql.append(" AND l.user_id = ?");
@@ -190,8 +197,8 @@ public class LogController {
 
         Map<String, Object> log = jdbcTemplate.queryForList(
                 "SELECT l.*, u.username, u.real_name, u.avatar FROM work_logs l " +
-                "JOIN users u ON l.user_id = u.id WHERE l.id = ? AND l.deleted = 0",
-                logId).stream().findFirst().orElse(null);
+                "JOIN users u ON l.user_id = u.id WHERE l.id = ? AND l.deleted = 0 AND (u.role <> 'ADMIN' OR ?='ADMIN')",
+                logId, role).stream().findFirst().orElse(null);
 
         if (log == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "日志不存在");
@@ -306,6 +313,9 @@ public class LogController {
     @GetMapping("/top10")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTop10(@RequestParam(required = false) String workType) {
         Long userId = getCurrentUserId();
+        if ("PERSONAL_IMPORTANT".equals(workType)) {
+            return ResponseEntity.ok(ApiResponse.success(personalImportantWorks.list(userId)));
+        }
         StringBuilder sql = new StringBuilder("SELECT * FROM top10_works WHERE user_id = ? AND deleted = 0");
         List<Object> params = new ArrayList<>();
         params.add(userId);
@@ -402,6 +412,7 @@ public class LogController {
     @GetMapping("/subordinate")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSubordinateLogs(
             @RequestParam(required = false) Long subordinateId,
+            @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) String keyword) {
@@ -425,7 +436,9 @@ public class LogController {
         }
 
         StringBuilder sql = new StringBuilder(
-                "SELECT l.*, u.username, u.real_name, u.avatar FROM work_logs l JOIN users u ON l.user_id = u.id WHERE l.deleted = 0");
+                "SELECT l.*, u.username, u.real_name, u.avatar FROM work_logs l JOIN users u ON l.user_id = u.id " +
+                "LEFT JOIN departments d ON d.id = u.department_id AND d.deleted = 0 WHERE l.deleted = 0 AND u.deleted = 0");
+        if (!"ADMIN".equals(role)) sql.append(" AND u.role <> 'ADMIN'");
         List<Object> params = new ArrayList<>();
 
         if (subordinateId != null) {
@@ -435,6 +448,10 @@ public class LogController {
             String placeholders = String.join(",", Collections.nCopies(subordinateIds.size(), "?"));
             sql.append(" AND l.user_id IN (").append(placeholders).append(")");
             params.addAll(subordinateIds);
+        }
+        if (departmentId != null) {
+            if (departmentId == -1L) sql.append(" AND d.id IS NULL");
+            else { sql.append(" AND d.id = ?"); params.add(departmentId); }
         }
         if (startDate != null) {
             sql.append(" AND l.log_date >= ?");
@@ -462,7 +479,7 @@ public class LogController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "无权访问"));
         }
 
-        List<Map<String, Object>> subordinates = hierarchyService.getSubordinates(userId);
+        List<Map<String, Object>> subordinates = logDirectoryService.list(userId);
         if (subordinates.isEmpty()) {
             return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
         }

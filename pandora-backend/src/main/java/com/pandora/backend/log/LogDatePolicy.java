@@ -7,7 +7,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 
-/** The server, UI and offline replay use the same yesterday/today/tomorrow window. */
+/** The server, UI and offline replay use the same previous-two-days/today window. */
 public final class LogDatePolicy {
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
     private LogDatePolicy() {}
@@ -20,8 +20,8 @@ public final class LogDatePolicy {
         try {
             LocalDate value = LocalDate.parse(date);
             LocalDate today = LocalDate.now(clock.withZone(ZONE));
-            if (value.isAfter(today.plusDays(1)) || value.isBefore(today.minusDays(1))) {
-                throw new BusinessException(ErrorCode.BAD_REQUEST, "仅可填写或编辑昨天、今天、明天的日志");
+            if (value.isAfter(today) || value.isBefore(today.minusDays(2))) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "仅可填写或编辑前天、昨天、今天的日志");
             }
             return value.toString();
         } catch (DateTimeParseException | NullPointerException e) {

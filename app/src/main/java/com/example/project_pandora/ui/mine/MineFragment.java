@@ -5,21 +5,17 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 
-import com.bumptech.glide.Glide;
 import com.example.project_pandora.MainActivity;
 import com.example.project_pandora.R;
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.core.network.TokenManager;
 import com.example.project_pandora.core.sync.SyncManager;
-import com.example.project_pandora.core.sync.SyncState;
-import com.example.project_pandora.core.sync.SyncStatus;
 import com.example.project_pandora.data.remote.UserApi;
 import com.example.project_pandora.databinding.FragmentMineBinding;
 import com.example.project_pandora.repository.SyncRepository;
@@ -30,7 +26,6 @@ import com.example.project_pandora.ui.login.LoginActivity;
 import java.util.Map;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
-import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
@@ -82,32 +77,8 @@ public class MineFragment extends Fragment {
 
         TokenManager tm = TokenManager.getInstance(requireContext());
         if (tm.isLoggedIn()) {
-            binding.btnUploadData.setVisibility(View.VISIBLE);
             binding.btnLogout.setVisibility(View.VISIBLE);
-            refreshUnsyncedCount();
-
-            disposables.add(SyncManager.getInstance().statusStream()
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(
-                            state -> {
-                                if (state == SyncState.SYNCED || state == SyncState.PARTIAL_FAILED) {
-                                    refreshUnsyncedCount();
-                                }
-                            },
-                            error -> {}
-                    ));
         }
-
-        binding.btnUploadData.setOnClickListener(v -> {
-            SyncManager sm = SyncManager.getInstance();
-            disposables.add(sm.manualResync()
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(
-                            progress -> {},
-                            error -> Toast.makeText(requireContext(), "上传失败: " + error.getMessage(), Toast.LENGTH_SHORT).show(),
-                            () -> refreshUnsyncedCount()
-                    ));
-        });
 
         binding.btnLogout.setOnClickListener(v -> handleLogout());
 
@@ -117,24 +88,6 @@ public class MineFragment extends Fragment {
         if (relationRole != null && !"ADMIN".equals(relationRole)) {
             binding.btnUserRelation.setVisibility(View.VISIBLE);
         }
-    }
-
-    private void refreshUnsyncedCount() {
-        SyncRepository repo = new SyncRepository(requireContext());
-        disposables.add(Single.zip(
-                repo.countByStatus(SyncStatus.PENDING),
-                repo.countByStatus(SyncStatus.SYNC_FAILED),
-                (pending, failed) -> pending + failed
-        ).subscribeOn(Schedulers.io())
-         .observeOn(AndroidSchedulers.mainThread())
-         .subscribe(
-                 count -> {
-                     if (binding != null) {
-                         binding.textUploadData.setText("上传数据（" + count + "条）");
-                     }
-                 },
-                 error -> {}
-         ));
     }
 
     private void handleLogout() {
@@ -193,15 +146,7 @@ public class MineFragment extends Fragment {
                                 binding.textRole.setText(com.example.project_pandora.core.util.RoleDisplayUtil.toChinese(getStr(data, "role")));
 
                                 String avatar = getStr(data, "avatar");
-                                if (!avatar.isEmpty()) {
-                                    String baseUrl = NetworkClient.getBaseUrl();
-                                    if (baseUrl.endsWith("/")) baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
-                                    String fullUrl = baseUrl + avatar;
-                                    Glide.with(this).load(fullUrl)
-                                            .placeholder(R.drawable.ic_profile_placeholder)
-                                            .error(R.drawable.ic_profile_placeholder)
-                                            .into(binding.imageAvatar);
-                                }
+                                AvatarLoader.load(binding.imageAvatar, avatar);
                             }
                         },
                         error -> {

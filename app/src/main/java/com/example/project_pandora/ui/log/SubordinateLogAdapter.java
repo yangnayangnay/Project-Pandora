@@ -8,10 +8,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.request.RequestOptions;
 import com.example.project_pandora.R;
-import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.databinding.ItemSubordinateLogBinding;
 
 import java.util.ArrayList;
@@ -87,20 +84,8 @@ public class SubordinateLogAdapter extends RecyclerView.Adapter<SubordinateLogAd
             Object date = log.get("log_date");
             binding.textDate.setText(date != null ? date.toString() : "");
 
-            Object avatar = log.get("avatar");
-            if (avatar != null && !avatar.toString().isEmpty()) {
-                String baseUrl = NetworkClient.getBaseUrl();
-                if (baseUrl.endsWith("/")) baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
-                String fullUrl = baseUrl + avatar;
-                Glide.with(binding.imageAvatar.getContext())
-                        .load(fullUrl)
-                        .apply(RequestOptions.circleCropTransform())
-                        .placeholder(R.drawable.ic_profile_placeholder)
-                        .error(R.drawable.ic_profile_placeholder)
-                        .into(binding.imageAvatar);
-            } else {
-                binding.imageAvatar.setImageResource(R.drawable.ic_profile_placeholder);
-            }
+            com.example.project_pandora.ui.mine.AvatarLoader.load(binding.imageAvatar,
+                    com.example.project_pandora.ui.people.PeopleDirectory.text(log, "avatar"));
 
             itemView.setOnClickListener(v -> {
                 Object id = log.get("id");

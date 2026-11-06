@@ -113,6 +113,13 @@
 
             </com.google.android.material.card.MaterialCardView>
 
+            <com.example.project_pandora.ui.task.TaskTagPickerView
+                android:id="@+id/taskTags"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="@color/color_surface" />
+
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

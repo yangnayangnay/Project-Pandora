@@ -1,7 +1,6 @@
 package com.pandora.backend.view;
 
 import com.pandora.backend.common.ApiResponse;
-import com.pandora.backend.ai.AiTransmitConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +19,10 @@ public class ViewController {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
-    private PersonalTop10Generator personalTop10Generator;
+    private com.pandora.backend.task.TaskTagService taskTags;
+
+    @Autowired
+    private PersonalImportantWorkService personalImportantWorks;
 
     @Autowired
     private com.pandora.backend.hierarchy.HierarchyService hierarchyService;
@@ -156,20 +158,14 @@ public class ViewController {
         List<Map<String, Object>> companyDispatch = jdbcTemplate.queryForList(
                 "SELECT tk.id, tk.name AS task_name, tk.status, tk.priority, " +
                 "tk.start_time, tk.end_time, tk.created_at, " +
-                "u.real_name AS assignee_name, u.username AS assignee_username " +
+                "CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.real_name END AS assignee_name, " +
+                "CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.username END AS assignee_username " +
                 "FROM tasks tk LEFT JOIN users u ON tk.assignee_id = u.id AND u.deleted = 0 " +
                 "WHERE tk.deleted = 0 AND tk.status IN ('PENDING', 'IN_PROGRESS', 'REJECTED') " +
                 "ORDER BY CASE tk.priority WHEN 'URGENT' THEN 4 WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2 ELSE 1 END DESC, " +
                 "tk.created_at DESC LIMIT 10");
 
-        List<Map<String, Object>> personalImportant;
-        try {
-            // Round28 REQ-28-02: 同步段解析透传配置传入个人十大生成链（AI 点评走客户端配置端点）
-            AiTransmitConfig aiConfig = AiTransmitConfig.fromHeaders(servletRequest);
-            personalImportant = personalTop10Generator.generate(userId, aiConfig);
-        } catch (Exception e) {
-            personalImportant = buildPersonalImportant(userId);
-        }
+        List<Map<String, Object>> personalImportant = personalImportantWorks.list(userId);
 
         List<Map<String, Object>> personalLog = buildPersonalLog(userId, role);
 
@@ -180,84 +176,6 @@ public class ViewController {
         result.put("personalLog", personalLog);
 
         return ResponseEntity.ok(ApiResponse.success(result));
-    }
-
-    private List<Map<String, Object>> buildPersonalImportant(Long userId) {
-        List<Map<String, Object>> result = new ArrayList<>();
-
-        try {
-            Map<String, Object> user = jdbcTemplate.queryForMap(
-                    "SELECT birthday FROM users WHERE id = ? AND deleted = 0", userId);
-            Object birthdayObj = user.get("birthday");
-            if (birthdayObj != null) {
-                String birthdayStr = birthdayObj.toString();
-                java.sql.Date today = new java.sql.Date(System.currentTimeMillis());
-                String todayStr = today.toString();
-                String birthdayMd = birthdayStr.length() >= 10 ? birthdayStr.substring(5) : "";
-                String todayMd = todayStr.length() >= 10 ? todayStr.substring(5) : "";
-                if (!birthdayMd.isEmpty() && birthdayMd.equals(todayMd)) {
-                    Map<String, Object> wish = new HashMap<>();
-                    wish.put("rank_order", 1);
-                    wish.put("content", "\u751F\u65E5\u5FEB\u4E50\uFF01");
-                    wish.put("is_auto_filled", true);
-                    wish.put("auto_type", "BIRTHDAY_WISH");
-                    result.add(wish);
-                }
-            }
-        } catch (Exception ignored) {}
-
-        // Round23 REQ-23-01: 兜底轻量账号条目（users 单查，空值跳过），替代原 IMPORTANT_TASK 聚合与全部手动条目查询；
-        // 子查询异常被吞掉，不再导致接口 500
-        int rank = result.isEmpty() ? 1 : 2;
-        try {
-            Map<String, Object> user = jdbcTemplate.queryForMap(
-                    "SELECT real_name, username, role, phone, email FROM users WHERE id = ? AND deleted = 0", userId);
-            rank = addFallbackAccountItem(result, rank, user.get("real_name"), "账号信息-真实姓名");
-            rank = addFallbackAccountItem(result, rank, user.get("username"), "账号信息-用户名");
-            Object roleObj = user.get("role");
-            if (roleObj != null) {
-                rank = addFallbackAccountItem(result, rank, toChineseRole(roleObj.toString()), "账号信息-角色");
-            }
-            rank = addFallbackAccountItem(result, rank, user.get("phone"), "账号信息-手机号");
-            rank = addFallbackAccountItem(result, rank, user.get("email"), "账号信息-邮箱");
-        } catch (Exception ignored) {}
-
-        if (result.size() > 10) {
-            result = result.subList(0, 10);
-        }
-        return result;
-    }
-
-    /**
-     * Round23 REQ-23-01: 构造单条兜底账号信息条目并追加。值为 null 或空白时跳过返回原 rank；否则追加并返回 rank+1。
-     * 键结构与主路径账号条目一致（work_type=ACCOUNT_INFO）。
-     */
-    private int addFallbackAccountItem(List<Map<String, Object>> result, int rank, Object value, String note) {
-        if (value == null) return rank;
-        String str = value.toString().trim();
-        if (str.isEmpty()) return rank;
-        Map<String, Object> item = new HashMap<>();
-        item.put("rank_order", rank);
-        item.put("content", str);
-        item.put("is_auto_filled", true);
-        item.put("work_type", "ACCOUNT_INFO");
-        item.put("source_note", note);
-        result.add(item);
-        return rank + 1;
-    }
-
-    /**
-     * Round23 REQ-23-01: 兜底路径角色英文转中文（映射与主路径 PersonalTop10Generator 一致；未知值原样返回）。
-     */
-    private String toChineseRole(String role) {
-        switch (role) {
-            case "FOUNDER": return "创始人";
-            case "ADMIN": return "管理员";
-            case "DEPT_HEAD": return "部门主管";
-            case "TEAM_LEADER": return "团队负责人";
-            case "EMPLOYEE": return "员工";
-            default: return role;
-        }
     }
 
     private List<Map<String, Object>> buildPersonalLog(Long userId, String role) {
@@ -300,6 +218,7 @@ public class ViewController {
 
     private void sanitizeTaskDates(List<Map<String, Object>> tasks) {
         if (tasks == null) return;
+        taskTags.attach(tasks);
         java.text.SimpleDateFormat dateFmt = new java.text.SimpleDateFormat("yyyy-MM-dd");
         for (Map<String, Object> task : tasks) {
             for (String key : new String[]{"start_time", "end_time", "START_TIME", "END_TIME"}) {

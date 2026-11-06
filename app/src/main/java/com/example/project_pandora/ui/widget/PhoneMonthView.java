@@ -3,6 +3,7 @@ package com.example.project_pandora.ui.widget;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.icu.util.ChineseCalendar;
 import android.util.AttributeSet;
@@ -11,7 +12,6 @@ import android.view.View;
 import android.view.ViewConfiguration;
 import androidx.core.content.ContextCompat;
 import com.example.project_pandora.R;
-import com.example.project_pandora.core.util.DateCompat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -19,27 +19,34 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** Phone-style month grid: dates and dots normally, per-day task chips when expanded. */
+/** Phone-style month grid: dates and dots normally, continuous weekly task bars when expanded. */
 public class PhoneMonthView extends View {
+    public static final int VISIBLE_TASK_LIMIT = 4;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final List<DatedTask> tasks = new ArrayList<>();
     private final Map<String, String> lunarLabels = new java.util.HashMap<>();
     private final List<Hit> hits = new ArrayList<>();
     private Calendar selected = Calendar.getInstance();
     private boolean details, swiped;
+    private boolean parentScrolling;
     private float downX, downY;
     private final int slop;
+    private final PeriodSwipeGesture periodSwipe;
+    private java.util.function.IntConsumer periodListener;
     private CalendarView.OnDateSelectedListener dateListener;
     private CalendarView.OnVerticalSwipeListener swipeListener;
     private java.util.function.Consumer<Map<String, Object>> taskListener;
+    private java.util.function.Consumer<Calendar> dayTasksListener;
+    private Rect dayTasksAnchor;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
-    private final int[] colors, textColors;
+    private final int[] colors;
 
     public PhoneMonthView(Context context) { this(context, null); }
     public PhoneMonthView(Context context, AttributeSet attrs) {
         super(context, attrs); setFocusable(true); setClickable(true);
         slop = ViewConfiguration.get(context).getScaledTouchSlop();
-        colors = palette(R.array.calendar_month_detail_colors); textColors = palette(R.array.calendar_month_detail_text_colors);
+        periodSwipe = new PeriodSwipeGesture(slop, dp(48));
+        colors = palette(R.array.calendar_month_detail_colors);
         if (isInEditMode()) {
             java.util.Map<String, Object> sample = new java.util.HashMap<>();
             sample.put("name", "项目会议");
@@ -48,18 +55,45 @@ public class PhoneMonthView extends View {
         }
     }
     public void setDate(Calendar date) {
-        if (selected.get(Calendar.YEAR) != date.get(Calendar.YEAR) || selected.get(Calendar.MONTH) != date.get(Calendar.MONTH)) lunarLabels.clear();
+        if (selected.get(Calendar.YEAR) != date.get(Calendar.YEAR) || selected.get(Calendar.MONTH) != date.get(Calendar.MONTH)) {
+            lunarLabels.clear(); hits.clear(); requestLayout();
+        }
         selected = (Calendar) date.clone(); invalidate();
     }
     public void setTasks(List<Map<String, Object>> values) {
-        tasks.clear();
+        tasks.clear(); hits.clear();
         if (values != null) for (Map<String, Object> task : values) tasks.add(new DatedTask(task));
         invalidate();
     }
-    public void setDetailed(boolean value) { details = value; invalidate(); }
+    public void setDetailed(boolean value) {
+        if (details == value) return;
+        details = value; hits.clear(); requestLayout(); invalidate();
+    }
     public void setOnDateSelectedListener(CalendarView.OnDateSelectedListener value) { dateListener = value; }
     public void setOnVerticalSwipeListener(CalendarView.OnVerticalSwipeListener value) { swipeListener = value; }
+    public void setOnPeriodSwipe(java.util.function.IntConsumer value) { periodListener = value; }
     public void setOnTaskClick(java.util.function.Consumer<Map<String, Object>> value) { taskListener = value; }
+    public void setParentScrollingEnabled(boolean value) { parentScrolling = value; }
+    public void setOnDayTasksClick(java.util.function.Consumer<Calendar> value) { dayTasksListener = value; }
+    /** Screen bounds of the task list that opened the day popup. */
+    public Rect getDayTasksAnchor() { return dayTasksAnchor == null ? null : new Rect(dayTasksAnchor); }
+
+    @Override protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        int desiredHeight = details ? Math.round(dp(34) + rowCount() * dp(152)) : getSuggestedMinimumHeight();
+        setMeasuredDimension(resolveSize(getSuggestedMinimumWidth(), widthMeasureSpec),
+                resolveSize(desiredHeight, heightMeasureSpec));
+    }
+
+    private float rowHeight() {
+        return Math.max(details ? dp(152) : 1, (getHeight() - dp(34)) / rowCount());
+    }
+
+    public int selectedDateTop() {
+        Calendar first = firstCell();
+        int offset = 0;
+        while (!sameDay(first, selected) && offset < 42) { first.add(Calendar.DATE, 1); offset++; }
+        return Math.round(dp(34) + (offset / 7) * rowHeight());
+    }
 
     private Calendar firstCell() {
         Calendar first = (Calendar) selected.clone(); first.set(Calendar.DAY_OF_MONTH, 1);
@@ -71,7 +105,7 @@ public class PhoneMonthView extends View {
     }
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas); hits.clear();
-        float width = getWidth() / 7f, top = dp(34), height = Math.max(1, (getHeight() - top) / rowCount());
+        float width = getWidth() / 7f, top = dp(34), height = rowHeight();
         String[] weekdays = {"一", "二", "三", "四", "五", "六", "日"};
         paint.setTextAlign(Paint.Align.CENTER); paint.setTextSize(sp(13)); paint.setTypeface(android.graphics.Typeface.DEFAULT);
         for (int i = 0; i < 7; i++) {
@@ -101,30 +135,79 @@ public class PhoneMonthView extends View {
             paint.setColor(active ? color(R.color.color_on_accent) : color(R.color.color_text_secondary));
             paint.setAlpha(currentMonth || active ? 255 : 100);
             canvas.drawText(lunar(day), center, lunarY, paint); paint.setAlpha(255);
-            List<Map<String, Object>> daily = tasksOn(day);
             if (!details) {
-                if (!daily.isEmpty()) { paint.setColor(color(R.color.color_calendar_today)); canvas.drawCircle(center, cellTop + dp(52) * scale, dp(2), paint); }
+                if (!tasksOn(day).isEmpty()) { paint.setColor(color(R.color.color_calendar_today)); canvas.drawCircle(center, cellTop + dp(52) * scale, dp(2), paint); }
                 continue;
             }
-            float taskTop = cellTop + dp(53), bottom = cellTop + height - dp(4);
-            int capacity = Math.max(0, (int) ((bottom - taskTop) / dp(19)));
-            for (int n = 0; n < Math.min(capacity, daily.size()); n++) {
-                Map<String, Object> task = daily.get(n);
-                String name = java.util.Objects.toString(task.get("name"), "未命名任务");
-                int colorIndex = (name.hashCode() & Integer.MAX_VALUE) % colors.length;
-                RectF rect = new RectF(left + dp(2), taskTop + n * dp(19), left + width - dp(2), taskTop + n * dp(19) + dp(17));
-                paint.setColor(colors[colorIndex]); canvas.drawRoundRect(rect, dp(4), dp(4), paint);
-                paint.setColor(textColors[colorIndex % textColors.length]); paint.setTextSize(sp(10));
-                String text = n == capacity - 1 && daily.size() > capacity ? "+" + (daily.size() - n) + "项" : name;
-                canvas.save(); canvas.clipRect(rect);
-                canvas.drawText(ellipsize(text, rect.width() - dp(4)), center, rect.top + dp(12), paint); canvas.restore();
-                // The overflow chip selects the date so the full day list remains reachable.
-                hits.add(new Hit(rect, daily.size() > capacity && n == capacity - 1 ? null : task));
+        }
+        if (details) drawTaskBars(canvas, width, top, height);
+    }
+
+    private void drawTaskBars(Canvas canvas, float cellWidth, float gridTop, float rowHeight) {
+        List<String> days = new ArrayList<>();
+        Calendar day = firstCell();
+        for (int cell = 0; cell < rowCount() * 7; cell++, day.add(Calendar.DATE, 1)) {
+            days.add(dateFormat.format(day.getTime()));
+        }
+        List<MonthTaskLayout.Task> dated = new ArrayList<>();
+        for (int i = 0; i < tasks.size(); i++) {
+            DatedTask task = tasks.get(i);
+            dated.add(new MonthTaskLayout.Task(i, task.start, task.end));
+        }
+        List<MonthTaskLayout.Segment> spans = MonthTaskLayout.visibleSegments(dated, days, VISIBLE_TASK_LIMIT);
+        paint.setTypeface(android.graphics.Typeface.DEFAULT);
+        paint.setTextSize(sp(10));
+        paint.setTextAlign(Paint.Align.LEFT);
+        for (int week = 0; week < rowCount(); week++) {
+            int[] hidden = new int[7];
+            for (int column = 0; column < 7; column++) {
+                String date = days.get(week * 7 + column);
+                for (DatedTask task : tasks) {
+                    if (MonthTaskDates.covers(task.start, task.end, date)) hidden[column]++;
+                }
+            }
+            float taskTop = gridTop + week * rowHeight + dp(53);
+            for (MonthTaskLayout.Segment span : spans) {
+                if (span.week != week) continue;
+                for (int column = span.startColumn; column <= span.endColumn; column++) hidden[column]--;
+                Map<String, Object> task = tasks.get(span.taskIndex).raw;
+                String name = entryName(task);
+                RectF rect = new RectF(span.startColumn * cellWidth + dp(2), taskTop + span.lane * dp(19),
+                        (span.endColumn + 1) * cellWidth - dp(2), taskTop + span.lane * dp(19) + dp(17));
+                paint.setColor(entryColor(task));
+                canvas.drawRoundRect(rect, dp(4), dp(4), paint);
+                paint.setColor(color(R.color.color_text_primary));
+                paint.setStrikeThruText(entryCompleted(task));
+                paint.setAlpha(entryCompleted(task) ? 150 : 255);
+                drawBarText(canvas, rect, name);
+                paint.setStrikeThruText(false); paint.setAlpha(255);
+                hits.add(new Hit(rect, task));
+            }
+            for (int column = 0; column < 7; column++) {
+                if (hidden[column] == 0) continue;
+                RectF rect = new RectF(column * cellWidth + dp(2), taskTop + VISIBLE_TASK_LIMIT * dp(19),
+                        (column + 1) * cellWidth - dp(2), taskTop + VISIBLE_TASK_LIMIT * dp(19) + dp(17));
+                paint.setColor(color(R.color.color_text_secondary));
+                drawBarText(canvas, rect, "+" + hidden[column] + "项");
+                hits.add(new Hit(rect, null));
             }
         }
     }
+
+    private void drawBarText(Canvas canvas, RectF rect, String text) {
+        canvas.save();
+        canvas.clipRect(rect);
+        float baseline = rect.centerY() - (paint.ascent() + paint.descent()) / 2;
+        canvas.drawText(ellipsize(text, rect.width() - dp(8)), rect.left + dp(4), baseline, paint);
+        canvas.restore();
+    }
+
+    protected String entryName(Map<String, Object> item) { return java.util.Objects.toString(DayTaskSelection.value(item, "name"), "未命名任务"); }
+    protected int entryColor(Map<String, Object> item) { return colors[com.example.project_pandora.core.util.TaskTags.colorIndex(item, colors.length)]; }
+    protected boolean entryCompleted(Map<String, Object> item) { return false; }
     private List<Map<String, Object>> tasksOn(Calendar day) {
-        List<Map<String, Object>> result = new ArrayList<>(); String date = dateFormat.format(day.getTime());
+        List<Map<String, Object>> result = new ArrayList<>();
+        String date = dateFormat.format(day.getTime());
         for (DatedTask task : tasks) if (MonthTaskDates.covers(task.start, task.end, date)) result.add(task.raw);
         return result;
     }
@@ -141,34 +224,73 @@ public class PhoneMonthView extends View {
         return (value < 10 ? "初" : value < 20 ? "十" : "廿") + new String[]{"", "一", "二", "三", "四", "五", "六", "七", "八", "九"}[value % 10];
     }
     @Override public boolean onTouchEvent(MotionEvent event) {
+        if (event.getPointerCount() > 1 || event.getActionMasked() == MotionEvent.ACTION_POINTER_DOWN) {
+            periodSwipe.cancel(); swiped = true;
+            return true;
+        }
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 downX = event.getX(); downY = event.getY(); swiped = false;
-                getParent().requestDisallowInterceptTouchEvent(true); return true;
+                periodSwipe.start(downX, downY);
+                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(!details && !parentScrolling);
+                return true;
             case MotionEvent.ACTION_MOVE:
+                if (periodListener != null && periodSwipe.move(event.getX(), event.getY())) {
+                    swiped = true;
+                    if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
+                    return true;
+                }
+                if (details) {
+                    if (Math.abs(event.getY() - downY) > slop || Math.abs(event.getX() - downX) > slop) swiped = true;
+                    return true;
+                }
                 if (!swiped && event.getPointerCount() == 1 && Math.abs(event.getY() - downY) > slop * 3 && Math.abs(event.getY() - downY) > Math.abs(event.getX() - downX)) {
                     swiped = true;
                     if (swipeListener != null) { if (event.getY() < downY) swipeListener.onSwipeUp(); else swipeListener.onSwipeDown(); }
                 }
                 return true;
             case MotionEvent.ACTION_UP:
-                getParent().requestDisallowInterceptTouchEvent(false);
+                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
+                int direction = periodSwipe.finish(event.getX(), event.getY());
+                if (direction != 0 && periodListener != null) {
+                    swiped = true;
+                    periodListener.accept(direction);
+                    return true;
+                }
                 if (!swiped && Math.abs(event.getX() - downX) < slop && Math.abs(event.getY() - downY) < slop) {
                     performClick();
-                    boolean overflow = false;
-                    for (Hit hit : hits) if (hit.rect.contains(event.getX(), event.getY()) && hit.task != null && taskListener != null) { taskListener.accept(hit.task); return true; }
-                    for (Hit hit : hits) if (hit.task == null && hit.rect.contains(event.getX(), event.getY())) overflow = true;
-                    float top = dp(34); if (event.getY() < top) return true;
-                    int row = (int) ((event.getY() - top) / Math.max(1, (getHeight() - top) / rowCount()));
-                    int column = Math.min(6, (int) (event.getX() / (getWidth() / 7f)));
+                    float top = dp(34);
+                    if (event.getY() < top || event.getX() < 0 || event.getX() >= getWidth()) return true;
+                    int row = (int) ((event.getY() - top) / rowHeight());
+                    int column = (int) (event.getX() / (getWidth() / 7f));
                     if (row >= 0 && row < rowCount()) {
-                        Calendar day = firstCell(); day.add(Calendar.DATE, row * 7 + column); setDate(day);
+                        Calendar day = firstCell(); day.add(Calendar.DATE, row * 7 + column);
+                        boolean clickedTaskList = false;
+                        Map<String, Object> clickedTask = null;
+                        for (Hit hit : hits) {
+                            if (hit.rect.contains(event.getX(), event.getY())) {
+                                clickedTaskList = true; clickedTask = hit.task; break;
+                            }
+                        }
+                        if (clickedTaskList) {
+                            int[] location = new int[2];
+                            getLocationOnScreen(location);
+                            dayTasksAnchor = new Rect(location[0] + Math.round(column * getWidth() / 7f),
+                                    location[1] + Math.round(top + row * rowHeight() + dp(53)),
+                                    location[0] + Math.round((column + 1) * getWidth() / 7f),
+                                    location[1] + Math.round(top + (row + 1) * rowHeight()));
+                        }
+                        setDate(day);
                         if (dateListener != null) dateListener.onDateSelected(day.get(Calendar.YEAR), day.get(Calendar.MONTH) + 1, day.get(Calendar.DAY_OF_MONTH));
-                        if (overflow && swipeListener != null) swipeListener.onSwipeUp();
+                        if (clickedTaskList && dayTasksListener != null) dayTasksListener.accept((Calendar) day.clone());
+                        else if (clickedTask != null && taskListener != null) taskListener.accept(clickedTask);
                     }
                 }
                 return true;
-            case MotionEvent.ACTION_CANCEL: swiped = true; getParent().requestDisallowInterceptTouchEvent(false); return true;
+            case MotionEvent.ACTION_CANCEL:
+                swiped = true; periodSwipe.cancel();
+                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
+                return true;
             default: return true;
         }
     }
@@ -183,7 +305,7 @@ public class PhoneMonthView extends View {
     private static class DatedTask {
         final Map<String, Object> raw; final String start, end;
         DatedTask(Map<String, Object> task) {
-            raw = task; start = DateCompat.toLocalDateTime(task.get("start_time")); end = DateCompat.toLocalDateTime(task.get("end_time"));
+            raw = task; start = DayTaskSelection.start(task); end = DayTaskSelection.end(task);
         }
     }
 }

@@ -115,6 +115,7 @@ public class TaskReviewsActivity extends AppCompatActivity {
             StringBuilder content = new StringBuilder();
             String[][] fields = {{"content", "正文"}, {"assigneeId", "责任人 ID"}, {"priority", "优先级"}, {"startTime", "开始日期"}, {"endTime", "截止日期"}, {"isImportant", "重要"}, {"isUrgent", "紧急"}, {"progressNote", "进度说明"}};
             for (String[] field : fields) if (payload.containsKey(field[0])) content.append(field[1]).append("：").append(payload.get(field[0])).append('\n');
+            if (row.containsKey("tag_names")) content.append("标签：").append(row.get("tag_names")).append('\n');
             if (!text(row, "reason").isEmpty()) content.append("审核说明：").append(text(row, "reason")).append('\n');
             if (!text(row, "routing_error").isEmpty()) content.append(text(row, "routing_error")).append('\n');
             if ("PENDING".equals(status)) content.append("审核通过后生效");

@@ -5,8 +5,9 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getToken, removeToken, removeUser } from '@/utils/auth'
+import { getToken } from '@/utils/auth'
 import request from '@/utils/request'
+import { useUserStore } from '@/stores/userStore'
 
 const router = useRouter()
 
@@ -14,10 +15,10 @@ onMounted(async () => {
   const token = getToken()
   if (token) {
     try {
-      await request.get('/user/me')
+      const res = await request.get('/user/me')
+      if (res.data?.role !== 'ADMIN') throw new Error('管理端仅允许管理员登录')
     } catch (e) {
-      removeToken()
-      removeUser()
+      useUserStore().logout()
       router.push('/login')
     }
   }

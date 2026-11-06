@@ -25,6 +25,9 @@ public class TaskController {
     private TaskChangeService taskChanges;
 
     @Autowired
+    private TaskTagService taskTags;
+
+    @Autowired
     private com.pandora.backend.notification.NotificationService notificationService;
 
     @Autowired
@@ -48,8 +51,10 @@ public class TaskController {
             @RequestParam(required = false) Long dispatcherId,
             @RequestParam(required = false) Boolean showCompleted) {
         StringBuilder sql = new StringBuilder(
-                "SELECT t.*, u.username AS assignee_name, u.real_name AS assignee_real_name, " +
-                "d.username AS dispatcher_name, d.real_name AS dispatcher_real_name " +
+                "SELECT t.*, CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.username END AS assignee_name, " +
+                "CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.real_name END AS assignee_real_name, " +
+                "CASE WHEN d.role='ADMIN' THEN '系统' ELSE d.username END AS dispatcher_name, " +
+                "CASE WHEN d.role='ADMIN' THEN '系统' ELSE d.real_name END AS dispatcher_real_name " +
                 "FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id " +
                 "LEFT JOIN users d ON t.dispatcher_id = d.id WHERE t.deleted = 0");
         List<Object> params = new ArrayList<>();
@@ -72,19 +77,22 @@ public class TaskController {
         sql.append(" ORDER BY t.created_at DESC");
 
         List<Map<String, Object>> tasks = jdbcTemplate.queryForList(sql.toString(), params.toArray());
-        return ResponseEntity.ok(ApiResponse.success(tasks));
+        return ResponseEntity.ok(ApiResponse.success(taskTags.attach(tasks)));
     }
 
     @GetMapping("/{taskId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getTask(@PathVariable Long taskId) {
         try {
             Map<String, Object> task = jdbcTemplate.queryForMap(
-                "SELECT t.*, u.username AS assignee_name, u.real_name AS assignee_real_name, " +
-                "d.username AS dispatcher_name, d.real_name AS dispatcher_real_name " +
+                "SELECT t.*, CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.username END AS assignee_name, " +
+                "CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.real_name END AS assignee_real_name, " +
+                "CASE WHEN d.role='ADMIN' THEN '系统' ELSE d.username END AS dispatcher_name, " +
+                "CASE WHEN d.role='ADMIN' THEN '系统' ELSE d.real_name END AS dispatcher_real_name " +
                 "FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id " +
                 "LEFT JOIN users d ON t.dispatcher_id = d.id WHERE t.id = ? AND t.deleted = 0", taskId);
+            taskTags.attach(Collections.singletonList(task));
             return ResponseEntity.ok(ApiResponse.success(task));
-        } catch (Exception e) {
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "任务不存在");
         }
     }
@@ -127,6 +135,11 @@ public class TaskController {
         result.put("notImportantUrgent", notImportantUrgent);
         result.put("notImportantNotUrgent", notImportantNotUrgent);
 
+        taskTags.attach(importantUrgent);
+        taskTags.attach(importantNotUrgent);
+        taskTags.attach(notImportantUrgent);
+        taskTags.attach(notImportantNotUrgent);
+
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
@@ -154,9 +167,9 @@ public class TaskController {
         List<Map<String, Object>> tasks = jdbcTemplate.queryForList(
                 "SELECT t.*, u.username AS assignee_name, u.real_name AS assignee_real_name " +
                 "FROM tasks t JOIN users u ON t.assignee_id = u.id " +
-                "WHERE t.assignee_id IN (" + placeholders + ") AND t.deleted = 0 ORDER BY t.created_at DESC",
+                "WHERE t.assignee_id IN (" + placeholders + ") AND t.deleted = 0 AND u.role <> 'ADMIN' ORDER BY t.created_at DESC",
                 subordinateIds.toArray());
-        return ResponseEntity.ok(ApiResponse.success(tasks));
+        return ResponseEntity.ok(ApiResponse.success(taskTags.attach(tasks)));
     }
 
     @GetMapping("/subordinate/users")
@@ -172,7 +185,7 @@ public class TaskController {
         }
         String placeholders = String.join(",", Collections.nCopies(subIds.size(), "?"));
         List<Map<String, Object>> users = jdbcTemplate.queryForList(
-                "SELECT id, username, role, real_name, department_id, team_id FROM users WHERE id IN (" + placeholders + ") AND deleted = 0",
+                "SELECT id, username, role, real_name, department_id, team_id FROM users WHERE id IN (" + placeholders + ") AND deleted = 0 AND role <> 'ADMIN'",
                 subIds.toArray());
         Map<Long, Integer> depthMap = new HashMap<>();
         for (Map<String, Object> sub : subordinates) {
@@ -212,7 +225,7 @@ public class TaskController {
     @GetMapping("/assignees")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> assignees() {
         return ResponseEntity.ok(ApiResponse.success(jdbcTemplate.queryForList(
-                "SELECT id, username, real_name, role FROM users WHERE deleted = 0 AND approval_status = 'APPROVED' ORDER BY real_name, username")));
+                "SELECT id, username, real_name, role FROM users WHERE deleted = 0 AND approval_status = 'APPROVED' AND role <> 'ADMIN' ORDER BY real_name, username")));
     }
 
 

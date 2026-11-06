@@ -22,3 +22,7 @@ export function changePassword(data) {
 export function createUser(data) {
   return request.post('/user/create', data)
 }
+
+export function updateAccountProfile(userId, data) {
+  return request.put(`/user/${userId}/profile`, data)
+}

@@ -69,21 +69,7 @@ public class Top10WorkEditActivity extends AppCompatActivity {
                 .subscribe(
                         list -> {
                             top10List.clear();
-                            for (Map<String, Object> raw : list) {
-                                Map<String, Object> item = new HashMap<>();
-                                item.put("id", raw.get("id") != null ? raw.get("id") : raw.get("ID"));
-                                Object rankOrderRaw = raw.get("rankOrder") != null ? raw.get("rankOrder") : raw.get("RANK_ORDER");
-                                item.put("rankOrder", rankOrderRaw instanceof Number ? ((Number) rankOrderRaw).intValue() : rankOrderRaw);
-                                item.put("content", raw.get("content") != null ? raw.get("content") : raw.get("CONTENT"));
-                                item.put("relatedTaskId", raw.get("relatedTaskId") != null ? raw.get("relatedTaskId") : raw.get("RELATED_TASK_ID"));
-                                top10List.add(item);
-                            }
-                            for (int i = top10List.size(); i < 10; i++) {
-                                Map<String, Object> item = new HashMap<>();
-                                item.put("rankOrder", i + 1);
-                                item.put("content", "");
-                                top10List.add(item);
-                            }
+                            top10List.addAll(PersonalWorkSlots.fromSaved(list));
                             takeSnapshot();
                             binding.recyclerTop10.setAdapter(new Top10Adapter(top10List));
                         },

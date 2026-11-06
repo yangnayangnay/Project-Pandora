@@ -19,7 +19,11 @@ public class LogRepository {
     private final LogApi logApi;
 
     public LogRepository(Context context) {
-        logApi = NetworkClient.getInstance(context).createService(LogApi.class);
+        this(NetworkClient.getInstance(context).createService(LogApi.class));
+    }
+
+    LogRepository(LogApi logApi) {
+        this.logApi = logApi;
     }
 
     public Observable<Map<String, Object>> createLog(String workItem, String workContent, String completionStatus,
@@ -67,13 +71,17 @@ public class LogRepository {
                 });
     }
 
-    public Observable<Map<String, Object>> getLogStats() {
-        return logApi.getLogStats()
-                .subscribeOn(Schedulers.io())
-                .map(response -> {
-                    if (response.isSuccess() && response.getData() != null) {
-                        return response.getData();
-                    }
+    public Observable<Map<String, Object>> getLogComments(Long logId) {
+        return logApi.getLogComments(logId).subscribeOn(Schedulers.io()).map(response -> {
+            if (response.isSuccess() && response.getData() != null) return normalizeKeys(response.getData());
+            throw new BusinessException(response.getCode(), response.getMessage());
+        });
+    }
+
+    public Observable<Map<String, Object>> addLogComment(Long logId, String content) {
+        return logApi.addLogComment(logId, java.util.Collections.singletonMap("content", content))
+                .subscribeOn(Schedulers.io()).map(response -> {
+                    if (response.isSuccess() && response.getData() != null) return normalizeKeys(response.getData());
                     throw new BusinessException(response.getCode(), response.getMessage());
                 });
     }
@@ -165,7 +173,12 @@ public class LogRepository {
     }
 
     public Observable<List<Map<String, Object>>> getSubordinateLogs(Long subordinateId, String startDate, String endDate, String keyword) {
-        return logApi.getSubordinateLogs(subordinateId, startDate, endDate, keyword)
+        return getSubordinateLogs(subordinateId, null, startDate, endDate, keyword);
+    }
+
+    public Observable<List<Map<String, Object>>> getSubordinateLogs(Long subordinateId, Long departmentId,
+            String startDate, String endDate, String keyword) {
+        return logApi.getSubordinateLogs(subordinateId, departmentId, startDate, endDate, keyword)
                 .subscribeOn(Schedulers.io())
                 .map(response -> {
                     if (response.isSuccess() && response.getData() != null) {

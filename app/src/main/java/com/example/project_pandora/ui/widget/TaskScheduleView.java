@@ -19,7 +19,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 /** Native week agenda and full-day timeline with a shared date header. */
-public class TaskScheduleView extends LinearLayout {
+public class TaskScheduleView extends PeriodSwipeLayout {
     private static final long MINUTE = 60_000L;
     private boolean dayMode;
     private Calendar selected = midnight(Calendar.getInstance());
@@ -33,8 +33,9 @@ public class TaskScheduleView extends LinearLayout {
     private Timeline timeline;
     private java.util.function.Consumer<Calendar> dateListener;
     private java.util.function.Consumer<Map<String, Object>> taskListener;
+    private Runnable datePickerListener;
     private final SimpleDateFormat dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ROOT);
-    private int[] backgrounds, foregrounds;
+    private int[] backgrounds;
     private boolean initialScroll = true;
     private String loadError;
     private final Runnable clockTick = new Runnable() {
@@ -48,10 +49,10 @@ public class TaskScheduleView extends LinearLayout {
         TypedArray a = c.obtainStyledAttributes(attrs, R.styleable.TaskScheduleView);
         dayMode = a.getInt(R.styleable.TaskScheduleView_scheduleMode, 0) == 1; a.recycle();
         backgrounds = colors(R.array.calendar_month_detail_colors);
-        foregrounds = colors(R.array.calendar_month_detail_text_colors);
         setOrientation(VERTICAL);
         setBackgroundColor(color(R.color.color_bg_page));
         build();
+        setOnPeriodSwipe(direction -> shift(dayMode ? direction : direction * 7));
         if (isInEditMode()) {
             List<Map<String, Object>> samples = new ArrayList<>();
             samples.add(sample("界面优化与验收", 0, true));
@@ -62,6 +63,7 @@ public class TaskScheduleView extends LinearLayout {
     }
 
     public void setOnDateChanged(java.util.function.Consumer<Calendar> listener) { dateListener = listener; }
+    public void setOnDatePickerRequested(Runnable listener) { datePickerListener = listener; }
     public void setOnTaskClick(java.util.function.Consumer<Map<String, Object>> listener) { taskListener = listener; }
     public void setDate(Calendar date) {
         if (sameDay(selected, date)) return;
@@ -101,6 +103,9 @@ public class TaskScheduleView extends LinearLayout {
         LinearLayout nav = new LinearLayout(getContext()); nav.setGravity(Gravity.CENTER_VERTICAL);
         nav.setPadding(dp(12), dp(4), dp(12), dp(4));
         month = label("", 22); month.setTypeface(null, Typeface.BOLD);
+        month.setClickable(true); month.setFocusable(true);
+        month.setContentDescription("选择日期");
+        month.setOnClickListener(v -> { if (datePickerListener != null) datePickerListener.run(); });
         nav.addView(month, new LayoutParams(0, dp(56), 1));
         TextView previous = action("‹", "上一" + (dayMode ? "天" : "周"));
         TextView today = action("今天", "回到今天"); today.setTextSize(14);
@@ -141,7 +146,9 @@ public class TaskScheduleView extends LinearLayout {
 
     private void render() {
         if (dates == null) return;
-        month.setText(new SimpleDateFormat("yyyy年M月", Locale.CHINA).format(selected.getTime()));
+        String monthText = new SimpleDateFormat("yyyy年M月", Locale.CHINA).format(selected.getTime());
+        month.setText(monthText);
+        month.setContentDescription(monthText + "，选择日期");
         dates.setDate(selected);
         renderMessage();
         allDayColumns.removeAllViews();
@@ -203,13 +210,13 @@ public class TaskScheduleView extends LinearLayout {
         for (Entry e : visible) {
             LinearLayout card = new LinearLayout(getContext()); card.setOrientation(VERTICAL);
             card.setPadding(dp(14), dp(12), dp(14), dp(12)); card.setBackground(rounded(backgrounds[e.color], 12));
-            TextView title = label(e.name, 12); title.setGravity(Gravity.START); title.setTextColor(foregrounds[e.color % foregrounds.length]);
+            TextView title = label(e.name, 12); title.setGravity(Gravity.START); title.setTextColor(color(R.color.color_text_primary));
             title.setTextSize(TypedValue.COMPLEX_UNIT_PX, getResources().getDimension(R.dimen.schedule_week_task_text_size));
             title.setTypeface(null, Typeface.BOLD);
             card.addView(title, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
             SimpleDateFormat format = new SimpleDateFormat(e.allDay ? "M/d" : "M/d HH:mm", Locale.ROOT);
             TextView interval = label((e.allDay ? "全天 · " : "") + format.format(new Date(e.start)) + " — " + format.format(new Date(e.end)), 12);
-            interval.setTextColor(foregrounds[e.color % foregrounds.length]); interval.setGravity(Gravity.START);
+            interval.setTextColor(color(R.color.color_text_primary)); interval.setGravity(Gravity.START);
             LayoutParams textParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT); textParams.topMargin = dp(8);
             card.addView(interval, textParams); card.setMinimumHeight(dp(76)); card.setFocusable(true);
             card.setContentDescription(e.name + "，" + interval.getText() + "，点击查看详情");
@@ -229,11 +236,14 @@ public class TaskScheduleView extends LinearLayout {
         v.setGravity(Gravity.TOP | Gravity.START);
         v.setPadding(dp(5), dp(4), dp(4), dp(3)); v.setMaxLines(dayMode ? 3 : 2);
         v.setEllipsize(android.text.TextUtils.TruncateAt.END); v.setBackground(rounded(backgrounds[e.color], 6));
-        v.setTextColor(foregrounds[e.color % foregrounds.length]); v.setContentDescription(e.name + "，" + (e.allDay ? "全天任务" : "定时任务") + "，点击查看详情");
+        v.setTextColor(color(R.color.color_text_primary)); v.setContentDescription(e.name + "，" + (e.allDay ? "全天任务" : "定时任务") + "，点击查看详情");
         v.setOnClickListener(view -> open(e)); v.setFocusable(true); return v;
     }
     private void open(Entry e) { if (taskListener != null) taskListener.accept(e.raw); }
-    private void shift(int days) { selected.add(Calendar.DATE, days); initialScroll = true; render(); notifyDate(); }
+    private void shift(int days) {
+        selected = CalendarDates.shift(selected, dayMode ? CalendarDates.DAY : CalendarDates.WEEK, Integer.signum(days));
+        initialScroll = true; render(); notifyDate();
+    }
     private void notifyDate() { message.setOnClickListener(null); if (dateListener != null) dateListener.accept((Calendar) selected.clone()); }
 
     private class Timeline extends FrameLayout {
@@ -332,7 +342,7 @@ public class TaskScheduleView extends LinearLayout {
             if (!allDay && end == start) end += 60 * MINUTE;
             Entry entry = new Entry(); entry.raw = task; entry.start = start; entry.end = end; entry.allDay = allDay;
             entry.name = Objects.toString(get(task, "name"), "未命名任务");
-            entry.color = (entry.name.hashCode() & Integer.MAX_VALUE) % backgrounds.length;
+            entry.color = com.example.project_pandora.core.util.TaskTags.colorIndex(task, backgrounds.length);
             return entry;
         } catch (Exception e) { return null; }
     }
