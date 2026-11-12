@@ -263,7 +263,7 @@ onActivated(loadUsers)
 .header-actions { flex-shrink: 0; }
 .eyebrow, .card-kicker { color: var(--el-color-primary); font-size: 11px; font-weight: 700; letter-spacing: .12em; }
 h2, h3, p { margin: 0; }
-h2 { margin-top: 4px; font-size: 22px; }
+h2 { margin-top: 4px; font-size: 20px; line-height: 1.4; }
 h3 { font-size: 16px; }
 p { color: var(--el-text-color-secondary); line-height: 1.6; }
 .load-alert { margin-bottom: 16px; }

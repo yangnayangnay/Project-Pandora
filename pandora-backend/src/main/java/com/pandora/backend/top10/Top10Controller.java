@@ -394,7 +394,7 @@ public class Top10Controller {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "管理员不能作为任务发布对象");
         }
 
-        String priority = (String) request.getOrDefault("priority", "MEDIUM");
+        boolean urgent = Boolean.TRUE.equals(request.get("isUrgent"));
         String endTimeStr = (String) request.get("endTime");
 
         Integer count = jdbcTemplate.queryForObject(
@@ -405,11 +405,12 @@ public class Top10Controller {
         }
 
         jdbcTemplate.update(
-                "INSERT INTO tasks (name, priority, status, assignee_id, dispatcher_id, start_time, end_time) " +
-                "VALUES (?, ?, 'PENDING', ?, ?, CURRENT_TIMESTAMP, ?)",
-                name.trim(), priority, assigneeId, userId, endTimeStr);
+                "INSERT INTO tasks (name, status, assignee_id, dispatcher_id, is_urgent, start_time, end_time) " +
+                "VALUES (?, 'IN_PROGRESS', ?, ?, ?, CURRENT_TIMESTAMP, ?)",
+                name.trim(), assigneeId, userId, urgent ? 1 : 0, endTimeStr);
 
         Long taskId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        jdbcTemplate.update("INSERT INTO task_assignees(task_id,user_id) VALUES (?,?)", taskId, assigneeId);
 
         Integer rankOrder = (Integer) request.get("rankOrder");
         if (rankOrder == null) {

@@ -139,17 +139,10 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="优先级"
+                        android:text="紧急程度"
                         android:textColor="@color/color_text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="紧急程度"
-                        android:textColor="@color/color_text_secondary" />
 
                     <RadioGroup
                         android:id="@+id/rg_urgency"
@@ -174,36 +167,6 @@
                             android:checked="true"
                             android:minHeight="48dp"
                             android:text="不紧急" />
-                    </RadioGroup>
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="重要程度"
-                        android:textColor="@color/color_text_secondary" />
-
-                    <RadioGroup
-                        android:id="@+id/rg_importance"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
-                        <RadioButton
-                            android:id="@+id/rb_important"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:minHeight="48dp"
-                            android:text="重要" />
-
-                        <RadioButton
-                            android:id="@+id/rb_not_important"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:checked="true"
-                            android:minHeight="48dp"
-                            android:text="不重要" />
                     </RadioGroup>
 
                 </LinearLayout>
@@ -287,13 +250,16 @@
                         android:text="分配对象"
                         android:textColor="@color/color_text_secondary" />
 
-                    <Spinner
-                        android:id="@+id/spinner_assignee"
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/buttonAssignees"
+                        style="@style/Widget.Pandora.Button.Outlined"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:minHeight="48dp"
-                        android:spinnerMode="dialog" />
+                        android:text="按部门搜索并选择负责人" />
 
+                    <com.google.android.material.chip.ChipGroup android:id="@+id/selectedAssigneeChips"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" app:singleLine="false" />
                     <TextView
                         android:id="@+id/textTaskReviewHint"
                         android:layout_width="match_parent"

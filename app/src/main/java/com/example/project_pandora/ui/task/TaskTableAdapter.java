@@ -97,8 +97,8 @@ public class TaskTableAdapter extends RecyclerView.Adapter<TaskTableAdapter.Tabl
                 : androidx.core.content.ContextCompat.getColor(b.getRoot().getContext(), R.color.color_not_urgent_bg));
 
         String status = str(task.get("status"));
-        boolean isCompleted = "COMPLETED".equals(status) || "CONFIRMED".equals(status);
-        b.textColCompletion.setText(isCompleted ? "已完成" : "未完成");
+        boolean isCompleted = "COMPLETED".equals(status);
+        b.textColCompletion.setText(isCompleted ? "已完成" : "进行中");
         b.textColCompletion.setBackgroundColor(isCompleted
                 ? androidx.core.content.ContextCompat.getColor(b.getRoot().getContext(), R.color.color_status_completed_bg)
                 : androidx.core.content.ContextCompat.getColor(b.getRoot().getContext(), R.color.color_status_pending_bg));

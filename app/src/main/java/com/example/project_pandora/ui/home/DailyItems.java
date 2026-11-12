@@ -11,21 +11,34 @@ public final class DailyItems {
         Object value = item.get(key); return value != null ? value : item.get(key.toUpperCase(Locale.ROOT));
     }
     public static boolean completed(Map<String, Object> item) { return NumberCompat.toBool(value(item, "completed")); }
-    public static String date(Map<String, Object> item) { return Objects.toString(value(item, "item_date"), ""); }
+    public static String startDate(Map<String, Object> item) {
+        Object value = value(item, "start_date");
+        return Objects.toString(value != null ? value : value(item, "item_date"), "");
+    }
+    public static String endDate(Map<String, Object> item) {
+        Object value = value(item, "end_date");
+        String end = Objects.toString(value, "");
+        return end.isEmpty() ? startDate(item) : end;
+    }
+    /** Compatibility alias for callers that need the first covered date. */
+    public static String date(Map<String, Object> item) { return startDate(item); }
     public static String content(Map<String, Object> item) { return Objects.toString(value(item, "content"), ""); }
     public static List<Map<String, Object>> onDate(List<Map<String, Object>> items, String day) {
         List<Map<String, Object>> result = new ArrayList<>();
-        for (Map<String, Object> item : items) if (day.equals(date(item))) result.add(item);
+        for (Map<String, Object> item : items) {
+            String start = startDate(item), end = endDate(item);
+            if (validDate(start) && validDate(end) && day.compareTo(start) >= 0 && day.compareTo(end) <= 0) result.add(item);
+        }
         result.sort(Comparator.comparing(DailyItems::completed));
         return result;
     }
     public static List<Map<String, Object>> calendarEntries(List<Map<String, Object>> items) {
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> item : items) {
-            String date = date(item); if (!validDate(date)) continue;
-            // Date-only, same-day display coordinates; these are never sent to a task API.
+            String start = startDate(item), end = endDate(item);
+            if (!validDate(start) || !validDate(end)) continue;
             Map<String, Object> entry = new LinkedHashMap<>(item);
-            entry.put("name", content(item)); entry.put("start_time", date); entry.put("end_time", date);
+            entry.put("name", content(item)); entry.put("start_time", start); entry.put("end_time", end);
             result.add(entry);
         }
         result.sort(Comparator.comparing(DailyItems::completed));

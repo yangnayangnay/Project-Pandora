@@ -25,12 +25,12 @@ public final class TaskDetailFilter {
         if (user == null) return result;
         String keyword = query.keyword.trim().toLowerCase(Locale.ROOT);
         for (Map<String, Object> task : tasks) {
-            Long assignee = NumberCompat.toLong(TaskTags.value(task, "assignee_id"));
             Long dispatcher = NumberCompat.toLong(TaskTags.value(task, "dispatcher_id"));
-            boolean mine = user.equals(assignee), created = user.equals(dispatcher);
+            Set<Long> assignees = assigneeIds(task);
+            boolean mine = assignees.contains(user), created = user.equals(dispatcher);
             if (!mine && !created || query.scope == 1 && !mine || query.scope == 2 && !created) continue;
             if (!query.status.isEmpty() && !query.status.equals(TaskTags.value(task, "status"))) continue;
-            if (query.assignee != null && !query.assignee.equals(assignee)) continue;
+            if (query.assignee != null && !assignees.contains(query.assignee)) continue;
             if (query.tag != null && !TaskTags.ids(task).contains(query.tag)) continue;
             if (!keyword.isEmpty()) {
                 StringBuilder haystack = new StringBuilder(TaskTags.names(task));
@@ -58,5 +58,27 @@ public final class TaskDetailFilter {
             if (value != null && !value.toString().isEmpty()) return value.toString();
         }
         return "—";
+    }
+    @SuppressWarnings("unchecked")
+    public static Set<Long> assigneeIds(Map<String, Object> task) {
+        LinkedHashSet<Long> ids = new LinkedHashSet<>();
+        Object raw = TaskTags.value(task, "assignees");
+        if (raw instanceof List<?>) for (Object item : (List<?>) raw) if (item instanceof Map<?, ?>) {
+            Long id = NumberCompat.toLong(TaskTags.value((Map<String, Object>) item, "id")); if (id != null) ids.add(id);
+        }
+        Long legacy = NumberCompat.toLong(TaskTags.value(task, "assignee_id")); if (legacy != null) ids.add(legacy);
+        return ids;
+    }
+    @SuppressWarnings("unchecked")
+    public static String assigneeNames(Map<String, Object> task) {
+        List<String> names = new ArrayList<>();
+        Object raw = TaskTags.value(task, "assignees");
+        if (raw instanceof List<?>) for (Object item : (List<?>) raw) if (item instanceof Map<?, ?>) {
+            Map<String, Object> person = (Map<String, Object>) item;
+            String name = Objects.toString(TaskTags.value(person, "real_name"), "").trim();
+            if (name.isEmpty()) name = Objects.toString(TaskTags.value(person, "username"), "").trim();
+            if (!name.isEmpty()) names.add(name);
+        }
+        return names.isEmpty() ? person(task, "assignee") : String.join("、", names);
     }
 }

@@ -94,11 +94,11 @@ public class Top10Repository {
                 });
     }
 
-    public Observable<Map<String, Object>> createAndMarkCompanyDispatch(String name, long assigneeId, String priority, int rankOrder, String endTime) {
+    public Observable<Map<String, Object>> createAndMarkCompanyDispatch(String name, long assigneeId, boolean urgent, int rankOrder, String endTime) {
         return top10Api.createAndMarkCompanyDispatch(Map.of(
                 "name", name,
                 "assigneeId", assigneeId,
-                "priority", priority != null ? priority : "MEDIUM",
+                "isUrgent", urgent,
                 "rankOrder", rankOrder,
                 "endTime", endTime != null ? endTime : ""
         ))

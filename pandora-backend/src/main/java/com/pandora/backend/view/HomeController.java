@@ -11,8 +11,8 @@ public class HomeController {
     private final HomeService home;
     public HomeController(HomeService home) { this.home = home; }
     @GetMapping
-    public ApiResponse<Map<String, Object>> overview(@RequestParam(defaultValue = "false") boolean completed) {
+    public ApiResponse<Map<String, Object>> overview() {
         long actor = (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return ApiResponse.success(home.overview(actor, completed));
+        return ApiResponse.success(home.overview(actor));
     }
 }

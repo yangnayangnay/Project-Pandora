@@ -24,16 +24,18 @@
             app:navigationIconTint="@color/color_text_primary"
             android:elevation="0dp" />
 
-        <LinearLayout
+        <ScrollView
             android:id="@+id/layout_question"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:orientation="vertical"
+            android:fillViewport="true"
             android:padding="24dp"
-            android:gravity="center_vertical"
             android:visibility="visible"
             app:layout_constraintTop_toBottomOf="@id/toolbar"
             app:layout_constraintBottom_toBottomOf="parent">
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center_vertical">
+            <ImageView android:layout_width="match_parent" android:layout_height="88dp" android:src="@drawable/mbti_four_groups" android:scaleType="fitCenter" android:importantForAccessibility="no" android:layout_marginBottom="12dp" />
 
             <TextView
                 android:id="@+id/text_progress"
@@ -85,7 +87,8 @@
                 app:strokeWidth="1dp"
                 android:textColor="@color/color_text_primary" />
 
-        </LinearLayout>
+            </LinearLayout>
+        </ScrollView>
 
         <LinearLayout
             android:id="@+id/layout_loading"
@@ -134,6 +137,8 @@
                     android:textSize="16sp"
                     android:textColor="@color/color_text_secondary"
                     android:gravity="center" />
+
+                <ImageView android:id="@+id/imageMbtiAvatar" android:layout_width="match_parent" android:layout_height="160dp" android:scaleType="fitCenter" android:importantForAccessibility="no" />
 
                 <TextView
                     android:id="@+id/text_mbti_type"

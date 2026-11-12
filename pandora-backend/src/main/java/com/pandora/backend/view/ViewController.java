@@ -152,17 +152,17 @@ public class ViewController {
 
         List<Map<String, Object>> companyImportant = jdbcTemplate.queryForList(
                 "SELECT * FROM top10_works WHERE work_type = 'COMPANY_IMPORTANT' AND deleted = 0 ORDER BY rank_order LIMIT 10");
-        // REQ-31-08: 派发象限改为公司未完成任务自动聚合（优先级降序+创建时间降序 LIMIT 10），
+        // 公司派发区只聚合进行中任务，紧急任务优先。
         // 输出别名 task_name/assignee_name/assignee_username 与原查询对齐（App 端零改动兼容）；
         // 旧 top10_works COMPANY_DISPATCH 手动标记数据读取层面休眠（接口与存储保留）。
         List<Map<String, Object>> companyDispatch = jdbcTemplate.queryForList(
-                "SELECT tk.id, tk.name AS task_name, tk.status, tk.priority, " +
+                "SELECT tk.id, tk.name AS task_name, tk.status, tk.is_urgent, " +
                 "tk.start_time, tk.end_time, tk.created_at, " +
                 "CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.real_name END AS assignee_name, " +
                 "CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.username END AS assignee_username " +
                 "FROM tasks tk LEFT JOIN users u ON tk.assignee_id = u.id AND u.deleted = 0 " +
-                "WHERE tk.deleted = 0 AND tk.status IN ('PENDING', 'IN_PROGRESS', 'REJECTED') " +
-                "ORDER BY CASE tk.priority WHEN 'URGENT' THEN 4 WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2 ELSE 1 END DESC, " +
+                "WHERE tk.deleted = 0 AND tk.status = 'IN_PROGRESS' " +
+                "ORDER BY tk.is_urgent DESC, " +
                 "tk.created_at DESC LIMIT 10");
 
         List<Map<String, Object>> personalImportant = personalImportantWorks.list(userId);
@@ -207,7 +207,7 @@ public class ViewController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getInfoMap() {
         Long userId = getCurrentUserId();
         List<Map<String, Object>> tasks = jdbcTemplate.queryForList(
-                "SELECT id, name, status, priority FROM tasks WHERE assignee_id = ? AND deleted = 0", userId);
+                "SELECT id, name, status, is_urgent FROM tasks WHERE assignee_id = ? AND deleted = 0", userId);
 
         Map<String, Object> result = new HashMap<>();
         result.put("nodes", tasks);

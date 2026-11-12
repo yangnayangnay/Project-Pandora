@@ -9,6 +9,7 @@
             <el-descriptions-item label="邮箱">{{ user.email || '-' }}</el-descriptions-item>
             <el-descriptions-item label="真实姓名">{{ user.real_name || user.realName || '-' }}</el-descriptions-item>
             <el-descriptions-item label="手机号">{{ user.phone || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="个人签名"><span class="signature-display">{{ user.signature || '未设置' }}</span></el-descriptions-item>
             <el-descriptions-item label="部门ID">{{ user.department_id || user.departmentId || '-' }}</el-descriptions-item>
             <el-descriptions-item label="团队ID">{{ user.team_id || user.teamId || '-' }}</el-descriptions-item>
           </el-descriptions>
@@ -20,8 +21,13 @@
             <el-form-item label="真实姓名">
               <el-input :model-value="user.real_name || user.realName || ''" readonly />
             </el-form-item>
-            <el-form-item label="邮箱"><el-input v-model="editForm.email" /></el-form-item>
-            <el-form-item label="手机号"><el-input v-model="editForm.phone" /></el-form-item>
+            <el-form-item label="邮箱"><el-input :model-value="user.email || ''" readonly /></el-form-item>
+            <el-form-item label="手机号"><el-input :model-value="user.phone || ''" readonly /></el-form-item>
+            <el-form-item label="个人签名">
+              <el-input ref="signatureInput" :model-value="editForm.signature" @update:model-value="updateSignature"
+                type="textarea" :maxlength="20" show-word-limit :autosize="{ minRows: 2, maxRows: 4 }" resize="none" />
+              <div class="signature-hint">最多 20 字、4 行（含自动换行）</div>
+            </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="saveProfile">保存</el-button>
               <el-button @click="editing = false">取消</el-button>
@@ -51,15 +57,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getCurrentUser, updateProfile, changePassword } from '@/api/user'
+import { normalizeSignature, signatureFits } from '@/utils/signature'
 
 const user = ref({})
 const editing = ref(false)
 const showPwdPanel = ref(false)
 const savingPassword = ref(false)
 const editForm = ref({})
+const signatureInput = ref(null)
 const pwdForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' })
 import { roleMap } from '@/utils/roleConstants'
 
@@ -74,19 +82,36 @@ const loadUser = async () => {
 
 const startEdit = () => {
   editing.value = true
-  editForm.value = { email: user.value.email, phone: user.value.phone }
+  editForm.value = { signature: user.value.signature || '' }
 }
 
 const saveProfile = async () => {
+  if (!signatureFits(editForm.value.signature, signatureInput.value?.textarea)) {
+    ElMessage.warning('个人签名最多 4 行（含自动换行）')
+    return
+  }
+  if (editForm.value.signature.trim().length > 20) {
+    ElMessage.warning('个人签名最多 20 字')
+    return
+  }
   try {
-    await updateProfile({
-      email: editForm.value.email,
-      phone: editForm.value.phone
-    })
+    await updateProfile({ signature: normalizeSignature(editForm.value.signature) })
     ElMessage.success('保存成功')
     editing.value = false
     await loadUser()
   } catch (e) { /* ignore */ }
+}
+
+const updateSignature = (value) => {
+  const text = normalizeSignature(value)
+  const previous = editForm.value.signature || ''
+  // Permit deletion to repair a legacy signature; never silently rewrite stored content.
+  if (text.length < previous.length || signatureFits(text, signatureInput.value?.textarea)) {
+    editForm.value.signature = text
+  } else {
+    ElMessage.warning('个人签名最多 4 行（含自动换行）')
+    nextTick(() => { if (signatureInput.value?.textarea) signatureInput.value.textarea.value = previous })
+  }
 }
 
 const savePassword = async () => {
@@ -126,3 +151,15 @@ const savePassword = async () => {
 
 onMounted(loadUser)
 </script>
+
+<style scoped>
+.signature-display {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.signature-hint { color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6; margin-top: 4px; }
+</style>

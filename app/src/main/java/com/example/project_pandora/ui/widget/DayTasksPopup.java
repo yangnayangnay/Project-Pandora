@@ -34,6 +34,11 @@ public final class DayTasksPopup extends PopupWindow {
 
     public DayTasksPopup(Context context, Calendar date, List<Map<String, Object>> tasks,
                          Consumer<Map<String, Object>> onTaskClick) {
+        this(context, date, tasks, onTaskClick, false);
+    }
+
+    public DayTasksPopup(Context context, Calendar date, List<Map<String, Object>> tasks,
+                         Consumer<Map<String, Object>> onTaskClick, boolean dailyItems) {
         super(context);
         this.context = context;
         taskCount = tasks.size();
@@ -47,13 +52,14 @@ public final class DayTasksPopup extends PopupWindow {
         content.setClipToOutline(true);
         String title = new SimpleDateFormat("M月d日EEEE", Locale.CHINA).format(date.getTime());
         content.addView(text(title, 20, R.color.color_text_primary));
-        TextView lunar = text(lunarDate(date), 14, R.color.color_text_secondary);
+        CalendarDayLabels labels = CalendarDayLabels.forDate(date);
+        TextView lunar = text(lunarDate(date) + (labels.special.isEmpty() ? "" : " · " + labels.special), 14, R.color.color_text_secondary);
         LinearLayout.LayoutParams lunarParams = new LinearLayout.LayoutParams(-1, -2);
         lunarParams.setMargins(0, dp(6), 0, dp(16));
         content.addView(lunar, lunarParams);
         list = new RecyclerView(context);
         list.setLayoutManager(new LinearLayoutManager(context));
-        list.setContentDescription(title + "，" + tasks.size() + "项任务");
+        list.setContentDescription(title + "，" + tasks.size() + (dailyItems ? "项事项" : "项任务"));
         list.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             @NonNull @Override public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int type) {
                 LinearLayout row = new LinearLayout(context);
@@ -83,10 +89,11 @@ public final class DayTasksPopup extends PopupWindow {
             @Override public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
                 Map<String, Object> task = tasks.get(position);
                 LinearLayout row = (LinearLayout) holder.itemView;
-                String name = java.util.Objects.toString(DayTaskSelection.value(task, "name"), "未命名任务");
+                String name = java.util.Objects.toString(DayTaskSelection.value(task, "name"), dailyItems ? "未命名事项" : "未命名任务");
                 String time = taskTimes(task, date);
                 String tags = com.example.project_pandora.core.util.TaskTags.names(task);
-                if (!tags.isEmpty()) name += "\n" + tags;
+                if (!tags.isEmpty() && !dailyItems) name += "\n" + tags;
+                if (dailyItems) name += com.example.project_pandora.ui.home.DailyItems.completed(task) ? "\n已完成 · 点击修改" : "\n进行中 · 点击修改";
                 ((GradientDrawable) row.getChildAt(0).getBackground()).setColor(com.example.project_pandora.ui.task.TaskTagColors.task(context, task));
                 ((TextView) row.getChildAt(1)).setText(name);
                 ((TextView) row.getChildAt(2)).setText(time);

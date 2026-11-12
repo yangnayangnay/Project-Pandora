@@ -3,7 +3,7 @@ package com.example.project_pandora.ui.log;
 import android.os.Bundle;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.project_pandora.core.util.BackToolbarHelper;
@@ -19,7 +19,7 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 
-public class Top10WorkEditActivity extends AppCompatActivity {
+public class Top10WorkEditActivity extends PandoraActivity {
 
     private ActivityTop10WorkEditBinding binding;
     private LogRepository logRepository;

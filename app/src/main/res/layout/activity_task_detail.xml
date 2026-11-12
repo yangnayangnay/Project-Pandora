@@ -82,7 +82,7 @@
                         android:textColor="@android:color/white" />
 
                     <TextView
-                        android:id="@+id/textQuadrant"
+                        android:id="@+id/textUrgencyBadge"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
@@ -109,6 +109,14 @@
                     android:textSize="16sp" />
 
                 <TextView
+                    android:id="@+id/textCreatedTime"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textSize="14sp"
+                    android:textColor="@color/color_text_secondary" />
+
+                <TextView
                     android:id="@+id/textStartTime"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -128,7 +136,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:text="紧急程度"
+                    android:text="快捷调整紧急程度"
                     android:textStyle="bold"
                     android:textSize="16sp" />
 
@@ -187,7 +195,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:textSize="14sp"
+                    android:textSize="16sp"
                     android:textColor="@color/color_text_primary" />
 
             </LinearLayout>
@@ -204,7 +212,8 @@
             app:layout_constraintBottom_toBottomOf="parent">
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnStart"
+                android:id="@+id/btnEdit"
+                style="@style/Widget.Pandora.Button.Outlined"
                 android:layout_width="0dp"
                 android:layout_height="52dp"
                 android:layout_weight="1"
@@ -214,26 +223,9 @@
                 android:minWidth="0dp"
                 android:paddingHorizontal="8dp"
                 android:maxLines="1"
-                android:text="开始"
+                android:text="修改"
                 android:textSize="14sp"
-                android:textColor="@color/color_on_accent" />
-
-            <!-- R39 REQ-B02: 切回未完成（责任人+COMPLETED 态显示，二元切换） -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnReopen"
-                android:layout_width="0dp"
-                android:layout_height="52dp"
-                android:layout_weight="1"
-                android:layout_margin="4dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:minWidth="0dp"
-                android:paddingHorizontal="8dp"
-                android:maxLines="1"
-                android:text="@string/btn_reopen_task"
-                android:textSize="14sp"
-                android:visibility="gone"
-                android:textColor="@color/color_on_accent" />
+                android:textColor="@color/color_accent" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnComplete"
@@ -247,21 +239,6 @@
                 android:paddingHorizontal="8dp"
                 android:maxLines="1"
                 android:text="完成"
-                android:textSize="14sp"
-                android:textColor="@color/color_on_accent" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnConfirm"
-                android:layout_width="0dp"
-                android:layout_height="52dp"
-                android:layout_weight="1"
-                android:layout_margin="4dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:minWidth="0dp"
-                android:paddingHorizontal="8dp"
-                android:maxLines="1"
-                android:text="确认"
                 android:textSize="14sp"
                 android:textColor="@color/color_on_accent" />
 

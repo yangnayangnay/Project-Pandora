@@ -60,14 +60,14 @@ public class TaskChangeService {
     private void checkActor(long actor, Map<String, Object> task, String operation) {
         if (exempt(role(actor))) return;
         boolean dispatcher = task.get("dispatcher_id") instanceof Number && actor == ((Number) task.get("dispatcher_id")).longValue();
-        boolean assignee = actor == ((Number) task.get("assignee_id")).longValue();
+        boolean assignee = isAssignee(((Number) task.get("id")).longValue(), actor, task);
         if (!dispatcher && !("UPDATE".equals(operation) && assignee)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "仅创建人可申请删除；创建人或责任人可申请编辑");
         }
     }
 
     private void validate(Map<String, Object> data, boolean create) {
-        Set<String> allowed = Set.of("name", "content", "priority", "assigneeId", "isImportant", "isUrgent", "startTime", "endTime", "progressNote", "tagIds");
+        Set<String> allowed = Set.of("name", "content", "assigneeId", "assigneeIds", "isUrgent", "startTime", "endTime", "progressNote", "tagIds");
         for (String key : data.keySet()) if (!allowed.contains(key)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的任务编辑字段：" + key + "，执行状态请使用状态流转操作");
         }
@@ -80,22 +80,35 @@ public class TaskChangeService {
                 }
             }
         }
-        if (create || data.containsKey("assigneeId")) {
-            try {
-                if ("ADMIN".equals(role(Long.parseLong(Objects.toString(data.get("assigneeId"), ""))))) {
-                    throw new BusinessException(ErrorCode.BAD_REQUEST, "管理员不能作为任务发布对象");
-                }
-            } catch (NumberFormatException e) { throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择有效责任人"); }
-        }
-        if (data.containsKey("priority") && !List.of("LOW", "MEDIUM", "HIGH", "URGENT").contains(data.get("priority"))) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "优先级无效");
-        }
-        for (String key : List.of("isImportant", "isUrgent")) {
-            if (data.containsKey(key) && !(data.get(key) instanceof Boolean)) throw new BusinessException(ErrorCode.BAD_REQUEST, "重要性和紧急程度必须为布尔值");
-        }
+        if (create || data.containsKey("assigneeId") || data.containsKey("assigneeIds")) assigneeIds(data, true);
+        if (data.containsKey("isUrgent") && !(data.get("isUrgent") instanceof Boolean))
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "紧急程度必须为布尔值");
         for (String dateKey : List.of("startTime", "endTime")) if (data.get(dateKey) != null) {
-            try { java.time.LocalDate.parse(data.get(dateKey).toString().substring(0, 10)); }
-            catch (RuntimeException e) { throw new BusinessException(ErrorCode.BAD_REQUEST, "截止日期格式错误"); }
+            taskDateTime(data.get(dateKey));
+        }
+    }
+
+    private java.time.LocalDateTime taskDateTime(Object value) {
+        if (value == null) return null;
+        if (value instanceof java.sql.Timestamp timestamp) return timestamp.toLocalDateTime();
+        if (value instanceof java.time.LocalDateTime local) return local;
+        try {
+            String text = value.toString().trim().replace(' ', 'T');
+            return text.length() == 10 ? java.time.LocalDate.parse(text).atStartOfDay() : java.time.LocalDateTime.parse(text);
+        } catch (RuntimeException error) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "任务开始或截止时间格式错误");
+        }
+    }
+
+    private void validateSchedule(Map<String, Object> data, Map<String, Object> before, boolean create) {
+        if (!create && !data.containsKey("startTime") && !data.containsKey("endTime")) return;
+        Object defaultStart = create ? java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai"))
+                : before == null ? null : before.get("start_time");
+        Object defaultEnd = before == null ? null : before.get("end_time");
+        java.time.LocalDateTime start = taskDateTime(data.getOrDefault("startTime", defaultStart));
+        java.time.LocalDateTime end = taskDateTime(data.getOrDefault("endTime", defaultEnd));
+        if (start != null && end != null && !end.isAfter(start)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "截止时间必须晚于开始时间");
         }
     }
 
@@ -103,7 +116,10 @@ public class TaskChangeService {
     public Map<String, Object> submit(long actor, String operation, Long taskId, Map<String, Object> data) {
         Map<String, Object> before = taskId == null ? null : task(taskId, true);
         if (before != null) checkActor(actor, before, operation);
-        if (!"DELETE".equals(operation)) validate(data, "CREATE".equals(operation));
+        if (!"DELETE".equals(operation)) {
+            validate(data, "CREATE".equals(operation));
+            validateSchedule(data, before, "CREATE".equals(operation));
+        }
         if (exempt(role(actor))) {
             Long id = apply(actor, operation, taskId, data);
             return result(id, null, "APPROVED", "操作成功，当前职级免审");
@@ -172,8 +188,9 @@ public class TaskChangeService {
         Long taskId = request.get("task_id") == null ? null : ((Number) request.get("task_id")).longValue();
         String operation = request.get("operation").toString();
         if (approved) {
+            Map<String, Object> before = null;
             if (taskId != null) {
-                Map<String, Object> before = task(taskId, true);
+                before = task(taskId, true);
                 checkActor(actor, before, operation);
                 if (((Number) before.get("revision")).longValue() != ((Number) request.get("base_revision")).longValue()) {
                     throw new BusinessException(ErrorCode.BAD_REQUEST, "任务已变更，请退回此申请后重新提交，避免覆盖最新数据");
@@ -182,7 +199,10 @@ public class TaskChangeService {
             Map<String, Object> data;
             try { data = json.readValue(payloadText(request.get("payload")), new TypeReference<Map<String, Object>>() {}); }
             catch (Exception e) { throw new BusinessException(ErrorCode.BAD_REQUEST, "申请内容无法读取"); }
-            if (!"DELETE".equals(operation)) validate(data, "CREATE".equals(operation));
+            if (!"DELETE".equals(operation)) {
+                validate(data, "CREATE".equals(operation));
+                validateSchedule(data, before, "CREATE".equals(operation));
+            }
             taskId = apply(actor, operation, taskId, data);
         }
         db.update("UPDATE task_change_requests SET status = ?, task_id = ?, approver_id = ?, reason = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?",
@@ -192,23 +212,41 @@ public class TaskChangeService {
 
     private Long apply(long actor, String operation, Long taskId, Map<String, Object> data) {
         if ("CREATE".equals(operation)) {
-            long assignee = Long.parseLong(data.get("assigneeId").toString());
-            taskId = insert("INSERT INTO tasks (name, content, priority, status, assignee_id, dispatcher_id, is_important, is_urgent, start_time, end_time) VALUES (?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?)",
-                    data.get("name"), data.get("content"), data.getOrDefault("priority", "MEDIUM"), assignee, actor,
-                    bool(data.get("isImportant")), bool(data.get("isUrgent")), data.getOrDefault("startTime", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString()), data.get("endTime"));
+            List<Long> assignees = assigneeIds(data, true);
+            long assignee = assignees.get(0);
+            taskId = insert("INSERT INTO tasks (name, content, status, assignee_id, dispatcher_id, is_urgent, start_time, end_time) VALUES (?, ?, 'IN_PROGRESS', ?, ?, ?, ?, ?)",
+                    data.get("name"), data.get("content"), assignee, actor,
+                    bool(data.get("isUrgent")), data.getOrDefault("startTime", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString()), data.get("endTime"));
+            replaceAssignees(taskId, assignees);
             if (data.containsKey("tagIds")) tags.replace(taskId, data.get("tagIds"));
-            notifications.detectNewTask(taskId, assignee, actor);
+            for (Long id : assignees) notifications.detectNewTask(taskId, id, actor);
             return taskId;
         }
         if ("DELETE".equals(operation)) {
             db.update("UPDATE tasks SET deleted = 1, revision = revision + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?", taskId);
             return taskId;
         }
-        Map<String, String> columns = Map.of("name", "name", "content", "content", "priority", "priority", "assigneeId", "assignee_id", "isImportant", "is_important", "isUrgent", "is_urgent", "startTime", "start_time", "endTime", "end_time", "progressNote", "progress_note");
+        Map<String, String> columns = Map.of("name", "name", "content", "content", "isUrgent", "is_urgent", "startTime", "start_time", "endTime", "end_time", "progressNote", "progress_note");
         StringBuilder sql = new StringBuilder("UPDATE tasks SET revision = revision + 1, updated_at = CURRENT_TIMESTAMP");
         List<Object> args = new ArrayList<>();
-        data.forEach((key, value) -> { if (!"tagIds".equals(key)) { sql.append(", ").append(columns.get(key)).append(" = ?"); args.add(key.startsWith("is") ? bool(value) : value); } });
+        Set<Long> previousAssignees = new LinkedHashSet<>();
+        List<Long> nextAssignees = null;
+        data.forEach((key, value) -> { if (columns.containsKey(key)) { sql.append(", ").append(columns.get(key)).append(" = ?"); args.add(key.startsWith("is") ? bool(value) : value); } });
+        if (data.containsKey("assigneeId") || data.containsKey("assigneeIds")) {
+            previousAssignees.addAll(db.queryForList("SELECT user_id FROM task_assignees WHERE task_id=?", Long.class, taskId));
+            if (previousAssignees.isEmpty()) {
+                Long legacy = db.queryForObject("SELECT assignee_id FROM tasks WHERE id=?", Long.class, taskId);
+                if (legacy != null) previousAssignees.add(legacy);
+            }
+            nextAssignees = assigneeIds(data, true);
+            sql.append(", assignee_id = ?"); args.add(nextAssignees.get(0));
+            replaceAssignees(taskId, nextAssignees);
+        }
         sql.append(" WHERE id = ?"); args.add(taskId); db.update(sql.toString(), args.toArray());
+        if (nextAssignees != null) {
+            Long dispatcher = db.queryForObject("SELECT dispatcher_id FROM tasks WHERE id=?", Long.class, taskId);
+            for (Long id : nextAssignees) if (!previousAssignees.contains(id)) notifications.detectNewTask(taskId, id, dispatcher);
+        }
         if (data.containsKey("tagIds")) tags.replace(taskId, data.get("tagIds"));
         return taskId;
     }
@@ -221,7 +259,7 @@ public class TaskChangeService {
     @Transactional
     public void updateExecution(long actor, long taskId, String status, String progressNote) {
         Map<String, Object> before = task(taskId, true);
-        boolean assignee = actor == ((Number) before.get("assignee_id")).longValue();
+        boolean assignee = isAssignee(taskId, actor, before);
         boolean creator = before.get("dispatcher_id") instanceof Number && actor == ((Number) before.get("dispatcher_id")).longValue();
         if (progressNote != null && !assignee) throw new BusinessException(ErrorCode.FORBIDDEN, "仅责任人可更新进度");
         if (status != null) TaskStateMachine.validateTransition(before.get("status").toString(), status, assignee, creator);
@@ -230,6 +268,33 @@ public class TaskChangeService {
     }
 
     private int bool(Object value) { return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(Objects.toString(value)) || "1".equals(Objects.toString(value)) ? 1 : 0; }
+
+    private List<Long> assigneeIds(Map<String, Object> data, boolean required) {
+        LinkedHashSet<Long> ids = new LinkedHashSet<>();
+        Object raw = data.get("assigneeIds");
+        if (raw instanceof Collection<?> values) for (Object value : values) {
+            try { ids.add(Long.parseLong(Objects.toString(value))); }
+            catch (NumberFormatException error) { throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择有效负责人"); }
+        }
+        if (ids.isEmpty() && data.get("assigneeId") != null) {
+            try { ids.add(Long.parseLong(data.get("assigneeId").toString())); }
+            catch (NumberFormatException error) { throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择有效负责人"); }
+        }
+        if (required && ids.isEmpty()) throw new BusinessException(ErrorCode.BAD_REQUEST, "请至少选择一位负责人");
+        for (Long id : ids) if ("ADMIN".equals(role(id)))
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "管理员不能作为任务负责人");
+        return new ArrayList<>(ids);
+    }
+
+    private void replaceAssignees(long taskId, List<Long> ids) {
+        db.update("DELETE FROM task_assignees WHERE task_id = ?", taskId);
+        for (Long id : ids) db.update("INSERT INTO task_assignees(task_id,user_id) VALUES(?,?)", taskId, id);
+    }
+
+    private boolean isAssignee(long taskId, long actor, Map<String, Object> task) {
+        if (!db.queryForList("SELECT user_id FROM task_assignees WHERE task_id=? AND user_id=?", Long.class, taskId, actor).isEmpty()) return true;
+        return task.get("assignee_id") instanceof Number && actor == ((Number) task.get("assignee_id")).longValue();
+    }
 
     private long insert(String sql, Object... args) {
         GeneratedKeyHolder keys = new GeneratedKeyHolder();

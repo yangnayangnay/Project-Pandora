@@ -6,7 +6,7 @@ import android.view.ViewGroup;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -32,7 +32,7 @@ import com.example.project_pandora.notification.NotificationPermissionHelper;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends PandoraActivity {
 
     private ActivityMainBinding binding;
     private final CompositeDisposable disposables = new CompositeDisposable();

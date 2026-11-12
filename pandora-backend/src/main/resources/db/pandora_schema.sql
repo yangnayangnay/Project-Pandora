@@ -85,14 +85,12 @@ DROP TABLE IF EXISTS `tasks`;
 CREATE TABLE `tasks` (
     `id`             BIGINT       NOT NULL AUTO_INCREMENT           COMMENT '自增主键',
     `name`           VARCHAR(256) NOT NULL                          COMMENT '任务名称',
-    `priority`       ENUM('LOW','MEDIUM','HIGH','URGENT') NOT NULL DEFAULT 'MEDIUM' COMMENT '优先级',
-    `status`         ENUM('PENDING','ACCEPTED','IN_PROGRESS','COMPLETED','CONFIRMED','REJECTED') NOT NULL DEFAULT 'PENDING' COMMENT '任务状态',
+    `status`         ENUM('IN_PROGRESS','COMPLETED') NOT NULL DEFAULT 'IN_PROGRESS' COMMENT '任务状态',
     `start_time`     DATETIME     DEFAULT NULL                      COMMENT '开始时间',
     `end_time`       DATETIME     DEFAULT NULL                      COMMENT '截止时间',
     `progress_note`  TEXT         DEFAULT NULL                      COMMENT '进度说明',
     `assignee_id`    BIGINT       NOT NULL                          COMMENT '责任人ID',
     `dispatcher_id`  BIGINT       DEFAULT NULL                      COMMENT '分发人ID（NULL表示个人任务）',
-    `is_important`   TINYINT(1)   NOT NULL DEFAULT 0                COMMENT '是否重要',
     `is_urgent`      TINYINT(1)   NOT NULL DEFAULT 0                COMMENT '是否紧急',
     `version`        INT          NOT NULL DEFAULT 0                COMMENT '乐观锁版本号',
     `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -102,7 +100,7 @@ CREATE TABLE `tasks` (
     KEY `idx_assignee_status` (`assignee_id`, `status`),
     KEY `idx_dispatcher` (`dispatcher_id`),
     KEY `idx_status` (`status`),
-    KEY `idx_quadrant` (`is_important`, `is_urgent`)
+    KEY `idx_urgency` (`is_urgent`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='任务表';
 
 -- =============================================================================
@@ -127,17 +125,28 @@ CREATE TABLE `task_tag_links` (
     KEY `idx_task_tag_links_tag` (`tag_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE `task_assignees` (
+    `task_id` BIGINT NOT NULL,
+    `user_id` BIGINT NOT NULL,
+    `assigned_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`task_id`, `user_id`),
+    KEY `idx_task_assignees_user` (`user_id`, `task_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 DROP TABLE IF EXISTS `daily_items`;
 CREATE TABLE `daily_items` (
     `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `user_id` BIGINT NOT NULL,
     `content` VARCHAR(500) NOT NULL,
     `item_date` DATE NOT NULL,
+    `start_date` DATE NOT NULL,
+    `end_date` DATE NOT NULL,
     `completed` TINYINT NOT NULL DEFAULT 0,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `deleted` TINYINT NOT NULL DEFAULT 0,
-    KEY `idx_daily_items_owner_date` (`user_id`, `item_date`, `deleted`)
+    KEY `idx_daily_items_owner_date` (`user_id`, `item_date`, `deleted`),
+    KEY `idx_daily_items_owner_range` (`user_id`, `start_date`, `end_date`, `deleted`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `work_logs` (
@@ -315,6 +324,9 @@ CREATE INDEX `idx_org_team` ON `user_org_affiliation` (`team_id`);
 -- 密码为 BCrypt 加密存储（明文由项目所有者另行提供）
 INSERT INTO `users` (`username`, `password_hash`, `role`) VALUES
 ('admin', '$2a$10$N.ZOn9G6/YLFixAOPHz/h.z7pCu6v2/nY6YYi5Jm7rXmJr4mZkKm', 'ADMIN');
+
+ALTER TABLE `users` ADD COLUMN `signature` VARCHAR(160) DEFAULT NULL;
+ALTER TABLE `tasks` MODIFY `status` ENUM('IN_PROGRESS','COMPLETED') NOT NULL DEFAULT 'IN_PROGRESS';
 
 SET FOREIGN_KEY_CHECKS = 1;
 

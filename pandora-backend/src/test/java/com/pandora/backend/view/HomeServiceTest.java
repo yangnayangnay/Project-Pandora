@@ -22,21 +22,21 @@ class HomeServiceTest {
     private void task(int id, long assignee, long dispatcher, String status) { db.update("INSERT INTO tasks(id,name,content,assignee_id,dispatcher_id,status) VALUES (?,?,'正文',?,?,?)", id, "任务" + id, assignee, dispatcher, status); }
     private List<Map<String, Object>> tasks(long actor, boolean completed) { return (List<Map<String, Object>>) home.overview(actor, completed).get("tasks"); }
     @Test void everyAssigneeSeesAllTheirDispatchedTasksBeyondTen() {
-        for (int id = 1; id <= 15; id++) task(id, 1, 2, "PENDING");
+        for (int id = 1; id <= 15; id++) task(id, 1, 2, "IN_PROGRESS");
         task(16, 2, 1, "IN_PROGRESS"); task(17, 1, 1, "IN_PROGRESS");
         assertEquals(16, tasks(1, false).size()); assertEquals(1, tasks(2, false).size());
         assertTrue(tasks(1, false).stream().allMatch(row -> ((Number) row.get("assignee_id")).longValue() == 1));
         assertTrue(tasks(1, false).stream().anyMatch(row -> ((Number) row.get("id")).intValue() == 17));
     }
-    @Test void statusSwitchSeparatesFinishedAndActiveAndOmitsDeletedTasks() {
-        int id = 1; for (String state : List.of("PENDING", "IN_PROGRESS", "REJECTED", "COMPLETED", "CONFIRMED")) task(id++, 1, 2, state);
-        task(6, 1, 2, "PENDING"); db.update("UPDATE tasks SET deleted = 1 WHERE id = 6");
-        assertEquals(3, tasks(1, false).size()); assertEquals(2, tasks(1, true).size());
-        assertTrue(tasks(1, true).stream().allMatch(row -> List.of("COMPLETED", "CONFIRMED").contains(row.get("status"))));
+    @Test void homeAlwaysShowsOnlyActiveAndOmitsDeletedTasks() {
+        task(1, 1, 2, "IN_PROGRESS"); task(2, 1, 2, "COMPLETED");
+        task(3, 1, 2, "IN_PROGRESS"); db.update("UPDATE tasks SET deleted = 1 WHERE id = 3");
+        assertEquals(1, tasks(1, false).size()); assertEquals(1, tasks(1, true).size());
+        assertTrue(tasks(1, true).stream().allMatch(row -> "IN_PROGRESS".equals(row.get("status"))));
     }
     @Test void historicalAdminDispatchedTasksKeepContentWithoutExposingAdministratorIdentity() {
         db.update("UPDATE users SET role='ADMIN',real_name='后台管理员' WHERE id=2");
-        task(1, 1, 2, "PENDING");
+        task(1, 1, 2, "IN_PROGRESS");
         var row = tasks(1, false).get(0);
         assertEquals("系统", row.get("dispatcher_name"));
         assertEquals("任务1", row.get("name"));
@@ -52,7 +52,7 @@ class HomeServiceTest {
     @Test void pendingCreationRequestsAreNotShownAndTagsAreIncluded() {
         db.update("INSERT INTO task_change_requests(operation,requester_id,approver_id,payload,base_revision,status) VALUES ('CREATE',2,1,'{}',0,'PENDING')");
         assertTrue(tasks(1, false).isEmpty());
-        task(1, 1, 2, "PENDING");
+        task(1, 1, 2, "IN_PROGRESS");
         TaskTagService tags = new TaskTagService(db);
         db.update("UPDATE users SET role = 'FOUNDER' WHERE id = 2");
         long tag = ((Number) tags.save(2, null, Map.of("name", "研发", "colorIndex", 3)).get("id")).longValue(); tags.replace(1, List.of(tag));

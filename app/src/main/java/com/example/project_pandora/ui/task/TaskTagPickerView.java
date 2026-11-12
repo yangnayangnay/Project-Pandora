@@ -109,9 +109,12 @@ public final class TaskTagPickerView extends LinearLayout {
         else if (loaded) message.setText(choices.getChildCount() > 0 ? "点击标签引用" : available.isEmpty() ? "暂无标签，请由创始人创建" : "没有更多匹配的标签");
     }
     private Chip chip(Map<String, Object> tag, String title) {
-        Chip chip = new Chip(getContext()); chip.setText(title); chip.setTextColor(color(R.color.color_text_primary));
+        Chip chip = new Chip(getContext()); chip.setText(title);
         Long index = NumberCompat.toLong(TaskTags.value(tag, "color_index"));
-        chip.setChipBackgroundColor(ColorStateList.valueOf(TaskTagColors.color(getContext(), index == null ? 0 : index.intValue())));
+        int fill = TaskTagColors.color(getContext(), index == null ? 0 : index.intValue());
+        chip.setChipBackgroundColor(ColorStateList.valueOf(fill));
+        int ink = TaskTagColors.text(getContext(), fill); chip.setTextColor(ink);
+        chip.setCloseIconTint(ColorStateList.valueOf(ink));
         chip.setEnsureMinTouchTargetSize(true); return chip;
     }
     private TextView text(String value) { TextView v = new TextView(getContext()); v.setText(value); v.setTextSize(13); v.setTextColor(color(R.color.color_text_secondary)); return v; }

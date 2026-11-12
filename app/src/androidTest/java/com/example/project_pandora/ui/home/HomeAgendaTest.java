@@ -35,6 +35,11 @@ public class HomeAgendaTest {
             assertSame(binding.homeAppBar, binding.homeCoordinator.getChildAt(0));
             assertSame(binding.scrollDailyAgenda, binding.homeCoordinator.getChildAt(1));
             assertEquals(2, binding.boardPanels.getChildCount());
+            assertSame("Creation stays outside the scrolling agenda", binding.homeCoordinator, binding.btnAddDailyItem.getParent());
+            assertTrue(binding.btnAddDailyItem instanceof com.google.android.material.floatingactionbutton.FloatingActionButton);
+            androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams addParams =
+                    (androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams) binding.btnAddDailyItem.getLayoutParams();
+            assertEquals(android.view.Gravity.BOTTOM | android.view.Gravity.END, addParams.gravity);
             assertTrue((((AppBarLayout.LayoutParams) binding.boardPanels.getLayoutParams()).getScrollFlags() & AppBarLayout.LayoutParams.SCROLL_FLAG_SCROLL) != 0);
             assertEquals("首页", context().getString(R.string.nav_mindmap));
             assertEquals("公司", context().getString(R.string.nav_view));
@@ -62,15 +67,12 @@ public class HomeAgendaTest {
         });
     }
 
-    @Test public void expansionIntentsKeepTheExistingBackStackAndPassTheSelectedBoardAndFilter() {
+    @Test public void expansionIntentsKeepTheExistingBackStackAndPassTheSelectedBoard() {
         for (int tab : new int[]{HomeBoardsActivity.TAB_EVENTS, HomeBoardsActivity.TAB_TASKS}) {
-            for (boolean done : new boolean[]{false, true}) {
-                Intent intent = HomeBoardsActivity.createIntent(context(), tab, done);
+                Intent intent = HomeBoardsActivity.createIntent(context(), tab);
                 assertEquals(HomeBoardsActivity.class.getName(), intent.getComponent().getClassName());
                 assertEquals(tab, intent.getIntExtra(HomeBoardsActivity.EXTRA_TAB, -1));
-                assertEquals(done, intent.getBooleanExtra(HomeBoardsActivity.EXTRA_COMPLETED, !done));
                 assertEquals(0, intent.getFlags());
-            }
         }
     }
 

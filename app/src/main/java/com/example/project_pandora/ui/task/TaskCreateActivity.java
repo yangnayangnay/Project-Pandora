@@ -3,10 +3,9 @@ package com.example.project_pandora.ui.task;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 import androidx.appcompat.app.AlertDialog;
 
 import com.example.project_pandora.R;
@@ -16,6 +15,7 @@ import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.core.network.TokenManager;
 import com.example.project_pandora.core.util.BackToolbarHelper;
 import com.example.project_pandora.core.util.TaskDateTimes;
+import com.example.project_pandora.core.util.TaskTags;
 import com.example.project_pandora.data.remote.TaskApi;
 import com.example.project_pandora.databinding.ActivityTaskCreateBinding;
 import com.example.project_pandora.repository.DraftRepository;
@@ -30,12 +30,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.LinkedHashSet;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
-public class TaskCreateActivity extends AppCompatActivity {
+public class TaskCreateActivity extends PandoraActivity {
 
     private ActivityTaskCreateBinding binding;
     private TaskApi taskApi;
@@ -47,11 +48,34 @@ public class TaskCreateActivity extends AppCompatActivity {
     private WheelTimePickerDialog timePicker;
     private final List<Long> assigneeIds = new ArrayList<>();
     private final List<String> assigneeNames = new ArrayList<>();
+    private final List<Map<String, Object>> assigneePeople = new ArrayList<>();
+    private final LinkedHashSet<Long> selectedAssigneeIds = new LinkedHashSet<>();
     private final CompositeDisposable disposables = new CompositeDisposable();
     private boolean isRestoringDraft = false;
     private boolean saveCompleted = false;
+    private boolean taskLoaded;
     // Round19 REQ-19-03: 视图页FAB预设分配人
     private Long presetAssigneeId = null;
+    private boolean editMode;
+    private long editTaskId = -1;
+    private TaskFormState originalEditState;
+    private AlertDialog exitDialog;
+
+    private final androidx.activity.result.ActivityResultLauncher<android.content.Intent> assigneesLauncher =
+            registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() != android.app.Activity.RESULT_OK || result.getData() == null) return;
+                long[] ids = result.getData().getLongArrayExtra("selectedIds");
+                if (ids == null || ids.length == 0) return;
+                ArrayList<String> names = result.getData().getStringArrayListExtra("selectedNames");
+                selectedAssigneeIds.clear();
+                for (int i = 0; i < ids.length; i++) {
+                    selectedAssigneeIds.add(ids[i]);
+                    int existing = assigneeIds.indexOf(ids[i]);
+                    if (existing < 0) { assigneeIds.add(ids[i]); assigneeNames.add(names != null && i < names.size() ? names.get(i) : Long.toString(ids[i])); }
+                    else if (names != null && i < names.size()) assigneeNames.set(existing, names.get(i));
+                }
+                renderAssignees(); onContentChanged();
+            });
 
 
     @Override
@@ -63,15 +87,25 @@ public class TaskCreateActivity extends AppCompatActivity {
         taskApi = NetworkClient.getInstance(this).createService(TaskApi.class);
         draftRepository = new DraftRepository(this);
 
-        BackToolbarHelper.setupBack(binding.toolbar, this::finish);
+        binding.getRoot().setFocusableInTouchMode(true);
+        binding.getRoot().requestFocus();
+        BackToolbarHelper.setupBack(binding.toolbar, this::requestExit);
+        editMode = getIntent().getBooleanExtra("editMode", false);
+        editTaskId = getIntent().getLongExtra("taskId", -1);
+        if (savedInstanceState != null) originalEditState = (TaskFormState) savedInstanceState.getSerializable("originalEditState");
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override public void handleOnBackPressed() { requestExit(); }
+        });
+        if (editMode) { binding.toolbar.setTitle("修改任务"); binding.btnCreateTask.setText("提交修改审核"); }
 
         // Round19 REQ-19-03: 读取 Intent 预设分配人参数
         // Round23 REQ-23-04: 废止锁定语义，仅保留预设定位（默认自己、可选改）
         presetAssigneeId = getIntent().getLongExtra("assigneeId", -1);
         if (presetAssigneeId <= 0) presetAssigneeId = null;
 
-        // Round23 REQ-23-07: 候选加载期间禁用 Spinner，避免误导性下拉
-        binding.spinnerAssignee.setEnabled(false);
+        // 候选加载期间禁用负责人入口，避免展示未加载的选择页。
+        binding.buttonAssignees.setEnabled(false);
+        binding.buttonAssignees.setOnClickListener(v -> showAssigneePicker());
         loadAssigneeOptions();
         String role = TokenManager.getInstance(this).getRole();
         binding.textTaskReviewHint.setText("ADMIN".equals(role) || "FOUNDER".equals(role)
@@ -89,17 +123,34 @@ public class TaskCreateActivity extends AppCompatActivity {
 
         setupAutoSave();
         binding.taskTags.setOnChanged(this::onContentChanged);
+        binding.rgUrgency.setOnCheckedChangeListener((group, checkedId) -> onContentChanged());
         if (savedInstanceState != null) {
+            taskLoaded = savedInstanceState.getBoolean("taskLoaded");
             Object ids = savedInstanceState.getSerializable("taskTagIds");
             if (ids instanceof java.util.ArrayList) binding.taskTags.setSelectedIds((java.util.ArrayList<Long>) ids);
+            selectedAssigneeIds.clear();
+            Object people = savedInstanceState.getSerializable("taskAssigneeIds");
+            if (people instanceof java.util.ArrayList<?>) for (Object value : (java.util.ArrayList<?>) people) { Long id = com.example.project_pandora.core.util.NumberCompat.toLong(value); if (id != null) selectedAssigneeIds.add(id); }
+            ArrayList<String> names = savedInstanceState.getStringArrayList("taskAssigneeNames");
+            int index = 0;
+            for (Long id : selectedAssigneeIds) {
+                if (!assigneeIds.contains(id)) {
+                    assigneeIds.add(id);
+                    assigneeNames.add(names != null && index < names.size() ? names.get(index) : "用户 " + id);
+                }
+                index++;
+            }
+            renderAssignees();
         }
-        if (savedInstanceState == null) checkDraftRestore();
+        if (savedInstanceState == null && !editMode) checkDraftRestore();
+        if (editMode && editTaskId > 0 && (savedInstanceState == null || !savedInstanceState.getBoolean("taskLoaded") || originalEditState == null)) loadTaskForEdit();
     }
 
     private void setupAutoSave() {
-        autoSaveManager = new AutoSaveManager(this, "TASK",
+        if (!editMode) autoSaveManager = new AutoSaveManager(this, "TASK",
                 () -> {
                     Map<String, Object> content = new HashMap<>();
+                    content.put("editorMode", "CREATE");
                     content.put("name", binding.editTaskName.getText().toString());
                     content.put("content", binding.editTaskContent.getText().toString()); // R39 REQ-C07: 草稿覆盖正文
                     content.put("startTime", selectedStartTime);
@@ -107,12 +158,7 @@ public class TaskCreateActivity extends AppCompatActivity {
                     content.put("tagIds", binding.taskTags.getSelectedIds());
                     boolean isUrgent = binding.rgUrgency.getCheckedRadioButtonId() == R.id.rb_urgent;
                     content.put("isUrgent", isUrgent);
-                    boolean isImportant = binding.rgImportance.getCheckedRadioButtonId() == R.id.rb_important;
-                    content.put("isImportant", isImportant);
-                    int pos = binding.spinnerAssignee.getSelectedItemPosition();
-                    if (pos >= 0 && pos < assigneeIds.size()) {
-                        content.put("assigneeId", assigneeIds.get(pos));
-                    }
+                    content.put("assigneeIds", new ArrayList<>(selectedAssigneeIds));
                     return content;
                 },
                 status -> {
@@ -135,7 +181,7 @@ public class TaskCreateActivity extends AppCompatActivity {
                     }
                 });
 
-        binding.editTaskName.addTextChangedListener(new TextWatcher() {
+        TextWatcher watcher = new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override
@@ -144,11 +190,13 @@ public class TaskCreateActivity extends AppCompatActivity {
             public void afterTextChanged(Editable s) {
                 if (!isRestoringDraft) onContentChanged();
             }
-        });
+        };
+        binding.editTaskName.addTextChangedListener(watcher);
+        binding.editTaskContent.addTextChangedListener(watcher);
     }
 
     public void onContentChanged() {
-        if (autoSaveManager != null) {
+        if (!isRestoringDraft && autoSaveManager != null) {
             autoSaveManager.onContentChanged();
         }
     }
@@ -158,7 +206,7 @@ public class TaskCreateActivity extends AppCompatActivity {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         draftData -> {
-                            if (draftData != null && draftData.get("content") != null) {
+                            if (draftData != null && TaskFormState.isCreationDraft(draftData.get("content"))) {
                                 DraftRestoreDialog.show(this, draftData,
                                         content -> {
                                             isRestoringDraft = true;
@@ -202,23 +250,10 @@ public class TaskCreateActivity extends AppCompatActivity {
                 binding.rgUrgency.check(R.id.rb_not_urgent);
             }
         }
-        Object isImportant = content.get("isImportant");
-        if (isImportant instanceof Boolean) {
-            if ((Boolean) isImportant) {
-                binding.rgImportance.check(R.id.rb_important);
-            } else {
-                binding.rgImportance.check(R.id.rb_not_important);
-            }
-        }
-        Object assigneeIdObj = content.get("assigneeId");
-        if (assigneeIdObj != null) {
-            // Round25 缺陷⑫: 草稿 JSON 数字反序列化为 Double（"5.0"）——Round26 统一收敛至 NumberCompat
-            Long assigneeId = com.example.project_pandora.core.util.NumberCompat.toLong(assigneeIdObj);
-            if (assigneeId != null) {
-                int idx = assigneeIds.indexOf(assigneeId);
-                if (idx >= 0) binding.spinnerAssignee.setSelection(idx);
-            }
-        }
+        Object selected = content.get("assigneeIds");
+        if (selected instanceof List<?>) for (Object value : (List<?>) selected) { Long id = com.example.project_pandora.core.util.NumberCompat.toLong(value); if (id != null) selectedAssigneeIds.add(id); }
+        Object legacy = content.get("assigneeId"); Long legacyId = com.example.project_pandora.core.util.NumberCompat.toLong(legacy); if (legacyId != null) selectedAssigneeIds.add(legacyId);
+        renderAssignees();
     }
 
     private void loadAssigneeOptions() {
@@ -228,11 +263,14 @@ public class TaskCreateActivity extends AppCompatActivity {
 
         assigneeIds.clear();
         assigneeNames.clear();
+        assigneePeople.clear();
         if (!"ADMIN".equals(currentRole) && currentUserId != null && currentUserId > 0) {
             assigneeIds.add(currentUserId);
             assigneeNames.add(currentUserName);
+            Map<String, Object> self = new HashMap<>(); self.put("id", currentUserId); self.put("real_name", currentUserName); self.put("department_name", "我的部门"); self.put("role", currentRole); assigneePeople.add(self);
+            if (!editMode && selectedAssigneeIds.isEmpty()) selectedAssigneeIds.add(currentUserId);
         }
-        setupAssigneeSpinner();
+        updateAssigneeControl();
 
         disposables.add(taskApi.getAssignees()
                 .subscribeOn(Schedulers.io())
@@ -253,13 +291,25 @@ public class TaskCreateActivity extends AppCompatActivity {
                                     if (id != null) {
                                         // Round26: Gson 数字串统一收敛至 NumberCompat（原 parseDouble 裸调无捕获）
                                         Long idLong = com.example.project_pandora.core.util.NumberCompat.toLong(id);
-                                        if (idLong != null && !assigneeIds.contains(idLong)) {
-                                            assigneeIds.add(idLong);
-                                            assigneeNames.add(name != null ? name.toString() : "用户" + idLong);
+                                        if (idLong != null) {
+                                            int existing = assigneeIds.indexOf(idLong);
+                                            if (existing < 0) {
+                                                assigneeIds.add(idLong);
+                                                assigneeNames.add(name != null ? name.toString() : "用户" + idLong);
+                                            } else if (name != null) {
+                                                assigneeNames.set(existing, name.toString());
+                                            }
+                                            boolean listed = false;
+                                            for (Map<String, Object> person : assigneePeople) {
+                                                if (idLong.equals(com.example.project_pandora.core.util.NumberCompat.toLong(TaskTags.value(person, "id")))) {
+                                                    listed = true; break;
+                                                }
+                                            }
+                                            if (!listed) assigneePeople.add(user);
                                         }
                                     }
                                 }
-                                setupAssigneeSpinner();
+                                updateAssigneeControl();
                             } else {
                                 showAssigneeLoadError();
                             }
@@ -278,24 +328,63 @@ public class TaskCreateActivity extends AppCompatActivity {
                 .show();
     }
 
-    private void setupAssigneeSpinner() {
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_dropdown_item, assigneeNames);
-        binding.spinnerAssignee.setAdapter(adapter);
-
-        // Round19 REQ-19-03: 预设分配人定位（Round23 REQ-23-04 起不再锁定）
-        if (presetAssigneeId != null) {
-            int idx = assigneeIds.indexOf(presetAssigneeId);
-            if (idx >= 0) {
-                binding.spinnerAssignee.setSelection(idx);
-            }
+    private void updateAssigneeControl() {
+        if (!editMode && presetAssigneeId != null && assigneeIds.contains(presetAssigneeId)) {
+            selectedAssigneeIds.clear(); selectedAssigneeIds.add(presetAssigneeId); presetAssigneeId = null;
         }
+        binding.buttonAssignees.setEnabled(!assigneePeople.isEmpty());
+        renderAssignees();
+    }
 
-        // Round23 REQ-23-07: 候选仅"自己"（无下属或加载失败）时禁用选择器并降透明度提示
-        boolean single = assigneeIds.size() <= 1;
-        binding.spinnerAssignee.setEnabled(!single);
-        binding.spinnerAssignee.setClickable(!single);
-        binding.spinnerAssignee.setAlpha(single ? 0.6f : 1.0f);
+    private void renderAssignees() {
+        if (binding == null) return;
+        List<String> names = new ArrayList<>();
+        for (Long id : selectedAssigneeIds) {
+            int index = assigneeIds.indexOf(id);
+            names.add(index >= 0 && index < assigneeNames.size() ? assigneeNames.get(index) : "用户 " + id);
+        }
+        binding.buttonAssignees.setText(names.isEmpty() ? "按部门搜索并选择负责人" : "已选 " + names.size() + " 人，点击调整");
+        binding.selectedAssigneeChips.removeAllViews();
+        for (String name : names) {
+            com.google.android.material.chip.Chip chip = new com.google.android.material.chip.Chip(this);
+            chip.setText(name); chip.setClickable(false); chip.setCheckable(false);
+            binding.selectedAssigneeChips.addView(chip);
+        }
+    }
+
+    private void showAssigneePicker() {
+        leaveTextEditing();
+        if (assigneePeople.isEmpty()) return;
+        long[] ids = new long[selectedAssigneeIds.size()]; int index = 0;
+        for (long id : selectedAssigneeIds) ids[index++] = id;
+        assigneesLauncher.launch(new android.content.Intent(this, TaskAssigneesActivity.class)
+                .putExtra("selectedIds", ids).putExtra("taskId", editMode ? editTaskId : -1));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void loadTaskForEdit() {
+        binding.btnCreateTask.setEnabled(false);
+        disposables.add(taskApi.getTask(editTaskId).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(response -> {
+            if (!response.isSuccess() || response.getData() == null) { Toast.makeText(this, response.getMessage(), Toast.LENGTH_LONG).show(); finish(); return; }
+            Map<String, Object> task = response.getData();
+            binding.editTaskName.setText(java.util.Objects.toString(TaskTags.value(task, "name"), ""));
+            binding.editTaskContent.setText(java.util.Objects.toString(TaskTags.value(task, "content"), ""));
+            selectedStartTime = TaskDateTimes.restore(TaskTags.value(task, "start_time"), false);
+            selectedEndTime = TaskDateTimes.restore(TaskTags.value(task, "end_time"), true); renderTimes();
+            binding.rgUrgency.check(com.example.project_pandora.core.util.NumberCompat.toBool(TaskTags.value(task, "is_urgent")) ? R.id.rb_urgent : R.id.rb_not_urgent);
+            binding.taskTags.setSelectedIds(com.example.project_pandora.core.util.TaskTags.ids(task));
+            selectedAssigneeIds.clear();
+            selectedAssigneeIds.addAll(com.example.project_pandora.core.util.TaskAssignees.ids(task));
+            for (Map<String, Object> person : com.example.project_pandora.core.util.TaskAssignees.people(task)) {
+                Long id = com.example.project_pandora.core.util.NumberCompat.toLong(TaskTags.value(person, "id"));
+                if (id != null && !assigneeIds.contains(id)) {
+                    assigneeIds.add(id); assigneeNames.add(com.example.project_pandora.ui.people.PeopleDirectory.name(person)); assigneePeople.add(person);
+                }
+            }
+            taskLoaded = true; renderAssignees();
+            originalEditState = formState();
+            binding.btnCreateTask.setEnabled(true);
+        }, error -> { Toast.makeText(this, error.getMessage(), Toast.LENGTH_LONG).show(); finish(); }));
     }
 
     private void renderTimes() {
@@ -304,6 +393,7 @@ public class TaskCreateActivity extends AppCompatActivity {
     }
 
     private void showDateTimePicker(boolean end) {
+        leaveTextEditing();
         if ((datePicker != null && datePicker.isShowing()) || (timePicker != null && timePicker.isShowing())) return;
         Calendar cal = Calendar.getInstance();
         Date previous = TaskDateTimes.parse(end ? selectedEndTime : selectedStartTime);
@@ -326,9 +416,18 @@ public class TaskCreateActivity extends AppCompatActivity {
     }
 
     @Override protected void onSaveInstanceState(Bundle outState) {
+        outState.putSerializable("originalEditState", originalEditState);
+        outState.putBoolean("taskLoaded", taskLoaded);
         outState.putString("taskStartTime", selectedStartTime);
         outState.putString("taskEndTime", selectedEndTime);
         outState.putSerializable("taskTagIds", binding.taskTags.getSelectedIds());
+        outState.putSerializable("taskAssigneeIds", new ArrayList<>(selectedAssigneeIds));
+        ArrayList<String> names = new ArrayList<>();
+        for (Long id : selectedAssigneeIds) {
+            int index = assigneeIds.indexOf(id);
+            names.add(index >= 0 ? assigneeNames.get(index) : "用户 " + id);
+        }
+        outState.putStringArrayList("taskAssigneeNames", names);
         super.onSaveInstanceState(outState);
     }
 
@@ -357,34 +456,29 @@ public class TaskCreateActivity extends AppCompatActivity {
             return;
         }
         if (!TaskDateTimes.validRange(selectedStartTime, selectedEndTime)) {
-            Toast.makeText(this, "截止时间不能早于开始时间，请检查任务排期", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "截止时间必须晚于开始时间，请检查任务排期", Toast.LENGTH_SHORT).show();
             return;
         }
 
         boolean isUrgent = binding.rgUrgency.getCheckedRadioButtonId() == R.id.rb_urgent;
-        boolean isImportant = binding.rgImportance.getCheckedRadioButtonId() == R.id.rb_important;
-        int assigneePos = binding.spinnerAssignee.getSelectedItemPosition();
-        if (assigneePos < 0 || assigneePos >= assigneeIds.size()) {
-            Toast.makeText(this, "请选择有效责任人", Toast.LENGTH_SHORT).show();
+        if (selectedAssigneeIds.isEmpty()) {
+            Toast.makeText(this, "请至少选择一位负责人", Toast.LENGTH_SHORT).show();
             return;
         }
-        Long assigneeId = assigneeIds.get(assigneePos);
 
         Map<String, Object> request = new HashMap<>();
         request.put("name", name);
         request.put("content", content); // R39 REQ-C06: 正文落库
-        request.put("priority", isUrgent ? "URGENT" : "MEDIUM");
-        request.put("assigneeId", assigneeId);
-        request.put("isImportant", isImportant);
+        request.put("assigneeIds", new ArrayList<>(selectedAssigneeIds));
         request.put("isUrgent", isUrgent);
         request.put("startTime", selectedStartTime + ":00");
         request.put("endTime", selectedEndTime + ":00");
         request.put("tagIds", binding.taskTags.getSelectedIds());
 
         binding.btnCreateTask.setEnabled(false);
-        binding.btnCreateTask.setText("创建中...");
+        binding.btnCreateTask.setText(editMode ? "提交中..." : "创建中...");
 
-        disposables.add(taskApi.createTask(request)
+        disposables.add((editMode ? taskApi.updateTask(editTaskId, request) : taskApi.createTask(request))
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
@@ -395,19 +489,19 @@ public class TaskCreateActivity extends AppCompatActivity {
                                 if (autoSaveManager != null) {
                                     autoSaveManager.stop();
                                 }
-                                disposables.add(draftRepository.deleteDraft("TASK")
+                                if (!editMode) disposables.add(draftRepository.deleteDraft("TASK")
                                         .subscribe(r -> {}, Throwable::printStackTrace));
                                 finish();
                             } else {
                                 Toast.makeText(this, response.getMessage(), Toast.LENGTH_SHORT).show();
                                 binding.btnCreateTask.setEnabled(true);
-                                binding.btnCreateTask.setText("创建任务");
+                                binding.btnCreateTask.setText(editMode ? "提交修改审核" : "创建任务");
                             }
                         },
                         error -> {
-                            Toast.makeText(this, "创建失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, (editMode ? "修改提交失败: " : "创建失败: ") + error.getMessage(), Toast.LENGTH_SHORT).show();
                             binding.btnCreateTask.setEnabled(true);
-                            binding.btnCreateTask.setText("创建任务");
+                            binding.btnCreateTask.setText(editMode ? "提交修改审核" : "创建任务");
                         }
                 ));
     }
@@ -428,6 +522,7 @@ public class TaskCreateActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (exitDialog != null) exitDialog.dismiss();
         if (datePicker != null) datePicker.dismiss();
         if (timePicker != null) timePicker.dismiss();
         super.onDestroy();
@@ -435,5 +530,46 @@ public class TaskCreateActivity extends AppCompatActivity {
             autoSaveManager.stop();
         }
         disposables.clear();
+    }
+
+    private TaskFormState formState() {
+        return new TaskFormState(binding.editTaskName.getText().toString(), binding.editTaskContent.getText().toString(),
+                selectedStartTime, selectedEndTime, binding.rgUrgency.getCheckedRadioButtonId() == R.id.rb_urgent,
+                binding.taskTags.getSelectedIds(), selectedAssigneeIds);
+    }
+
+    private void requestExit() {
+        leaveTextEditing();
+        if (editMode && !saveCompleted && originalEditState != null && !originalEditState.equals(formState())) {
+            if (exitDialog != null && exitDialog.isShowing()) return;
+            exitDialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                    .setMessage("当前修改未保存，是否退出？")
+                    .setNegativeButton("继续编辑", null)
+                    .setPositiveButton("退出", (dialog, which) -> finish()).create();
+            exitDialog.show();
+        } else finish();
+    }
+
+    private void leaveTextEditing() {
+        android.view.View focused = getCurrentFocus();
+        if (!(focused instanceof android.widget.EditText)) return;
+        android.view.inputmethod.InputMethodManager keyboard = (android.view.inputmethod.InputMethodManager)
+                getSystemService(INPUT_METHOD_SERVICE);
+        if (keyboard != null) keyboard.hideSoftInputFromWindow(focused.getWindowToken(), 0);
+        focused.clearFocus();
+        // Keep focus outside ScrollView so window restoration cannot scroll back to an input.
+        binding.getRoot().requestFocus();
+    }
+
+    @Override public boolean dispatchTouchEvent(android.view.MotionEvent event) {
+        if (binding != null && event.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) {
+            android.view.View focused = getCurrentFocus();
+            if (focused instanceof android.widget.EditText) {
+                android.graphics.Rect bounds = new android.graphics.Rect();
+                focused.getGlobalVisibleRect(bounds);
+                if (!bounds.contains((int) event.getRawX(), (int) event.getRawY())) leaveTextEditing();
+            }
+        }
+        return super.dispatchTouchEvent(event);
     }
 }

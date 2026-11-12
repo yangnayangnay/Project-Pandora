@@ -4,7 +4,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 
 import com.example.project_pandora.R;
 import com.example.project_pandora.core.network.NetworkClient;
@@ -19,7 +19,7 @@ import java.util.Map;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
-public class MBTITestActivity extends AppCompatActivity {
+public class MBTITestActivity extends PandoraActivity {
 
     private ActivityMbtiTestBinding binding;
     private AIApi aiApi;
@@ -168,6 +168,7 @@ public class MBTITestActivity extends AppCompatActivity {
 
         String type = data.get("personalityType") != null ? data.get("personalityType").toString() : "????";
         binding.textMbtiType.setText(type);
+        binding.imageMbtiAvatar.setImageResource(MbtiAvatars.resource(type));
         binding.textMbtiDesc.setText(MBTITestActivity.getTypeDescription(type));
 
         String[] functions = MbtiQuestions.getCognitiveFunctions(type);

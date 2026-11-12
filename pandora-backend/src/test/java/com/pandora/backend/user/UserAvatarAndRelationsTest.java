@@ -30,6 +30,38 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class UserAvatarAndRelationsTest {
+    @Test void signatureAllowsFourLinesAndNormalizesLineEndings() {
+        controller.updateProfile(Map.of("signature", "一\r\n二\r三\u2028四"));
+        assertEquals("一\n二\n三\n四", db.queryForObject("SELECT signature FROM users WHERE id=3", String.class));
+    }
+    @Test void signatureRejectsFifthLineIncludingTrailingBlankLinesBeforeAnyProfileWrite() {
+        controller.updateProfile(Map.of("signature", "原签名"));
+        for (String invalid : List.of("一\n二\n三\n四\n五", "一\n\n\n\n", "一\r\n二\r\n三\r\n四\r\n五", "一\u2029二\u0085三\r四\n五")) {
+            BusinessException error = assertThrows(BusinessException.class,
+                    () -> controller.updateProfile(Map.of("signature", invalid, "avatar", "/must-not-be-written.jpg")));
+            assertEquals(ErrorCode.BAD_REQUEST, error.getErrorCode());
+            assertTrue(error.getMessage().contains("4 行"));
+            assertEquals("原签名", db.queryForObject("SELECT signature FROM users WHERE id=3", String.class));
+            assertNull(db.queryForObject("SELECT avatar FROM users WHERE id=3", String.class));
+        }
+    }
+    @Test void signatureAllowsTwentyCharactersRejectsTwentyOneAndCanBeCleared() {
+        String twenty = "签".repeat(20);
+        controller.updateProfile(Map.of("signature", twenty));
+        assertEquals(twenty, db.queryForObject("SELECT signature FROM users WHERE id=3", String.class));
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> controller.updateProfile(Map.of("signature", twenty + "名")));
+        assertEquals(ErrorCode.BAD_REQUEST, error.getErrorCode());
+        assertEquals(twenty, db.queryForObject("SELECT signature FROM users WHERE id=3", String.class));
+        controller.updateProfile(Map.of("signature", ""));
+        assertEquals("", db.queryForObject("SELECT signature FROM users WHERE id=3", String.class));
+    }
+    @Test void shorterLimitDoesNotRewriteExistingLongSignaturesWithoutASave() {
+        String legacy = "旧签名".repeat(10);
+        db.update("UPDATE users SET signature=? WHERE id=3", legacy);
+        assertThrows(BusinessException.class, () -> controller.updateProfile(Map.of("signature", legacy)));
+        assertEquals(legacy, db.queryForObject("SELECT signature FROM users WHERE id=3", String.class));
+    }
     @TempDir Path storage;
     private JdbcTemplate db;
     private UserController controller;
@@ -176,7 +208,7 @@ class UserAvatarAndRelationsTest {
     }
     @Test void taskListAndDetailKeepHistoricalTasksWithoutAdminNames() {
         db.update("UPDATE users SET role='ADMIN',real_name='后台管理员' WHERE id=4");
-        db.update("INSERT INTO tasks(id,name,content,assignee_id,dispatcher_id,status) VALUES (100,'历史任务','正文',4,4,'PENDING')");
+        db.update("INSERT INTO tasks(id,name,content,assignee_id,dispatcher_id,status) VALUES (100,'历史任务','正文',4,4,'IN_PROGRESS')");
         var tasks = new com.pandora.backend.task.TaskController();
         ReflectionTestUtils.setField(tasks, "jdbcTemplate", db);
         ReflectionTestUtils.setField(tasks, "taskTags", new com.pandora.backend.task.TaskTagService(db));

@@ -5,7 +5,7 @@ import android.view.View;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import com.example.project_pandora.core.util.BackToolbarHelper;
 
-public class KeywordAnalysisActivity extends AppCompatActivity {
+public class KeywordAnalysisActivity extends PandoraActivity {
 
     private ActivityKeywordAnalysisBinding binding;
     private KeywordAdapter adapter;

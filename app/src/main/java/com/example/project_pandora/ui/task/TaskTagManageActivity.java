@@ -18,7 +18,7 @@ import java.util.*;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.*;
 
-public final class TaskTagManageActivity extends AppCompatActivity {
+public final class TaskTagManageActivity extends com.example.project_pandora.ui.PandoraActivity {
     private final List<Map<String, Object>> rows = new ArrayList<>();
     private final CompositeDisposable actions = new CompositeDisposable();
     private final SerialDisposable loading = new SerialDisposable();
@@ -57,8 +57,10 @@ public final class TaskTagManageActivity extends AppCompatActivity {
         int[] selected = {initial == null ? 0 : initial.intValue()};
         for (int i = 0; i < TaskTagColors.NAMES.length; i++) {
             final int index = i;
-            Chip chip = new Chip(this); chip.setId(View.generateViewId()); chip.setText(TaskTagColors.NAMES[i]); chip.setTextColor(color(R.color.color_text_primary)); chip.setCheckable(true); chip.setEnsureMinTouchTargetSize(true);
-            chip.setChipBackgroundColor(ColorStateList.valueOf(TaskTagColors.color(this, i))); colors.addView(chip); chip.setChecked(i == selected[0]);
+            Chip chip = new Chip(this); chip.setId(View.generateViewId()); chip.setText(TaskTagColors.NAMES[i]); chip.setCheckable(true); chip.setEnsureMinTouchTargetSize(true);
+            int fill = TaskTagColors.color(this, i); int ink = TaskTagColors.text(this, fill);
+            chip.setChipBackgroundColor(ColorStateList.valueOf(fill)); chip.setTextColor(ink);
+            chip.setCheckedIconTint(ColorStateList.valueOf(ink)); colors.addView(chip); chip.setChecked(i == selected[0]);
             chip.setOnCheckedChangeListener((button, checked) -> { if (checked) selected[0] = index; });
         }
         form.addView(colors);
@@ -94,7 +96,9 @@ public final class TaskTagManageActivity extends AppCompatActivity {
         @Override public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
             Map<String, Object> tag = rows.get(position); LinearLayout row = (LinearLayout) holder.itemView;
             TextView label = (TextView) row.getChildAt(0); label.setText("#" + TaskTags.value(tag, "name"));
-            Long index = NumberCompat.toLong(TaskTags.value(tag, "color_index")); label.setBackgroundColor(TaskTagColors.color(TaskTagManageActivity.this, index == null ? 0 : index.intValue()));
+            Long index = NumberCompat.toLong(TaskTags.value(tag, "color_index"));
+            int fill = TaskTagColors.color(TaskTagManageActivity.this, index == null ? 0 : index.intValue());
+            label.setBackgroundColor(fill); label.setTextColor(TaskTagColors.text(TaskTagManageActivity.this, fill));
             row.getChildAt(1).setOnClickListener(v -> edit(tag)); row.getChildAt(2).setOnClickListener(v -> delete(tag));
         }
         @Override public int getItemCount() { return rows.size(); }

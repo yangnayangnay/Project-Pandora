@@ -35,20 +35,18 @@ public class HomeBoardLoaderTest {
         @Override public void onError(Throwable error, boolean includeEvents) { errorEvents.add(includeEvents); }
     }
 
-    @Test public void taskFilterLeavesEventViewsUntouchedEvenIfResponseContainsDifferentEvents() {
+    @Test public void taskOnlyReloadLeavesEventViewsUntouchedEvenIfResponseContainsDifferentEvents() {
         Display display = new Display();
-        List<Boolean> filters = new ArrayList<>();
-        HomeBoardLoader loader = new HomeBoardLoader(completed -> {
-            filters.add(completed);
-            return Observable.just(response(completed ? "changed event" : "original event", completed ? "done" : "todo"));
-        }, Schedulers.trampoline(), display);
-        loader.load(false, true);
-        loader.load(true, false);
-        assertEquals(Arrays.asList(false, true), filters);
+        Deque<Observable<Map<String, Object>>> responses = new ArrayDeque<>();
+        responses.add(Observable.just(response("original event", "todo")));
+        responses.add(Observable.just(response("changed event", "updated")));
+        HomeBoardLoader loader = new HomeBoardLoader(responses::removeFirst, Schedulers.trampoline(), display);
+        loader.load(true);
+        loader.load(false);
         assertEquals(Arrays.asList(true, false), display.loadingEvents);
         assertEquals(1, display.events.size());
         assertEquals("original event", display.events.get(0).get(0).get("content"));
-        assertEquals("done", display.tasks.get(1).get(0).get("name"));
+        assertEquals("updated", display.tasks.get(1).get(0).get("name"));
         loader.close();
     }
 
@@ -58,10 +56,10 @@ public class HomeBoardLoaderTest {
         responses.add(Observable.just(response("event", "todo")));
         responses.add(Observable.error(new IllegalStateException("offline")));
         responses.add(Observable.just(response("unrelated new event", "done")));
-        HomeBoardLoader loader = new HomeBoardLoader(done -> responses.removeFirst(), Schedulers.trampoline(), display);
-        loader.load(false, true);
-        loader.load(true, false);
-        loader.load(true, false);
+        HomeBoardLoader loader = new HomeBoardLoader(responses::removeFirst, Schedulers.trampoline(), display);
+        loader.load(true);
+        loader.load(false);
+        loader.load(false);
         assertEquals(Collections.singletonList(false), display.errorEvents);
         assertEquals(Arrays.asList(true, false, false), display.loadingEvents);
         assertEquals(1, display.events.size());
@@ -69,13 +67,14 @@ public class HomeBoardLoaderTest {
         loader.close();
     }
 
-    @Test public void changingFilterBeforeInitialResponseStillLoadsEventsAndCancelsOldResponse() {
+    @Test public void reloadingBeforeInitialResponseStillLoadsEventsAndCancelsOldResponse() {
         Display display = new Display();
         PublishSubject<Map<String, Object>> initial = PublishSubject.create(), filtered = PublishSubject.create();
-        HomeBoardLoader loader = new HomeBoardLoader(done -> done ? filtered : initial, Schedulers.trampoline(), display);
-        loader.load(false, true);
+        AtomicInteger requests = new AtomicInteger();
+        HomeBoardLoader loader = new HomeBoardLoader(() -> requests.incrementAndGet() == 1 ? initial : filtered, Schedulers.trampoline(), display);
+        loader.load(true);
         assertTrue(initial.hasObservers());
-        loader.load(true, false);
+        loader.load(false);
         assertFalse(initial.hasObservers());
         initial.onNext(response("stale event", "stale task"));
         filtered.onNext(response("current event", "done"));
@@ -86,14 +85,15 @@ public class HomeBoardLoaderTest {
         loader.close();
     }
 
-    @Test public void fastFilterChangesDoNotAllowSlowerResponsesToOverwriteLatestTasks() {
+    @Test public void fastReloadsDoNotAllowSlowerResponsesToOverwriteLatestTasks() {
         Display display = new Display();
         PublishSubject<Map<String, Object>> pending = PublishSubject.create();
-        HomeBoardLoader loader = new HomeBoardLoader(done -> done ? pending : Observable.just(response("event", "todo")),
+        AtomicInteger requests = new AtomicInteger();
+        HomeBoardLoader loader = new HomeBoardLoader(() -> requests.incrementAndGet() == 2 ? pending : Observable.just(response("event", "todo")),
                 Schedulers.trampoline(), display);
-        loader.load(false, true);
-        loader.load(true, false);
-        loader.load(false, false);
+        loader.load(true);
+        loader.load(false);
+        loader.load(false);
         pending.onNext(response("stale", "done"));
         assertFalse(pending.hasObservers());
         assertEquals(1, display.events.size());
@@ -108,23 +108,25 @@ public class HomeBoardLoaderTest {
         responses.add(Observable.just(response("original", "todo")));
         responses.add(Observable.just(response("original", "todo")));
         responses.add(Observable.just(response("changed", "todo")));
-        HomeBoardLoader loader = new HomeBoardLoader(done -> responses.removeFirst(), Schedulers.trampoline(), display);
-        loader.load(false, true);
-        loader.load(false, true);
+        HomeBoardLoader loader = new HomeBoardLoader(responses::removeFirst, Schedulers.trampoline(), display);
+        loader.load(true);
+        loader.load(true);
         assertEquals(1, display.events.size());
-        loader.load(false, true);
+        loader.load(true);
         assertEquals(2, display.events.size());
         assertEquals(Arrays.asList(true, false, false), display.loadingEvents);
         loader.close();
     }
 
-    @Test public void initialFailureCanRecoverBothBoardsOnFilterRetry() {
+    @Test public void initialFailureCanRecoverBothBoardsOnRetry() {
         Display display = new Display();
-        HomeBoardLoader loader = new HomeBoardLoader(done -> done ? Observable.just(response("event", "done"))
-                : Observable.error(new IllegalStateException("offline")), Schedulers.trampoline(), display);
-        loader.load(false, true);
+        Deque<Observable<Map<String, Object>>> responses = new ArrayDeque<>();
+        responses.add(Observable.error(new IllegalStateException("offline")));
+        responses.add(Observable.just(response("event", "todo")));
+        HomeBoardLoader loader = new HomeBoardLoader(responses::removeFirst, Schedulers.trampoline(), display);
+        loader.load(true);
         assertEquals(Collections.singletonList(true), display.errorEvents);
-        loader.load(true, false);
+        loader.load(false);
         assertEquals(1, display.events.size());
         assertEquals(1, display.tasks.size());
         loader.close();
@@ -133,12 +135,12 @@ public class HomeBoardLoaderTest {
     @Test public void destroyingViewCancelsPendingCallbacksAndFurtherLoads() {
         Display display = new Display();
         PublishSubject<Map<String, Object>> pending = PublishSubject.create();
-        HomeBoardLoader loader = new HomeBoardLoader(done -> pending, Schedulers.trampoline(), display);
-        loader.load(false, true);
+        HomeBoardLoader loader = new HomeBoardLoader(() -> pending, Schedulers.trampoline(), display);
+        loader.load(true);
         loader.close();
         assertFalse(pending.hasObservers());
         pending.onNext(response("event", "todo"));
-        loader.load(true, false);
+        loader.load(false);
         assertTrue(display.events.isEmpty());
         assertTrue(display.tasks.isEmpty());
         assertEquals(1, display.loadingEvents.size());
@@ -146,9 +148,9 @@ public class HomeBoardLoaderTest {
 
     @Test public void returningWithUnchangedContentDoesNotShowLoadingOrRebuildEitherBoard() {
         Display display = new Display();
-        HomeBoardLoader loader = new HomeBoardLoader(done -> Observable.just(response("event", "todo")), Schedulers.trampoline(), display);
-        loader.refresh(false);
-        loader.refresh(false);
+        HomeBoardLoader loader = new HomeBoardLoader(() -> Observable.just(response("event", "todo")), Schedulers.trampoline(), display);
+        loader.refresh();
+        loader.refresh();
         assertEquals(Collections.singletonList(true), display.loadingEvents);
         assertEquals(1, display.events.size());
         assertEquals(1, display.tasks.size());
@@ -161,10 +163,10 @@ public class HomeBoardLoaderTest {
         responses.add(Observable.just(response("event", "todo")));
         responses.add(Observable.just(response("event", "updated task")));
         responses.add(Observable.just(response("updated event", "updated task")));
-        HomeBoardLoader loader = new HomeBoardLoader(done -> responses.removeFirst(), Schedulers.trampoline(), display);
-        loader.refresh(false); loader.refresh(false);
+        HomeBoardLoader loader = new HomeBoardLoader(responses::removeFirst, Schedulers.trampoline(), display);
+        loader.refresh(); loader.refresh();
         assertEquals(1, display.events.size()); assertEquals(2, display.tasks.size());
-        loader.refresh(false);
+        loader.refresh();
         assertEquals(2, display.events.size()); assertEquals(2, display.tasks.size());
         assertEquals(1, display.loadingEvents.size()); loader.close();
     }
@@ -175,21 +177,24 @@ public class HomeBoardLoaderTest {
         responses.add(Observable.just(response("event", "todo")));
         responses.add(Observable.error(new IllegalStateException("offline")));
         responses.add(Observable.just(response("event", "changed")));
-        HomeBoardLoader loader = new HomeBoardLoader(done -> responses.removeFirst(), Schedulers.trampoline(), display);
-        loader.refresh(false); loader.refresh(false);
+        HomeBoardLoader loader = new HomeBoardLoader(responses::removeFirst, Schedulers.trampoline(), display);
+        loader.refresh(); loader.refresh();
         assertTrue(display.errorEvents.isEmpty()); assertEquals(1, display.loadingEvents.size());
         assertEquals(1, display.events.size()); assertEquals(1, display.tasks.size());
-        loader.refresh(false); assertEquals(2, display.tasks.size()); loader.close();
+        loader.refresh(); assertEquals(2, display.tasks.size()); loader.close();
     }
 
-    @Test public void refreshWithDifferentFilterMustLoadTasksAndReportItsFailure() {
+    @Test public void explicitReloadReportsFailureAndCanRetry() {
         Display display = new Display();
-        HomeBoardLoader loader = new HomeBoardLoader(done -> done ? Observable.error(new IllegalStateException("offline"))
-                : Observable.just(response("event", "todo")), Schedulers.trampoline(), display);
-        loader.refresh(false); loader.refresh(true);
+        Deque<Observable<Map<String, Object>>> responses = new ArrayDeque<>();
+        responses.add(Observable.just(response("event", "todo")));
+        responses.add(Observable.error(new IllegalStateException("offline")));
+        responses.add(Observable.just(response("event", "updated")));
+        HomeBoardLoader loader = new HomeBoardLoader(responses::removeFirst, Schedulers.trampoline(), display);
+        loader.refresh(); loader.load(false);
         assertEquals(Arrays.asList(true, false), display.loadingEvents);
         assertEquals(Collections.singletonList(false), display.errorEvents);
-        loader.refresh(false);
+        loader.load(false);
         assertEquals(Arrays.asList(true, false, false), display.loadingEvents);
         assertEquals(2, display.tasks.size()); loader.close();
     }
@@ -198,11 +203,11 @@ public class HomeBoardLoaderTest {
         Display display = new Display();
         PublishSubject<Map<String, Object>> pending = PublishSubject.create();
         AtomicInteger requests = new AtomicInteger();
-        HomeBoardLoader loader = new HomeBoardLoader(done -> requests.incrementAndGet() == 1
+        HomeBoardLoader loader = new HomeBoardLoader(() -> requests.incrementAndGet() == 1
                 ? Observable.just(response("event", "todo")) : pending, Schedulers.trampoline(), display);
-        loader.refresh(false); loader.refresh(false); assertTrue(pending.hasObservers());
+        loader.refresh(); loader.refresh(); assertTrue(pending.hasObservers());
         loader.close(); assertFalse(pending.hasObservers());
-        pending.onNext(response("changed", "changed")); loader.refresh(false);
+        pending.onNext(response("changed", "changed")); loader.refresh();
         assertEquals(2, requests.get()); assertEquals(1, display.tasks.size()); assertEquals(1, display.events.size());
     }
 }

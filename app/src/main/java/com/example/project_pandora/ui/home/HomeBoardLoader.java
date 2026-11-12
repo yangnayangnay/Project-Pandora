@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.function.Supplier;
 
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Scheduler;
@@ -19,31 +19,30 @@ public final class HomeBoardLoader {
         void onError(Throwable error, boolean events);
     }
 
-    private final Function<Boolean, Observable<Map<String, Object>>> source;
+    private final Supplier<Observable<Map<String, Object>>> source;
     private final Scheduler scheduler;
     private final Listener listener;
     private final SerialDisposable request = new SerialDisposable();
     private List<Map<String, Object>> events;
     private List<Map<String, Object>> tasks;
-    private boolean tasksCompleted;
 
-    public HomeBoardLoader(Function<Boolean, Observable<Map<String, Object>>> source,
+    public HomeBoardLoader(Supplier<Observable<Map<String, Object>>> source,
                            Scheduler scheduler, Listener listener) {
         this.source = source;
         this.scheduler = scheduler;
         this.listener = listener;
     }
 
-    public void load(boolean completed, boolean refreshEvents) {
-        load(completed, refreshEvents, false);
+    public void load(boolean refreshEvents) {
+        load(refreshEvents, false);
     }
 
     /** Refresh a visible board without replacing its content with a loading placeholder. */
-    public void refresh(boolean completed) {
-        load(completed, true, tasks != null && tasksCompleted == completed);
+    public void refresh() {
+        load(true, tasks != null);
     }
 
-    private void load(boolean completed, boolean refreshEvents, boolean background) {
+    private void load(boolean refreshEvents, boolean background) {
         if (request.isDisposed()) return;
         request.set(null);
         // A filter selected before the first response must still finish loading the events.
@@ -52,7 +51,7 @@ public final class HomeBoardLoader {
             tasks = null;
             listener.onLoading(includeEvents && events == null);
         }
-        request.set(Observable.defer(() -> source.apply(completed)).observeOn(scheduler).subscribe(data -> {
+        request.set(Observable.defer(source::get).observeOn(scheduler).subscribe(data -> {
             if (includeEvents) {
                 List<Map<String, Object>> nextEvents = rows(data, "events");
                 if (events == null || !events.equals(nextEvents)) {
@@ -63,7 +62,6 @@ public final class HomeBoardLoader {
             List<Map<String, Object>> nextTasks = rows(data, "tasks");
             boolean changed = tasks == null || !tasks.equals(nextTasks);
             tasks = new ArrayList<>(nextTasks);
-            tasksCompleted = completed;
             if (!background || changed) listener.onTasks(nextTasks);
         }, error -> {
             if (!background) listener.onError(error, includeEvents && events == null);

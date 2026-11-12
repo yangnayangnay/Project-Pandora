@@ -22,11 +22,10 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 
 import static org.junit.Assert.*;
 
-/** Protects calendar/table status parity even when the server returns confirmed tasks. */
+/** Protects calendar/table visibility with the two-state task model. */
 public class TaskVisibilityTest {
     private final List<Map<String, Object>> rows = Arrays.asList(
-            task(1, "PENDING"), task(2, "IN_PROGRESS"), task(3, "COMPLETED"),
-            task(4, "CONFIRMED"), task(5, "REJECTED"));
+            task(1, "IN_PROGRESS"), task(2, "COMPLETED"));
     private final List<Object[]> calls = new ArrayList<>();
     private final TaskApi api = (TaskApi) Proxy.newProxyInstance(TaskApi.class.getClassLoader(), new Class<?>[]{TaskApi.class},
             (proxy, method, args) -> {
@@ -40,25 +39,25 @@ public class TaskVisibilityTest {
     @Before public void directIo() { RxJavaPlugins.setIoSchedulerHandler(ignored -> Schedulers.trampoline()); }
     @After public void resetRx() { RxJavaPlugins.reset(); }
 
-    @Test public void offHidesBothCompletedAndConfirmedWhileKeepingUnfinishedTasks() {
+    @Test public void offHidesCompletedWhileKeepingInProgressTasks() {
         List<Map<String, Object>> result = new TaskRepository(api).listTasksExtended(null, 7L, null, false).blockingFirst();
-        assertEquals(Arrays.asList("PENDING", "IN_PROGRESS", "REJECTED"), statuses(result));
+        assertEquals(Collections.singletonList("IN_PROGRESS"), statuses(result));
         assertArrayEquals(new Object[]{null, 7L, null, false}, calls.get(0));
-        assertEquals(5, rows.size()); assertTrue(rows.get(0).containsKey("STATUS"));
+        assertEquals(2, rows.size()); assertTrue(rows.get(0).containsKey("STATUS"));
     }
 
-    @Test public void onRestoresCompletedAndConfirmedForAssignedAndDispatchedScopes() {
+    @Test public void onRestoresCompletedForAssignedAndDispatchedScopes() {
         TaskRepository repository = new TaskRepository(api);
         List<Map<String, Object>> assigned = repository.listTasksExtended(null, 7L, null, true).blockingFirst();
         List<Map<String, Object>> dispatched = repository.listTasksExtended(null, null, 7L, true).blockingFirst();
-        assertEquals(Arrays.asList("PENDING", "IN_PROGRESS", "COMPLETED", "CONFIRMED", "REJECTED"), statuses(assigned));
+        assertEquals(Arrays.asList("IN_PROGRESS", "COMPLETED"), statuses(assigned));
         assertEquals(statuses(assigned), statuses(dispatched));
         assertArrayEquals(new Object[]{null, null, 7L, true}, calls.get(1));
     }
 
     @Test public void explicitCompletedFilterCannotLeakCompletedRowsWhenSettingIsOff() {
         List<Map<String, Object>> result = new TaskRepository(api).listTasksExtended("COMPLETED", 7L, null, false).blockingFirst();
-        assertFalse(statuses(result).contains("COMPLETED")); assertFalse(statuses(result).contains("CONFIRMED"));
+        assertEquals(Collections.singletonList("IN_PROGRESS"), statuses(result));
         assertArrayEquals(new Object[]{"COMPLETED", 7L, null, false}, calls.get(0));
     }
 

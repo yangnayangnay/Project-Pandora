@@ -151,7 +151,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="可填写前天、昨天、今天；新建时可自由选择日期。"
+                        android:text="请选择前天、昨天或今天，新建时可在这三天内切换日期。"
                             android:textColor="@color/color_text_secondary"
                             android:textSize="13sp" />
 

@@ -203,11 +203,9 @@ public class MonthTaskAdapter extends RecyclerView.Adapter<MonthTaskAdapter.Mont
             String name = string(task != null ? task.get("name") : null);
             if (name.isEmpty()) name = "未命名任务";
             nameView.setText(name);
-            nameView.setTextColor(ContextCompat.getColor(context, R.color.color_text_primary));
 
             String timeText = formatTimeRange(task);
             timeView.setText(timeText);
-            timeView.setTextColor(ContextCompat.getColor(context, R.color.color_text_secondary));
 
             String deadline = task != null ? DateCompat.toLocalDate(task.get("end_time")) : null;
             String deadlineText = deadline != null && !deadline.isEmpty()
@@ -221,10 +219,9 @@ public class MonthTaskAdapter extends RecyclerView.Adapter<MonthTaskAdapter.Mont
             String tagNames = com.example.project_pandora.core.util.TaskTags.names(task);
             String metaText = "截止 " + deadlineText + " · " + assignee + (tagNames.isEmpty() ? "" : "\n" + tagNames);
             metaView.setText(metaText);
-            metaView.setTextColor(ContextCompat.getColor(context, R.color.color_text_secondary));
 
             String status = string(task != null ? task.get("status") : null);
-            boolean completed = "COMPLETED".equals(status) || "CONFIRMED".equals(status);
+            boolean completed = "COMPLETED".equals(status);
             String statusText = completed ? "已完成" : "未完成";
             statusBackground.setColor(ContextCompat.getColor(context, completed
                     ? R.color.color_status_completed_bg : R.color.color_status_pending_bg));
@@ -235,8 +232,12 @@ public class MonthTaskAdapter extends RecyclerView.Adapter<MonthTaskAdapter.Mont
             int accentIndex = com.example.project_pandora.core.util.TaskTags.colorIndex(task, accentPalette.length);
             accentBackground.setColor(accentPalette[accentIndex]);
             accentBar.setBackground(accentBackground);
-            ((GradientDrawable) itemView.getBackground()).setColor(tagNames.isEmpty()
-                    ? ContextCompat.getColor(context, R.color.color_calendar_bg) : accentPalette[accentIndex]);
+            int fill = tagNames.isEmpty() ? ContextCompat.getColor(context, R.color.color_calendar_bg) : accentPalette[accentIndex];
+            ((GradientDrawable) itemView.getBackground()).setColor(fill);
+            nameView.setTextColor(com.example.project_pandora.ui.task.TaskTagColors.text(context, fill));
+            int secondary = com.example.project_pandora.ui.task.TaskTagColors.text(context, fill,
+                    ContextCompat.getColor(context, R.color.color_text_secondary));
+            timeView.setTextColor(secondary); metaView.setTextColor(secondary);
 
             itemView.setContentDescription(name + "，" + timeText + "，" + metaText
                     + "，" + statusText + "，点击查看详情");

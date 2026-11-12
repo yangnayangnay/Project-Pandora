@@ -6,7 +6,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.project_pandora.core.network.TokenManager;
@@ -23,7 +23,7 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.disposables.SerialDisposable;
 
-public class LogDetailActivity extends AppCompatActivity {
+public class LogDetailActivity extends PandoraActivity {
 
     public static final String EXTRA_LOG_ID = "logId";
 

@@ -13,6 +13,8 @@ public class DailyItemController {
 
     @GetMapping
     public ApiResponse<List<Map<String, Object>>> list(@RequestParam String month) { return ApiResponse.success(items.list(actor(), month)); }
+    @GetMapping("/date/{day}")
+    public ApiResponse<List<Map<String, Object>>> listForDate(@PathVariable String day) { return ApiResponse.success(items.listForDate(actor(), day)); }
     @PostMapping
     public ApiResponse<Map<String, Object>> create(@RequestBody Map<String, Object> body) { return ApiResponse.success(items.create(actor(), body)); }
     @PatchMapping("/{id}")

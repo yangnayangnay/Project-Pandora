@@ -4,7 +4,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 
 import com.example.project_pandora.R;
 import com.example.project_pandora.core.network.NetworkClient;
@@ -18,7 +18,7 @@ import java.util.Map;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
-public class ForgotPasswordActivity extends AppCompatActivity {
+public class ForgotPasswordActivity extends PandoraActivity {
 
     private ActivityForgotPasswordBinding binding;
     private AuthApi authApi;

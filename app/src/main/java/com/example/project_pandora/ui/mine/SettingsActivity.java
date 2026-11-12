@@ -7,9 +7,11 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 
 import com.example.project_pandora.R;
+import com.example.project_pandora.core.config.BackgroundPrefs;
+import com.example.project_pandora.ui.widget.CompanyBackgrounds;
 import com.example.project_pandora.core.config.LogCountLimit;
 import com.example.project_pandora.core.config.LogDisplayLimitConfig;
 import com.example.project_pandora.core.config.LogTimeLimit;
@@ -38,7 +40,7 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
-public class SettingsActivity extends AppCompatActivity {
+public class SettingsActivity extends PandoraActivity {
 
     private ActivitySettingsBinding binding;
     private TaskDisplaySettingsRepository taskDisplaySettings;
@@ -63,6 +65,37 @@ public class SettingsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivitySettingsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        CompanyBackgrounds.bind(binding.getRoot(), CompanyBackgrounds.Scene.MINE);
+        binding.toolbar.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        binding.radioBackgroundStyle.check(BackgroundPrefs.getStyle(this) == BackgroundPrefs.SOLID
+                ? R.id.radioBackgroundSolid : R.id.radioBackgroundCompany);
+        binding.radioBackgroundStyle.setOnCheckedChangeListener((group, checkedId) -> {
+            if (checkedId == R.id.radioBackgroundSolid || checkedId == R.id.radioBackgroundCompany) {
+                BackgroundPrefs.saveStyle(this, checkedId == R.id.radioBackgroundSolid
+                        ? BackgroundPrefs.SOLID : BackgroundPrefs.COMPANY);
+            }
+        });
+        float[] scales = {.9f, 1f, 1.1f, 1.2f};
+        String[] scaleNames = {"较小", "默认", "较大", "大"};
+        float currentScale = com.example.project_pandora.core.config.FontSizePrefs.get(this);
+        int index = 1;
+        for (int i = 0; i < scales.length; i++) if (Float.compare(scales[i], currentScale) == 0) index = i;
+        binding.fontSizeSlider.setProgress(index);
+        binding.textFontSizePreview.setText("字号预览 · " + scaleNames[index]);
+        binding.fontSizeSlider.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(android.widget.SeekBar bar, int progress, boolean fromUser) {
+                binding.textFontSizePreview.setText("字号预览 · " + scaleNames[progress]);
+                binding.textFontSizePreview.setTextSize(16 * scales[progress] / currentScale);
+            }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar bar) {}
+            @Override public void onStopTrackingTouch(android.widget.SeekBar bar) {}
+        });
+        binding.btnApplyFontSize.setOnClickListener(v -> {
+            float next = scales[binding.fontSizeSlider.getProgress()];
+            if (Float.compare(next, currentScale) != 0) {
+                com.example.project_pandora.core.config.FontSizePrefs.save(this, next); recreate();
+            }
+        });
 
         taskDisplaySettings = new TaskDisplaySettingsRepository(this);
         notificationApi = NetworkClient.getInstance(this).createService(NotificationApi.class);

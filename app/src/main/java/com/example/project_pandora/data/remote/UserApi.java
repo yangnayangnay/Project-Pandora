@@ -22,6 +22,9 @@ public interface UserApi {
     @GET("user/me")
     Observable<ApiResponse<Map<String, Object>>> getCurrentUser();
 
+    @PUT("user/me")
+    Observable<ApiResponse<Void>> updateCurrentUser(@Body Map<String, Object> request);
+
     @Multipart
     @POST("user/me/avatar")
     Observable<ApiResponse<Map<String, Object>>> uploadAvatar(@Part MultipartBody.Part file, @Part("source") RequestBody source);
@@ -43,9 +46,6 @@ public interface UserApi {
 
     @PUT("user/settings")
     Observable<ApiResponse<Void>> updateUserSettings(@Body Map<String, Object> request);
-
-    @PUT("user/birthday")
-    Observable<ApiResponse<Map<String, Object>>> updateBirthday(@Body Map<String, Object> request);
 
     @GET("user/list")
     Observable<ApiResponse<List<Map<String, Object>>>> getAllUsers();

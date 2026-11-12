@@ -30,6 +30,6 @@ public final class TaskDateTimes {
 
     public static boolean validRange(String start, String end) {
         Date first = parse(start), last = parse(end);
-        return first != null && last != null && !last.before(first);
+        return first != null && last != null && last.after(first);
     }
 }

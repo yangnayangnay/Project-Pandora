@@ -5,7 +5,7 @@ import android.view.*;
 import android.widget.*;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.RecyclerView;
@@ -22,7 +22,7 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.disposables.SerialDisposable;
 
-public class TaskReviewsActivity extends AppCompatActivity {
+public class TaskReviewsActivity extends PandoraActivity {
     private ActivityTaskReviewsBinding binding;
     private TaskApi api;
     private boolean mine;
@@ -113,7 +113,7 @@ public class TaskReviewsActivity extends AppCompatActivity {
             holder.b.textTitle.setText(label + " · " + Objects.toString(payload.get("name"), Objects.toString(row.get("task_name"), "任务申请")));
             holder.b.textMeta.setText("申请人：" + text(row, "requester_name") + " · " + ("PENDING".equals(status) ? "待审核" : "APPROVED".equals(status) ? "已通过" : "已退回") + "\n" + text(row, "created_at"));
             StringBuilder content = new StringBuilder();
-            String[][] fields = {{"content", "正文"}, {"assigneeId", "责任人 ID"}, {"priority", "优先级"}, {"startTime", "开始日期"}, {"endTime", "截止日期"}, {"isImportant", "重要"}, {"isUrgent", "紧急"}, {"progressNote", "进度说明"}};
+            String[][] fields = {{"content", "正文"}, {"assigneeIds", "负责人 ID"}, {"assigneeId", "负责人 ID"}, {"startTime", "开始日期"}, {"endTime", "截止日期"}, {"isUrgent", "紧急"}, {"progressNote", "进度说明"}};
             for (String[] field : fields) if (payload.containsKey(field[0])) content.append(field[1]).append("：").append(payload.get(field[0])).append('\n');
             if (row.containsKey("tag_names")) content.append("标签：").append(row.get("tag_names")).append('\n');
             if (!text(row, "reason").isEmpty()) content.append("审核说明：").append(text(row, "reason")).append('\n');

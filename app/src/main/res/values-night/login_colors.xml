@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="login_background_top">#30251F</color>
+    <color name="login_background_bottom">#1C1916</color>
+    <color name="login_orb_peach">#986547</color>
+    <color name="login_orb_cream">#887044</color>
+    <color name="login_orb_light">#6C5C4D</color>
+    <color name="login_form_surface">#F224211E</color>
+    <color name="login_form_border">#336F5E50</color>
+</resources>

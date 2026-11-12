@@ -49,7 +49,10 @@ public class TaskController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long assigneeId,
             @RequestParam(required = false) Long dispatcherId,
-            @RequestParam(required = false) Boolean showCompleted) {
+            @RequestParam(required = false) Boolean showCompleted,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
         StringBuilder sql = new StringBuilder(
                 "SELECT t.*, CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.username END AS assignee_name, " +
                 "CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.real_name END AS assignee_real_name, " +
@@ -60,12 +63,14 @@ public class TaskController {
         List<Object> params = new ArrayList<>();
 
         if (status != null) {
+            if (!List.of("IN_PROGRESS", "COMPLETED").contains(status)) throw new BusinessException(ErrorCode.BAD_REQUEST, "任务状态无效");
             sql.append(" AND t.status = ?");
             params.add(status);
         }
         if (assigneeId != null) {
-            sql.append(" AND t.assignee_id = ?");
-            params.add(assigneeId);
+            sql.append(" AND (EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id=t.id AND ta.user_id=?) " +
+                    "OR (NOT EXISTS (SELECT 1 FROM task_assignees tx WHERE tx.task_id=t.id) AND t.assignee_id=?))");
+            params.add(assigneeId); params.add(assigneeId);
         }
         if (dispatcherId != null) {
             sql.append(" AND t.dispatcher_id = ?");
@@ -74,10 +79,19 @@ public class TaskController {
         if (Boolean.FALSE.equals(showCompleted)) {
             sql.append(" AND t.status != 'COMPLETED'");
         }
+        if (keyword != null && !keyword.isBlank()) { sql.append(" AND (t.name LIKE ? OR t.content LIKE ?)"); params.add("%" + keyword.trim() + "%"); params.add("%" + keyword.trim() + "%"); }
+        if (startDate != null && !startDate.isBlank()) { sql.append(" AND t.end_time >= ?"); params.add(startDate); }
+        if (endDate != null && !endDate.isBlank()) { sql.append(" AND t.start_time <= ?"); params.add(endDate); }
         sql.append(" ORDER BY t.created_at DESC");
 
         List<Map<String, Object>> tasks = jdbcTemplate.queryForList(sql.toString(), params.toArray());
-        return ResponseEntity.ok(ApiResponse.success(taskTags.attach(tasks)));
+        return ResponseEntity.ok(ApiResponse.success(attachAssignees(taskTags.attach(tasks))));
+    }
+
+    /** Internal/test compatibility for callers that do not use the newer search and date filters. */
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listTasks(
+            String status, Long assigneeId, Long dispatcherId, Boolean showCompleted) {
+        return listTasks(status, assigneeId, dispatcherId, showCompleted, null, null, null);
     }
 
     @GetMapping("/{taskId}")
@@ -91,6 +105,7 @@ public class TaskController {
                 "FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id " +
                 "LEFT JOIN users d ON t.dispatcher_id = d.id WHERE t.id = ? AND t.deleted = 0", taskId);
             taskTags.attach(Collections.singletonList(task));
+            attachAssignees(Collections.singletonList(task));
             return ResponseEntity.ok(ApiResponse.success(task));
         } catch (org.springframework.dao.EmptyResultDataAccessException e) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "任务不存在");
@@ -120,25 +135,14 @@ public class TaskController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getQuadrantTasks() {
         Long currentUserId = getCurrentUserId();
 
-        List<Map<String, Object>> importantUrgent = jdbcTemplate.queryForList(
-                "SELECT * FROM tasks WHERE assignee_id = ? AND is_important = 1 AND is_urgent = 1 AND deleted = 0", currentUserId);
-        List<Map<String, Object>> importantNotUrgent = jdbcTemplate.queryForList(
-                "SELECT * FROM tasks WHERE assignee_id = ? AND is_important = 1 AND is_urgent = 0 AND deleted = 0", currentUserId);
-        List<Map<String, Object>> notImportantUrgent = jdbcTemplate.queryForList(
-                "SELECT * FROM tasks WHERE assignee_id = ? AND is_important = 0 AND is_urgent = 1 AND deleted = 0", currentUserId);
-        List<Map<String, Object>> notImportantNotUrgent = jdbcTemplate.queryForList(
-                "SELECT * FROM tasks WHERE assignee_id = ? AND is_important = 0 AND is_urgent = 0 AND deleted = 0", currentUserId);
+        List<Map<String, Object>> urgent = jdbcTemplate.queryForList(
+                "SELECT t.* FROM tasks t JOIN task_assignees ta ON ta.task_id=t.id WHERE ta.user_id=? AND t.is_urgent=1 AND t.deleted=0", currentUserId);
+        List<Map<String, Object>> normal = jdbcTemplate.queryForList(
+                "SELECT t.* FROM tasks t JOIN task_assignees ta ON ta.task_id=t.id WHERE ta.user_id=? AND t.is_urgent=0 AND t.deleted=0", currentUserId);
 
         Map<String, Object> result = new HashMap<>();
-        result.put("importantUrgent", importantUrgent);
-        result.put("importantNotUrgent", importantNotUrgent);
-        result.put("notImportantUrgent", notImportantUrgent);
-        result.put("notImportantNotUrgent", notImportantNotUrgent);
-
-        taskTags.attach(importantUrgent);
-        taskTags.attach(importantNotUrgent);
-        taskTags.attach(notImportantUrgent);
-        taskTags.attach(notImportantNotUrgent);
+        result.put("urgent", attachAssignees(taskTags.attach(urgent)));
+        result.put("normal", attachAssignees(taskTags.attach(normal)));
 
         return ResponseEntity.ok(ApiResponse.success(result));
     }
@@ -165,11 +169,11 @@ public class TaskController {
         }
         String placeholders = String.join(",", Collections.nCopies(subordinateIds.size(), "?"));
         List<Map<String, Object>> tasks = jdbcTemplate.queryForList(
-                "SELECT t.*, u.username AS assignee_name, u.real_name AS assignee_real_name " +
-                "FROM tasks t JOIN users u ON t.assignee_id = u.id " +
-                "WHERE t.assignee_id IN (" + placeholders + ") AND t.deleted = 0 AND u.role <> 'ADMIN' ORDER BY t.created_at DESC",
+                "SELECT DISTINCT t.* FROM tasks t JOIN task_assignees ta ON ta.task_id=t.id " +
+                "JOIN users u ON ta.user_id=u.id WHERE ta.user_id IN (" + placeholders + ") " +
+                "AND t.deleted=0 AND u.role<>'ADMIN' ORDER BY t.created_at DESC",
                 subordinateIds.toArray());
-        return ResponseEntity.ok(ApiResponse.success(taskTags.attach(tasks)));
+        return ResponseEntity.ok(ApiResponse.success(attachAssignees(taskTags.attach(tasks))));
     }
 
     @GetMapping("/subordinate/users")
@@ -224,8 +228,47 @@ public class TaskController {
     }
     @GetMapping("/assignees")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> assignees() {
+        Long actor = getCurrentUserId();
+        String role = jdbcTemplate.queryForObject("SELECT role FROM users WHERE id=? AND deleted=0", String.class, actor);
+        List<Long> visible;
+        if ("ADMIN".equals(role) || "FOUNDER".equals(role)) {
+            visible = jdbcTemplate.queryForList(
+                    "SELECT id FROM users WHERE deleted=0 AND approval_status='APPROVED' AND role<>'ADMIN'", Long.class);
+        } else if ("DEPT_HEAD".equals(role) || "TEAM_LEADER".equals(role)) {
+            LinkedHashSet<Long> ids = new LinkedHashSet<>(hierarchyService.getSubordinateIds(actor));
+            ids.add(actor); visible = new ArrayList<>(ids);
+        } else {
+            visible = List.of(actor);
+        }
+        if (visible.isEmpty()) return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
+        String placeholders = String.join(",", Collections.nCopies(visible.size(), "?"));
         return ResponseEntity.ok(ApiResponse.success(jdbcTemplate.queryForList(
-                "SELECT id, username, real_name, role FROM users WHERE deleted = 0 AND approval_status = 'APPROVED' AND role <> 'ADMIN' ORDER BY real_name, username")));
+                "SELECT u.id,u.username,u.real_name,u.role,u.department_id,d.name AS department_name,u.team_id,t.name AS team_name " +
+                "FROM users u LEFT JOIN departments d ON d.id=u.department_id AND d.deleted=0 " +
+                "LEFT JOIN teams t ON t.id=u.team_id AND t.deleted=0 " +
+                "WHERE u.id IN (" + placeholders + ") AND u.deleted=0 AND u.approval_status='APPROVED' " +
+                "AND u.role<>'ADMIN' ORDER BY d.name,t.name,u.real_name,u.username", visible.toArray())));
+    }
+
+    private List<Map<String, Object>> attachAssignees(List<Map<String, Object>> tasks) {
+        if (tasks.isEmpty()) return tasks;
+        Map<Long, Map<String, Object>> byId = new LinkedHashMap<>();
+        for (Map<String, Object> task : tasks) {
+            Object raw = task.get("id"); if (raw == null) raw = task.get("ID");
+            if (raw instanceof Number) { task.put("assignees", new ArrayList<>()); byId.put(((Number) raw).longValue(), task); }
+        }
+        if (byId.isEmpty()) return tasks;
+        String placeholders = String.join(",", Collections.nCopies(byId.size(), "?"));
+        for (Map<String, Object> user : jdbcTemplate.queryForList(
+                "SELECT ta.task_id,u.id,u.username,u.real_name,u.avatar FROM task_assignees ta JOIN users u ON u.id=ta.user_id " +
+                "WHERE ta.task_id IN (" + placeholders + ") ORDER BY ta.assigned_at,u.id", byId.keySet().toArray())) {
+            Object rawTaskId = user.remove("task_id"); if (rawTaskId == null) rawTaskId = user.remove("TASK_ID");
+            if (!(rawTaskId instanceof Number)) continue;
+            long taskId = ((Number) rawTaskId).longValue();
+            @SuppressWarnings("unchecked") List<Map<String, Object>> target = (List<Map<String, Object>>) byId.get(taskId).get("assignees");
+            target.add(user);
+        }
+        return tasks;
     }
 
 

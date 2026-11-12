@@ -6,7 +6,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -35,7 +35,7 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
  * <p>TASK-R18-014: 保留 BackToolbarHelper.setupBack 返回栏（项目特色工具，不改动其状态栏适配
  * 与导航图标触达区扩展的实现）；返回时 onDestroy 的 disposables.clear() 覆盖树形适配器新增订阅。</p>
  */
-public class HierarchyManageActivity extends AppCompatActivity {
+public class HierarchyManageActivity extends PandoraActivity {
 
     private ActivityHierarchyManageBinding binding;
     private HierarchyApi hierarchyApi;

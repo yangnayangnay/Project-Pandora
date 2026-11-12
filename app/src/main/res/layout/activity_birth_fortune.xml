@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="@color/color_bg_page">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar" style="@style/Widget.Pandora.Toolbar"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:background="@android:color/transparent" app:title="@string/fortune_title"
+        app:titleTextColor="@color/color_text_primary" app:navigationIcon="@drawable/ic_back"
+        app:navigationIconTint="@color/color_text_primary" />
+
+    <androidx.core.widget.NestedScrollView android:id="@+id/contentScroll"
+        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:fillViewport="true" android:clipToPadding="false">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="20dp">
+
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/fortune_intro" android:textSize="26sp" android:textStyle="bold"
+                android:textColor="@color/color_text_primary" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" android:layout_marginBottom="20dp"
+                android:text="@string/fortune_subtitle" android:textSize="14sp" android:lineSpacingExtra="4dp"
+                android:textColor="@color/color_company_photo_secondary" />
+
+            <com.google.android.material.card.MaterialCardView android:id="@+id/inputCard"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                app:cardCornerRadius="22dp" app:cardElevation="2dp" app:strokeWidth="0dp"
+                app:cardBackgroundColor="@color/color_surface">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:padding="20dp">
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="一 · 留下你的出生时刻" android:textSize="17sp" android:textStyle="bold"
+                        android:textColor="@color/color_text_primary" android:layout_marginBottom="16dp" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="@string/fortune_birth_date" android:labelFor="@id/birthDate"
+                        android:textSize="14sp" android:textColor="@color/color_text_secondary" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/birthDate"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="52dp"
+                        android:text="@string/fortune_pick_date" android:textSize="16sp" android:textAllCaps="false"
+                        android:textColor="@color/color_accent" app:backgroundTint="@color/color_surface_soft"
+                        app:cornerRadius="16dp" app:strokeWidth="0dp" android:gravity="start|center_vertical" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp" android:text="@string/fortune_birth_time" android:labelFor="@id/birthTime"
+                        android:textSize="14sp" android:textColor="@color/color_text_secondary" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/birthTime"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="52dp"
+                        android:text="@string/fortune_pick_time" android:textSize="16sp" android:textAllCaps="false"
+                        android:textColor="@color/color_accent" app:backgroundTint="@color/color_surface_soft"
+                        app:cornerRadius="16dp" app:strokeWidth="0dp" android:gravity="start|center_vertical" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp" android:text="@string/fortune_convention"
+                        android:textSize="12sp" android:lineSpacingExtra="3dp" android:textColor="@color/color_text_secondary" />
+                    <TextView android:id="@+id/inputError" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:visibility="gone" android:layout_marginTop="8dp" android:textSize="14sp"
+                        android:textColor="@color/color_error" android:accessibilityLiveRegion="polite" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/beginReading"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="52dp"
+                        android:layout_marginTop="16dp" android:text="@string/fortune_begin" android:textSize="16sp"
+                        android:textAllCaps="false" app:cornerRadius="18dp"
+                        android:textColor="@color/color_on_accent" app:backgroundTint="@color/color_accent" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView android:id="@+id/ritualCard"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:visibility="gone" android:layout_marginTop="16dp"
+                app:cardCornerRadius="24dp" app:cardElevation="2dp" app:strokeWidth="0dp"
+                app:cardBackgroundColor="@color/fortune_chart_surface">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:padding="20dp" android:gravity="center_horizontal">
+                    <com.example.project_pandora.ui.aimap.FortuneOrbitView android:id="@+id/fortuneOrbit"
+                        android:layout_width="match_parent" android:layout_height="180dp" android:importantForAccessibility="no" />
+                    <TextView android:id="@+id/ritualTitle" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:gravity="center" android:textSize="20sp" android:textStyle="bold"
+                        android:textColor="@color/fortune_chart_ink" android:accessibilityLiveRegion="polite" />
+                    <TextView android:id="@+id/ritualCaption" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:gravity="center" android:textSize="14sp"
+                        android:lineSpacingExtra="4dp" android:textColor="@color/fortune_chart_ink" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/skipRitual"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp"
+                        android:layout_marginTop="12dp" android:text="直接查看解读" android:textSize="14sp"
+                        android:textColor="@color/fortune_chart_ink" app:cornerRadius="16dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <LinearLayout android:id="@+id/results" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:visibility="gone" android:layout_marginTop="20dp" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="20dp" android:layout_marginBottom="16dp" android:text="@string/fortune_note"
+                android:textSize="12sp" android:lineSpacingExtra="4dp" android:textColor="@color/color_company_photo_secondary" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

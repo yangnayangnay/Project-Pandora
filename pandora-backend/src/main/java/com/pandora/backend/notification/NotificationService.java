@@ -44,7 +44,7 @@ public class NotificationService {
             Long dispatcherId = ((Number) task.get("dispatcher_id")).longValue();
 
             Long targetUserId = modifierId.equals(assigneeId) ? dispatcherId : assigneeId;
-            String content = "COMPLETED".equals(newStatus) || "CONFIRMED".equals(newStatus)
+            String content = "COMPLETED".equals(newStatus)
                     ? "任务已完成：" + taskName
                     : "任务状态已更新：" + taskName;
             recordEvent("STATUS_CHANGE", taskId, targetUserId, content);

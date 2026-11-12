@@ -62,8 +62,9 @@ public class TaskDateTimesTest {
     }
 
     @Test
-    public void validRangeAcceptsEqualStartAndEnd() {
-        assertTrue(TaskDateTimes.validRange("2024-03-01 08:30", "2024-03-01 08:30"));
+    public void validRangeRejectsEqualStartAndEndAndAcceptsNextMinute() {
+        assertFalse(TaskDateTimes.validRange("2024-03-01 08:30", "2024-03-01 08:30"));
+        assertTrue(TaskDateTimes.validRange("2024-03-01 08:30", "2024-03-01 08:31"));
     }
 
     @Test

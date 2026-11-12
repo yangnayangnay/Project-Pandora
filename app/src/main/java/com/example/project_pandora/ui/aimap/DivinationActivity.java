@@ -5,7 +5,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 
 import com.example.project_pandora.core.divination.DivinationEngine;
 import com.example.project_pandora.core.network.ApiResponse;
@@ -25,10 +25,9 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
  * Round19 REQ-19-12: 梅花易数占卜页面
  * Round23 REQ-23-08: 迁移至 ui/aimap 包（与 AI 数据分析页同包），改为随机起卦（和数起卦法），
  * 卦象先行展示不等 AI，随后异步请求解读；失败/超时显示本地降级文案
- * Round24 REQ-24-05/06: 每日一次状态机——进入先查 GET /ai/divination/today（已算回显+按钮置灰），
- * 起卦改走 POST /ai/divination/record（服务端生成解读并落库）；AI 解读区展示来源标识
+ * 进入回显当天最近一次结果；可重新起卦，动画结束后同步解读与当天记录。
  */
-public class DivinationActivity extends AppCompatActivity {
+public class DivinationActivity extends PandoraActivity {
 
     private static final String AI_FALLBACK_TEXT = "卦象已就绪。保持积极心态、顺势而为，好事正在靠近。";
     private static final String SOURCE_EXTERNAL = "EXTERNAL";
@@ -40,7 +39,8 @@ public class DivinationActivity extends AppCompatActivity {
     private final DivinationEngine engine = new DivinationEngine();
     private final CompositeDisposable disposables = new CompositeDisposable();
     private AIApi aiApi;
-    private boolean hasDivinedToday = false;
+    private boolean ritualRunning;
+    private final DivinationRitualOverlay ritualOverlay = new DivinationRitualOverlay();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,6 +53,9 @@ public class DivinationActivity extends AppCompatActivity {
         aiApi = NetworkClient.getInstance(this).createService(AIApi.class);
 
         binding.btnDivine.setOnClickListener(v -> performDivination());
+        binding.ritualView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        binding.ritualView.setContentDescription("签筒，点击开始起卦"); binding.ritualView.setFocusable(true);
+        binding.ritualView.setOnClickListener(v -> performDivination());
 
         checkTodayDivination();
     }
@@ -100,7 +103,7 @@ public class DivinationActivity extends AppCompatActivity {
                             str(record, "changedName"), intVal(record, "movingLine"));
             displayResult(result);
         } catch (Exception e) {
-            // 非法卦名容错：不崩溃，仍按当日已算收口（记录在服务端不可绕过）
+            // 旧记录异常时仍允许用户重新起卦。
             markDivined();
             return;
         }
@@ -111,23 +114,18 @@ public class DivinationActivity extends AppCompatActivity {
     }
 
     private void markDivined() {
-        hasDivinedToday = true;
-        binding.btnDivine.setEnabled(false);
-        binding.btnDivine.setText("今日已算");
+        ritualRunning = false;
+        binding.btnDivine.setEnabled(true);
+        binding.btnDivine.setText("再测一次");
     }
 
     private void markDivineable() {
-        hasDivinedToday = false;
         binding.btnDivine.setEnabled(true);
-        binding.btnDivine.setText("随机起卦");
+        binding.btnDivine.setText(binding.cardOriginal.getVisibility() == View.VISIBLE ? "再测一次" : "随机起卦");
     }
 
     private void performDivination() {
-        // 已算态防御入口：状态竞态兜底，不产生新卦象
-        if (hasDivinedToday) {
-            Toast.makeText(this, "今日已算过", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        if (ritualRunning) return;
 
         DivinationEngine.DivinationResult result;
         try {
@@ -137,8 +135,23 @@ public class DivinationActivity extends AppCompatActivity {
             return;
         }
 
-        displayResult(result);
-        recordDivination(result);
+        disposables.clear();
+        ritualRunning = true; binding.btnDivine.setEnabled(false); binding.btnDivine.setText("正在起卦…");
+        ritualOverlay.play(this, binding.ritualView, result.getOriginalLinePattern(), () -> {
+            if (isDestroyed() || isFinishing()) return;
+            displayResult(result);
+            animateResult();
+            recordDivination(result);
+        }, () -> { ritualRunning = false; markDivineable(); });
+    }
+
+    private void animateResult() {
+        if (android.os.Build.VERSION.SDK_INT >= 26 && !android.animation.ValueAnimator.areAnimatorsEnabled()) return;
+        View[] cards = {binding.cardOriginal, binding.cardMutual, binding.cardChanged};
+        for (int i = 0; i < cards.length; i++) {
+            cards[i].setAlpha(0); cards[i].setTranslationY(16 * getResources().getDisplayMetrics().density);
+            cards[i].animate().alpha(1).translationY(0).setDuration(260).setStartDelay(i * 70L).start();
+        }
     }
 
     private void recordDivination(DivinationEngine.DivinationResult result) {
@@ -154,8 +167,10 @@ public class DivinationActivity extends AppCompatActivity {
         request.put("mutualName", result.getMutualName());
         request.put("changedName", result.getChangedName());
         request.put("movingLine", result.getMovingLine());
+        request.put("reroll", true);
 
         disposables.add(aiApi.recordDivination(request)
+                .timeout(20, java.util.concurrent.TimeUnit.SECONDS)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
@@ -201,10 +216,11 @@ public class DivinationActivity extends AppCompatActivity {
     }
 
     private void showLocalFallback() {
+        ritualRunning = false; binding.btnDivine.setEnabled(true); binding.btnDivine.setText("再测一次");
         binding.cardAiAnalysis.setVisibility(View.VISIBLE);
         binding.textAiAnalysis.setText(AI_FALLBACK_TEXT);
         binding.textAiSource.setText(SOURCE_LABEL_LOCAL);
-        // 网络失败当日未落库：保持可起卦态，重进可再起卦（放行语义）
+        // 网络异常不锁住签筒；保留本次卦象，并允许再次起卦。
     }
 
     private void bindAiSource(String source) {
@@ -279,6 +295,8 @@ public class DivinationActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        ritualOverlay.close();
+        binding.ritualView.cancel();
         super.onDestroy();
         disposables.clear();
     }

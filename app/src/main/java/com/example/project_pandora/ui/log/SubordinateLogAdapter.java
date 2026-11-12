@@ -85,7 +85,8 @@ public class SubordinateLogAdapter extends RecyclerView.Adapter<SubordinateLogAd
             binding.textDate.setText(date != null ? date.toString() : "");
 
             com.example.project_pandora.ui.mine.AvatarLoader.load(binding.imageAvatar,
-                    com.example.project_pandora.ui.people.PeopleDirectory.text(log, "avatar"));
+                    com.example.project_pandora.ui.people.PeopleDirectory.text(log, "avatar"),
+                    com.example.project_pandora.ui.people.PeopleDirectory.name(log));
 
             itemView.setOnClickListener(v -> {
                 Object id = log.get("id");

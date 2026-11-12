@@ -24,6 +24,9 @@ public class User implements Serializable {
     @SerializedName("avatar")
     private String avatar;
 
+    @SerializedName("signature")
+    private String signature;
+
     @SerializedName("theme_mode")
     private String themeMode;
 
@@ -44,6 +47,8 @@ public class User implements Serializable {
     public void setTeamId(Long teamId) { this.teamId = teamId; }
     public String getAvatar() { return avatar; }
     public void setAvatar(String avatar) { this.avatar = avatar; }
+    public String getSignature() { return signature; }
+    public void setSignature(String signature) { this.signature = signature; }
     public String getThemeMode() { return themeMode; }
     public void setThemeMode(String themeMode) { this.themeMode = themeMode; }
     public String getManualTheme() { return manualTheme; }

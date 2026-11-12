@@ -14,7 +14,6 @@ import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.LazyHeaders;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
-import com.example.project_pandora.R;
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.core.network.TokenManager;
 import com.example.project_pandora.core.util.AvatarUploadPolicy;
@@ -27,7 +26,13 @@ public final class AvatarLoader {
 
     public static void load(ImageView target, String avatar) { load(target, avatar, false, null); }
 
+    public static void load(ImageView target, String avatar, String name) { load(target, avatar, name, false, null); }
+
     public static void load(ImageView target, String avatar, boolean fresh, @Nullable Consumer<Boolean> displayed) {
+        load(target, avatar, "", fresh, displayed);
+    }
+
+    public static void load(ImageView target, String avatar, String name, boolean fresh, @Nullable Consumer<Boolean> displayed) {
         String base = NetworkClient.getBaseUrl();
         String url = AvatarUploadPolicy.resolveUrl(base, avatar);
         Object model = url;
@@ -36,8 +41,9 @@ public final class AvatarLoader {
             if (token != null && !token.isEmpty()) model = new GlideUrl(url,
                     new LazyHeaders.Builder().addHeader("Authorization", "Bearer " + token).build());
         }
+        Drawable fallback = new NameAvatarDrawable(target.getContext(), name);
         RequestBuilder<Drawable> request = Glide.with(target).load(model).circleCrop()
-                .placeholder(R.drawable.ic_profile_placeholder).error(R.drawable.ic_profile_placeholder);
+                .placeholder(fallback).fallback(fallback).error(fallback);
         if (fresh) request = request.skipMemoryCache(true).diskCacheStrategy(DiskCacheStrategy.NONE);
         if (displayed != null) request = request.listener(new RequestListener<Drawable>() {
             @Override public boolean onLoadFailed(@Nullable GlideException error, Object model,

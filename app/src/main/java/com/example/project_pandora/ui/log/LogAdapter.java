@@ -94,7 +94,8 @@ public class LogAdapter extends RecyclerView.Adapter<LogAdapter.LogViewHolder> {
             // Round19 REQ-19-09: 移除时间字段展示（后端API不变）
 
             com.example.project_pandora.ui.mine.AvatarLoader.load(binding.imageAvatar,
-                    com.example.project_pandora.ui.people.PeopleDirectory.text(log, "avatar"));
+                    com.example.project_pandora.ui.people.PeopleDirectory.text(log, "avatar"),
+                    com.example.project_pandora.ui.people.PeopleDirectory.name(log));
 
             itemView.setOnClickListener(v -> listener.onLogClick(log));
             itemView.setOnLongClickListener(v -> {

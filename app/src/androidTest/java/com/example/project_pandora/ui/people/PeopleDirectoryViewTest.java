@@ -18,11 +18,12 @@ import static org.junit.Assert.*;
 /** Compile without packaging; execution is deferred until device testing is authorized. */
 @RunWith(AndroidJUnit4.class)
 public class PeopleDirectoryViewTest {
-    @Test public void searchesPeopleFromRootAndPreservesRootQueryWhenNavigatingBack() {
+    @Test public void rootSearchOpensPersonDirectlyAndSelectionUsesCheckbox() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             Context context = new ContextThemeWrapper(InstrumentationRegistry.getInstrumentation().getTargetContext(), R.style.Theme_Project_Pandora);
             PeopleDirectoryView view = new PeopleDirectoryView(context, null);
-            view.configure("测试", "暂无人员", () -> {}, person -> {}, department -> {});
+            java.util.concurrent.atomic.AtomicReference<Map<String, Object>> opened = new java.util.concurrent.atomic.AtomicReference<>();
+            view.configure("测试", "暂无人员", () -> {}, opened::set, department -> {});
             view.setPeople(List.of(Map.of("id", 1, "departmentId", 10, "departmentName", "研发", "realName", "张三", "username", "zhang"),
                     Map.of("id", 2, "departmentId", 20, "departmentName", "产品", "realName", "李四", "username", "li")));
             EditText search = view.findViewById(R.id.editSearch);
@@ -32,9 +33,14 @@ public class PeopleDirectoryViewTest {
             @SuppressWarnings("unchecked") RecyclerView.Adapter<RecyclerView.ViewHolder> adapter = (RecyclerView.Adapter<RecyclerView.ViewHolder>) recycler.getAdapter();
             RecyclerView.ViewHolder holder = adapter.createViewHolder(recycler, 0);
             adapter.bindViewHolder(holder, 0); holder.itemView.performClick();
-            assertEquals("研发", ((TextView) view.findViewById(R.id.textDirectoryTitle)).getText().toString());
+            assertEquals("张三", PeopleDirectory.name(opened.get()));
             assertEquals("张三", search.getText().toString());
-            assertTrue(view.back()); assertEquals("张三", search.getText().toString()); assertFalse(view.back());
+            assertFalse(view.back());
+            view.setSelectionMode(true); view.setSelectedIds(List.of(1L));
+            adapter.bindViewHolder(holder, 0);
+            assertEquals(View.GONE, holder.itemView.findViewById(R.id.imageChevron).getVisibility());
+            assertTrue(((android.widget.CheckBox) holder.itemView.findViewById(R.id.checkSelected)).isChecked());
+            assertTrue(holder.itemView.getContentDescription().toString().contains("取消选择"));
             view.showLoading(); assertFalse(view.findViewById(R.id.buttonAll).isEnabled());
             view.showError(); assertEquals(View.VISIBLE, view.findViewById(R.id.buttonRetry).getVisibility());
             assertFalse(view.findViewById(R.id.buttonAll).isEnabled());

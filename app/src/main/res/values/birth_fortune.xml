@@ -1,0 +1,21 @@
+<resources>
+    <color name="fortune_chart_surface">#FFF6E6</color>
+    <color name="fortune_zodiac_surface">#EEF4EB</color>
+    <color name="fortune_star_surface">#EDF2FC</color>
+    <color name="fortune_work_surface">#F5EDF7</color>
+    <color name="fortune_chart_ink">#6C4F26</color>
+    <color name="fortune_zodiac_ink">#3B5737</color>
+    <color name="fortune_star_ink">#3D527C</color>
+    <color name="fortune_work_ink">#64476D</color>
+    <string name="fortune_title">生辰八字 · 今日运势</string>
+    <string name="fortune_intro">循四时，见自己</string>
+    <string name="fortune_subtitle">排一张生辰图，翻开生肖、星座与今日工作灵感。</string>
+    <string name="fortune_convention">按北京时间排盘 · 年月柱按节气，日柱以零点换日。生肖按农历年，星座按公历日期。</string>
+    <string name="fortune_note">传统文化娱乐体验；运势与工作提示为本地灵感文案，不作为决策依据。出生信息仅用于本次计算。</string>
+    <string name="fortune_begin">开启今日解读</string>
+    <string name="fortune_birth_date">出生日期</string>
+    <string name="fortune_birth_time">出生时间（北京时间）</string>
+    <string name="fortune_pick_date">选择出生日期</string>
+    <string name="fortune_pick_time">选择出生时间</string>
+    <string name="fortune_edit">修改生辰 · 再看一次</string>
+</resources>

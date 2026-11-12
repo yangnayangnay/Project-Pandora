@@ -32,7 +32,7 @@ public class ServerUrlManager {
     public static final int MAX_SERVERS = 5;
 
     /** 默认双轨地址（自 NetworkClient 迁入，避免反向循环依赖） */
-    static final String EMULATOR_BASE_URL = "http://10.0.2.2:8080/api/";
+    static final String EMULATOR_BASE_URL = "http://123.56.153.138:8080/api/";
     /** R33: 真机默认轨硬编码阿里云 ECS 公网地址（用户确认后续服务端常驻此地址） */
     static final String DEVICE_BASE_URL = "http://123.56.153.138:8080/api/";
     /** R44: 云权威地址（中继/回切判定基准）= 真机默认轨 */

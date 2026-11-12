@@ -46,6 +46,74 @@
                 app:cardCornerRadius="18dp"
                 app:cardElevation="0dp"
                 app:cardBackgroundColor="@color/color_surface">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="整体字号" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/color_text_primary" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="较小 · 默认 · 较大 · 大；同时保留系统字体大小设置。" android:textSize="13sp" android:textColor="@color/color_text_secondary" />
+                    <SeekBar android:id="@+id/fontSizeSlider" android:layout_width="match_parent" android:layout_height="48dp" android:max="3" android:progress="1" android:contentDescription="整体字号，四档可选" />
+                    <TextView android:id="@+id/textFontSizePreview" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="40dp" android:gravity="center_vertical" android:text="字号预览 · 默认" android:textSize="16sp" android:textColor="@color/color_text_primary" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/btnApplyFontSize" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="应用字号" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/color_surface">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/background_style_title"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/color_text_primary" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/background_style_description"
+                        android:textSize="13sp"
+                        android:textColor="@color/color_text_secondary" />
+                    <RadioGroup
+                        android:id="@+id/radioBackgroundStyle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="vertical">
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/radioBackgroundSolid"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="48dp"
+                            android:text="@string/background_style_solid"
+                            android:textSize="15sp"
+                            android:textColor="@color/color_text_primary" />
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/radioBackgroundCompany"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="48dp"
+                            android:text="@string/background_style_company"
+                            android:textSize="15sp"
+                            android:textColor="@color/color_text_primary" />
+                    </RadioGroup>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/color_surface">
 
                 <LinearLayout
                     android:layout_width="match_parent"

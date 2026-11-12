@@ -11,12 +11,11 @@
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/boardTabs" android:layout_width="match_parent" android:layout_height="48dp"
         android:background="@color/color_surface" app:tabMode="fixed" app:tabGravity="fill" />
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/color_divider" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:minHeight="56dp" android:gravity="center_vertical" android:paddingHorizontal="16dp">
         <TextView android:id="@+id/boardCount" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:paddingVertical="12dp" android:textSize="13sp" android:textColor="@color/color_text_secondary" />
-        <Spinner android:id="@+id/taskFilter" android:layout_width="144dp" android:layout_height="48dp"
-            android:spinnerMode="dropdown" android:contentDescription="任务看板状态筛选" />
     </LinearLayout>
     <ProgressBar android:id="@+id/boardProgress" style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent" android:layout_height="3dp" android:indeterminate="true" android:visibility="invisible" />

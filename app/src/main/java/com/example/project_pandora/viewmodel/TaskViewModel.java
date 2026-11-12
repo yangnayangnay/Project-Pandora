@@ -34,12 +34,11 @@ public class TaskViewModel extends BaseViewModel {
     public LiveData<Map<String, Object>> getCreatedTask() { return createdTask; }
     public LiveData<Boolean> getOperationSuccess() { return operationSuccess; }
 
-    public void createTask(String name, String priority, Long assigneeId,
-                           Boolean isImportant, Boolean isUrgent,
+    public void createTask(String name, Long assigneeId, Boolean isUrgent,
                            String startTime, String endTime) {
         showLoading();
         compositeDisposable.add(
-                repository.createTask(name, priority, assigneeId, isImportant, isUrgent, startTime, endTime)
+                repository.createTask(name, assigneeId, isUrgent, startTime, endTime)
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 result -> {

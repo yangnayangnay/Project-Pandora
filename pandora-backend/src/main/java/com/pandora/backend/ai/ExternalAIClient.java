@@ -30,7 +30,7 @@ public class ExternalAIClient {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(apiKey);
+            if (apiKey != null && !apiKey.isBlank()) headers.setBearerAuth(apiKey);
 
             Map<String, Object> message = new HashMap<>();
             message.put("role", "user");
@@ -43,7 +43,7 @@ public class ExternalAIClient {
             body.put("max_tokens", resolveMaxTokens(analysisType));
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-            ResponseEntity<Map> response = restTemplate.exchange(apiUrl, HttpMethod.POST, entity, Map.class);
+            ResponseEntity<Map> response = restTemplate.exchange(AiEndpoint.chat(apiUrl), HttpMethod.POST, entity, Map.class);
 
             if (response.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
                 throw new BusinessException(ErrorCode.AI_QUOTA_LOW);

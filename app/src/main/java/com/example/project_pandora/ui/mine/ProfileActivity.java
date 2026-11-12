@@ -14,7 +14,7 @@ import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 import androidx.core.content.ContextCompat;
 
 import com.example.project_pandora.R;
@@ -25,6 +25,7 @@ import com.example.project_pandora.databinding.ActivityProfileBinding;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Collections;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
@@ -33,13 +34,14 @@ import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 import com.example.project_pandora.core.util.BackToolbarHelper;
 
-public class ProfileActivity extends AppCompatActivity {
+public class ProfileActivity extends PandoraActivity {
 
     private ActivityProfileBinding binding;
     private UserApi userApi;
     private final CompositeDisposable disposables = new CompositeDisposable();
 
     private String originalAvatar;
+    private String avatarDisplayName = "";
     private File pendingCameraFile;
     private boolean avatarUploading;
     private int avatarRevision;
@@ -70,6 +72,7 @@ public class ProfileActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityProfileBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        AvatarLoader.load(binding.imageAvatar, null, "");
         if (savedInstanceState != null && savedInstanceState.containsKey("avatarCameraPath")) {
             pendingCameraFile = new File(savedInstanceState.getString("avatarCameraPath"));
         }
@@ -78,9 +81,24 @@ public class ProfileActivity extends AppCompatActivity {
 
         userApi = NetworkClient.getInstance(this).createService(UserApi.class);
 
+        android.text.InputFilter[] filters = binding.editSignature.getFilters();
+        android.text.InputFilter[] signatureFilters = java.util.Arrays.copyOf(filters, filters.length + 1);
+        signatureFilters[filters.length] = new SignatureLineFilter(binding.editSignature,
+                () -> binding.signatureLayout.setError("个人签名最多 4 行（含自动换行）"));
+        binding.editSignature.setFilters(signatureFilters);
+        binding.editSignature.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable value) { binding.signatureLayout.setError(signatureError()); }
+        });
+        binding.editSignature.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (r - l != or - ol) binding.signatureLayout.setError(signatureError());
+        });
+
         loadUserInfo();
 
         binding.imageAvatar.setOnClickListener(v -> showAvatarPickerDialog());
+        binding.btnSaveSignature.setOnClickListener(v -> saveSignature());
     }
 
     private void loadUserInfo() {
@@ -94,11 +112,18 @@ public class ProfileActivity extends AppCompatActivity {
                                 Map<String, Object> data = response.getData();
                                 boolean currentAvatar = loadingAvatarRevision == avatarRevision;
                                 if (currentAvatar) originalAvatar = getStr(data, "avatar");
+                                avatarDisplayName = com.example.project_pandora.ui.people.PeopleDirectory.name(data);
 
                                 binding.textUsername.setText(display(data, "username"));
                                 binding.textRealName.setText(display(data, "realName"));
                                 binding.textEmail.setText(display(data, "email"));
                                 binding.textPhone.setText(display(data, "phone"));
+                                // Preserve older, longer signatures for review rather than
+                                // silently truncating them when loading the new 20-char editor.
+                                android.text.InputFilter[] signatureFilters = binding.editSignature.getFilters();
+                                binding.editSignature.setFilters(new android.text.InputFilter[0]);
+                                binding.editSignature.setText(getStr(data, "signature"));
+                                binding.editSignature.setFilters(signatureFilters);
                                 binding.textRole.setText(com.example.project_pandora.core.util.RoleDisplayUtil.toChinese(getStr(data, "role")));
                                 // Round26 观察F: 部门/团队显示名称（/me 已补 LEFT JOIN；空值显示占位"-"）
                                 String deptName = getStr(data, "departmentName");
@@ -123,9 +148,32 @@ public class ProfileActivity extends AppCompatActivity {
         return value.trim().isEmpty() ? "未设置" : value;
     }
 
+    private void saveSignature() {
+        String validationError = signatureError();
+        if (validationError != null) { binding.signatureLayout.setError(validationError); return; }
+        String signature = com.example.project_pandora.core.util.SignatureRules.normalize(binding.editSignature.getText()).trim();
+        binding.signatureLayout.setError(null); binding.btnSaveSignature.setEnabled(false);
+        binding.textSignatureStatus.setText("正在保存…");
+        disposables.add(userApi.updateCurrentUser(Collections.singletonMap("signature", signature))
+                .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread()).subscribe(response -> {
+                    binding.btnSaveSignature.setEnabled(true);
+                    binding.textSignatureStatus.setText(response.isSuccess() ? "已保存" : "保存失败：" + response.getMessage());
+                }, error -> {
+                    binding.btnSaveSignature.setEnabled(true);
+                    binding.textSignatureStatus.setText("保存失败，请检查网络后重试");
+                }));
+    }
+
+    private String signatureError() {
+        String value = com.example.project_pandora.core.util.SignatureRules.normalize(binding.editSignature.getText());
+        if (value.trim().length() > com.example.project_pandora.core.util.SignatureRules.MAX_LENGTH) return "个人签名最多 20 字";
+        return SignatureLineFilter.fits(binding.editSignature, value) ? null : "个人签名最多 4 行（含自动换行）";
+    }
+
 
     private void loadAvatar(String avatarUrl) {
-        AvatarLoader.load(binding.imageAvatar, avatarUrl);
+        AvatarLoader.load(binding.imageAvatar, avatarUrl, avatarDisplayName);
     }
 
     private void showAvatarPickerDialog() {
@@ -188,7 +236,7 @@ public class ProfileActivity extends AppCompatActivity {
                     if (response.isSuccess() && response.getData() != null && !getStr(response.getData(), "avatarUrl").isEmpty()) {
                         originalAvatar = getStr(response.getData(), "avatarUrl");
                         avatarRevision++;
-                        AvatarLoader.load(binding.imageAvatar, originalAvatar, true, displayed -> {
+                        AvatarLoader.load(binding.imageAvatar, originalAvatar, avatarDisplayName, true, displayed -> {
                             if (!isDestroyed()) Toast.makeText(this, displayed ? "头像更新成功"
                                     : "头像已上传，但图片读取失败，请检查服务器图片访问后重试", Toast.LENGTH_LONG).show();
                         });

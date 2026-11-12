@@ -2,11 +2,12 @@ package com.example.project_pandora.ui.task;
 
 import android.app.AlertDialog;
 import android.os.Bundle;
+import android.content.Intent;
 import android.view.View;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -23,7 +24,7 @@ import java.util.Map;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import com.example.project_pandora.core.util.BackToolbarHelper;
 
-public class TaskDetailActivity extends AppCompatActivity {
+public class TaskDetailActivity extends PandoraActivity {
 
     private ActivityTaskDetailBinding binding;
     private TaskRepository taskRepository;
@@ -84,32 +85,23 @@ public class TaskDetailActivity extends AppCompatActivity {
 
     @SuppressWarnings("unchecked")
     private void displayTask(Map<String, Object> task) {
-        binding.textTaskName.setText((String) task.get("name"));
+        binding.textTaskName.setText(java.util.Objects.toString(com.example.project_pandora.core.util.TaskTags.value(task, "name"), ""));
         displayTags(task);
 
-        Object endTime = task.get("end_time");
+        Object endTime = com.example.project_pandora.core.util.TaskTags.value(task, "end_time");
 
-        String status = (String) task.get("status");
+        String status = java.util.Objects.toString(com.example.project_pandora.core.util.TaskTags.value(task, "status"), "");
 
-        Object assigneeName = task.get("assignee_name");
-        if (assigneeName == null) assigneeName = task.get("assigneeName");
-        binding.textAssignee.setText("负责人：" + (assigneeName != null ? assigneeName.toString() : "-"));
+        binding.textAssignee.setText("负责人：" + TaskDetailFilter.assigneeNames(task));
 
         binding.textStatus.setText(getStatusDisplayName(status));
 
-        Object isImportantObj = task.get("is_important");
-        Object isUrgentObj = task.get("is_urgent");
-        // Round26: toBool 收敛至 NumberCompat（原私有方法语义一致：Boolean 直取/Number 非零/其余 false）
-        boolean isImportant = com.example.project_pandora.core.util.NumberCompat.toBool(isImportantObj);
+        Object isUrgentObj = com.example.project_pandora.core.util.TaskTags.value(task, "is_urgent");
         boolean urgentFlag = com.example.project_pandora.core.util.NumberCompat.toBool(isUrgentObj);
-        String quadrant;
-        if (isImportant && urgentFlag) quadrant = "重要且紧急";
-        else if (isImportant) quadrant = "重要不紧急";
-        else if (urgentFlag) quadrant = "紧急不重要";
-        else quadrant = "不重要不紧急";
-        binding.textQuadrant.setText(quadrant);
+        binding.textUrgencyBadge.setText(urgentFlag ? "紧急" : "不紧急");
 
-        Object startTime = task.get("start_time");
+        Object startTime = com.example.project_pandora.core.util.TaskTags.value(task, "start_time");
+        binding.textCreatedTime.setText("创建: " + formatDateTime(com.example.project_pandora.core.util.TaskTags.value(task, "created_at")));
         binding.textStartTime.setText("开始: " + formatDateTime(startTime));
         binding.textEndTime.setText("截止: " + formatDateTime(endTime));
 
@@ -117,7 +109,7 @@ public class TaskDetailActivity extends AppCompatActivity {
 
 
         // R39 REQ-C08: 正文展示（存量任务 null 占位）
-        Object taskContent = task.get("content");
+        Object taskContent = com.example.project_pandora.core.util.TaskTags.value(task, "content");
         binding.textTaskContent.setText(taskContent != null && !taskContent.toString().trim().isEmpty()
                 ? taskContent.toString() : getString(com.example.project_pandora.R.string.task_content_placeholder));
 
@@ -125,7 +117,7 @@ public class TaskDetailActivity extends AppCompatActivity {
     }
 
     private void setupUrgencyAdjustment(Map<String, Object> task) {
-        Object isUrgentObj = task.get("is_urgent");
+        Object isUrgentObj = com.example.project_pandora.core.util.TaskTags.value(task, "is_urgent");
         // Round26: toBool 收敛至 NumberCompat（原私有方法语义一致）
         boolean defaultUrgent = com.example.project_pandora.core.util.NumberCompat.toBool(isUrgentObj);
 
@@ -135,12 +127,12 @@ public class TaskDetailActivity extends AppCompatActivity {
         String role = TokenManager.getInstance(this).getRole();
         Long actor = TokenManager.getInstance(this).getUserId();
         boolean canEdit = "ADMIN".equals(role) || "FOUNDER".equals(role)
-                || java.util.Objects.equals(actor, com.example.project_pandora.core.util.NumberCompat.toLong(task.get("dispatcher_id")))
-                || java.util.Objects.equals(actor, com.example.project_pandora.core.util.NumberCompat.toLong(task.get("assignee_id")));
+                || java.util.Objects.equals(actor, com.example.project_pandora.core.util.NumberCompat.toLong(com.example.project_pandora.core.util.TaskTags.value(task, "dispatcher_id")))
+                || TaskDetailFilter.assigneeIds(task).contains(actor);
         binding.radioUrgencyUrgent.setEnabled(canEdit);
         binding.radioUrgencyNotUrgent.setEnabled(canEdit);
         binding.textUrgencyHint.setText(!canEdit ? "仅创建人、责任人或管理职级可调整" : "ADMIN".equals(role) || "FOUNDER".equals(role)
-                ? "调整后立即生效（当前职级免审）" : "调整将提交上级审核，通过后生效");
+                ? "此处选择后立即生效；修改其他信息请使用底部“修改”" : "此处选择后提交上级审核，通过后生效；其他信息请使用底部“修改”");
         binding.radioGroupUrgency.setOnCheckedChangeListener((group, checkedId) -> {
             boolean urgent = checkedId == R.id.radioUrgencyUrgent;
             if (urgent == defaultUrgent) return;
@@ -164,15 +156,16 @@ public class TaskDetailActivity extends AppCompatActivity {
         for (Map<String, Object> tag : com.example.project_pandora.core.util.TaskTags.of(task)) {
             com.google.android.material.chip.Chip chip = new com.google.android.material.chip.Chip(this);
             chip.setText("#" + com.example.project_pandora.core.util.TaskTags.value(tag, "name"));
-            chip.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.color_text_primary));
             Long index = com.example.project_pandora.core.util.NumberCompat.toLong(com.example.project_pandora.core.util.TaskTags.value(tag, "color_index"));
-            chip.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(TaskTagColors.color(this, index == null ? 0 : index.intValue())));
+            int fill = TaskTagColors.color(this, index == null ? 0 : index.intValue());
+            chip.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(fill));
+            chip.setTextColor(TaskTagColors.text(this, fill));
             chip.setClickable(false); binding.taskTagChips.addView(chip);
         }
         String role = TokenManager.getInstance(this).getRole(); Long actor = TokenManager.getInstance(this).getUserId();
         boolean canEdit = "ADMIN".equals(role) || "FOUNDER".equals(role)
-                || java.util.Objects.equals(actor, com.example.project_pandora.core.util.NumberCompat.toLong(task.get("dispatcher_id")))
-                || java.util.Objects.equals(actor, com.example.project_pandora.core.util.NumberCompat.toLong(task.get("assignee_id")));
+                || java.util.Objects.equals(actor, com.example.project_pandora.core.util.NumberCompat.toLong(com.example.project_pandora.core.util.TaskTags.value(task, "dispatcher_id")))
+                || TaskDetailFilter.assigneeIds(task).contains(actor);
         binding.btnEditTaskTags.setVisibility(canEdit ? View.VISIBLE : View.GONE);
         binding.btnEditTaskTags.setOnClickListener(v -> editTags());
     }
@@ -209,27 +202,24 @@ public class TaskDetailActivity extends AppCompatActivity {
     private void updateButtonVisibility(String status) {
         Long currentUserId = TokenManager.getInstance(this).getUserId();
         // Round26: 解析统一收敛至 NumberCompat（原裸强转 (Number)，串形态会 ClassCastException）
-        Long assigneeId = currentTask != null
-                ? com.example.project_pandora.core.util.NumberCompat.toLong(currentTask.get("assignee_id")) : null;
         Long dispatcherId = currentTask != null
                 ? com.example.project_pandora.core.util.NumberCompat.toLong(currentTask.get("dispatcher_id")) : null;
 
-        boolean isAssignee = currentUserId.equals(assigneeId);
-        boolean isDispatcher = currentUserId.equals(dispatcherId);
+        boolean isAssignee = currentTask != null && TaskDetailFilter.assigneeIds(currentTask).contains(currentUserId);
+        boolean isDispatcher = java.util.Objects.equals(currentUserId, dispatcherId);
 
-        binding.btnStart.setVisibility(isAssignee && "PENDING".equals(status) ? View.VISIBLE : View.GONE);
         binding.btnComplete.setVisibility(isAssignee && "IN_PROGRESS".equals(status) ? View.VISIBLE : View.GONE);
-        // R39 REQ-B02: 切回未完成（责任人+COMPLETED；二元口径）
-        binding.btnReopen.setVisibility(isAssignee && "COMPLETED".equals(status) ? View.VISIBLE : View.GONE);
-        binding.btnConfirm.setVisibility(isDispatcher && "COMPLETED".equals(status) ? View.VISIBLE : View.GONE);
 
         String role = TokenManager.getInstance(this).getRole();
+        boolean canEdit = "IN_PROGRESS".equals(status) && (isAssignee || isDispatcher || "ADMIN".equals(role) || "FOUNDER".equals(role));
+        binding.btnEdit.setVisibility(canEdit ? View.VISIBLE : View.GONE);
         boolean canDelete = isDispatcher || "ADMIN".equals(role) || "FOUNDER".equals(role);
         binding.btnDelete.setVisibility(canDelete ? View.VISIBLE : View.GONE);
     }
 
     private void setupButtons() {
-        binding.btnStart.setOnClickListener(v -> transitionStatus("IN_PROGRESS"));
+        binding.btnEdit.setOnClickListener(v -> startActivity(new Intent(this, TaskCreateActivity.class)
+                .putExtra("editMode", true).putExtra("taskId", taskId.longValue())));
         binding.btnComplete.setOnClickListener(v -> {
             // REQ-31-01: 完成按钮二次确认（取消/框外不发起请求）
             String taskName = currentTask != null && currentTask.get("name") != null
@@ -238,15 +228,6 @@ public class TaskDetailActivity extends AppCompatActivity {
                     () -> transitionStatus("COMPLETED"), // R39 REQ-B01/B06: 二元化收敛至 transition 端点
                     null);
         });
-        // R39 REQ-B02: 切回未完成——确认弹窗沿用，transition 收敛
-        binding.btnReopen.setOnClickListener(v -> {
-            String taskName = currentTask != null && currentTask.get("name") != null
-                    ? currentTask.get("name").toString() : "";
-            com.example.project_pandora.ui.common.StatusConfirmDialog.show(this, taskName, "未完成",
-                    () -> transitionStatus("IN_PROGRESS"),
-                    null);
-        });
-        binding.btnConfirm.setOnClickListener(v -> transitionStatus("CONFIRMED"));
         binding.btnDelete.setOnClickListener(v -> {
             new AlertDialog.Builder(this)
                     .setTitle("确认删除")
@@ -292,13 +273,10 @@ public class TaskDetailActivity extends AppCompatActivity {
     }
 
     private String getStatusDisplayName(String status) {
-        if (status == null) return "待接收";
+        if (status == null) return "进行中";
         switch (status) {
-            case "PENDING": return "待接收";
             case "IN_PROGRESS": return "进行中";
             case "COMPLETED": return "已完成";
-            case "CONFIRMED": return "已确认";
-            case "REJECTED": return "已退回";
             default: return status;
         }
     }

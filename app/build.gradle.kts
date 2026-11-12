@@ -38,6 +38,7 @@ android {
 }
 
 dependencies {
+    implementation("cn.6tail:lunar:1.7.4")
     implementation(libs.activity.ktx)
     implementation(libs.appcompat)
     implementation(libs.constraintlayout)

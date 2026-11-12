@@ -5,6 +5,9 @@
     <color name="color_surface">#24211E</color>
     <color name="color_surface_soft">#2D2925</color>
     <color name="color_accent">#D8BCA0</color>
+    <color name="color_accent_hover">#E0C5AB</color>
+    <color name="color_accent_pressed">#E8CEB6</color>
+    <color name="color_status_badge_fill">#34733A</color>
     <color name="color_on_accent">#2C241D</color>
     <color name="color_accent_soft">#40352C</color>
     <color name="color_text_primary">#F1EAE1</color>

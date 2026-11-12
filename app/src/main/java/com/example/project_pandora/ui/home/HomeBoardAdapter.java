@@ -30,16 +30,19 @@ import java.util.Objects;
 final class HomeBoardAdapter extends RecyclerView.Adapter<HomeBoardAdapter.Holder> {
     private final boolean events;
     private final List<Map<String, Object>> rows = new ArrayList<>();
+    private final java.util.Set<Integer> expanded = new java.util.HashSet<>();
 
     HomeBoardAdapter(boolean events) { this.events = events; }
 
     void submit(List<Map<String, Object>> data) {
-        rows.clear(); rows.addAll(data); notifyDataSetChanged();
+        rows.clear(); rows.addAll(data); expanded.clear(); notifyDataSetChanged();
     }
 
     @NonNull @Override public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         Context context = parent.getContext();
         MaterialCardView card = new MaterialCardView(context);
+        card.setRippleColor(android.content.res.ColorStateList.valueOf(ContextCompat.getColor(context,
+                events ? R.color.home_event_press : R.color.home_task_press)));
         RecyclerView.LayoutParams params = new RecyclerView.LayoutParams(-1, -2);
         params.bottomMargin = dp(context, 12); card.setLayoutParams(params);
         LinearLayout content = new LinearLayout(context);
@@ -63,8 +66,21 @@ final class HomeBoardAdapter extends RecyclerView.Adapter<HomeBoardAdapter.Holde
             title = plain(row, "content");
             if (title.isEmpty() || title.matches("[0-9]+")) title = "未命名";
             holder.title.setText((position + 1) + ". " + title);
+            holder.title.setMaxLines(expanded.contains(position) ? Integer.MAX_VALUE : 2);
+            holder.title.setEllipsize(expanded.contains(position) ? null : android.text.TextUtils.TruncateAt.END);
             holder.status.setVisibility(View.GONE); holder.body.setVisibility(View.GONE);
-            holder.tags.setVisibility(View.GONE); holder.details.setVisibility(View.GONE); holder.hint.setVisibility(View.GONE);
+            holder.tags.setVisibility(View.GONE); holder.details.setVisibility(View.GONE);
+            holder.hint.setText(expanded.contains(position) ? "收起" : "展开");
+            holder.hint.setVisibility(View.GONE);
+            holder.title.post(() -> {
+                if (holder.getBindingAdapterPosition() != position || holder.title.getLayout() == null) return;
+                boolean overflow = expanded.contains(position) || holder.title.getLayout().getEllipsisCount(Math.max(0, holder.title.getLineCount() - 1)) > 0;
+                holder.hint.setVisibility(overflow ? View.VISIBLE : View.GONE);
+            });
+            holder.hint.setOnClickListener(view -> {
+                if (!expanded.add(position)) expanded.remove(position);
+                notifyItemChanged(position);
+            });
             holder.itemView.setOnClickListener(null); holder.itemView.setClickable(false); holder.itemView.setFocusable(false);
         } else {
             title = plain(row, "name");
@@ -81,6 +97,7 @@ final class HomeBoardAdapter extends RecyclerView.Adapter<HomeBoardAdapter.Holde
             show(holder.details, details);
             Long id = NumberCompat.toLong(DailyItems.value(row, "id"));
             show(holder.hint, id == null ? "" : "查看任务详情 ›");
+            holder.hint.setOnClickListener(null);
             holder.itemView.setOnClickListener(id == null ? null : view -> view.getContext().startActivity(
                     new Intent(view.getContext(), TaskDetailActivity.class).putExtra("taskId", id.longValue())));
             holder.itemView.setClickable(id != null); holder.itemView.setFocusable(id != null);

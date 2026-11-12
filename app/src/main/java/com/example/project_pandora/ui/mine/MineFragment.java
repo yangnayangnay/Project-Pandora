@@ -19,7 +19,6 @@ import com.example.project_pandora.core.sync.SyncManager;
 import com.example.project_pandora.data.remote.UserApi;
 import com.example.project_pandora.databinding.FragmentMineBinding;
 import com.example.project_pandora.repository.SyncRepository;
-import com.example.project_pandora.ui.ai.BirthdayWishActivity;
 
 import com.example.project_pandora.ui.login.LoginActivity;
 
@@ -44,6 +43,10 @@ public class MineFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        com.example.project_pandora.ui.widget.CompanyBackgrounds.bind(view,
+                com.example.project_pandora.ui.widget.CompanyBackgrounds.Scene.MINE);
+        binding.toolbar.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        AvatarLoader.load(binding.imageAvatar, null, "");
 
         binding.imageAvatar.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), ProfileActivity.class)));
@@ -53,10 +56,6 @@ public class MineFragment extends Fragment {
 
         // Round19 REQ-19-10: 移除专注模式入口（保留FocusActivity源码）
         binding.btnFocus.setVisibility(View.GONE);
-
-
-        binding.btnBirthdayWish.setOnClickListener(v ->
-                startActivity(new Intent(requireContext(), BirthdayWishActivity.class)));
 
         String role = TokenManager.getInstance(requireContext()).getRole();
         binding.btnResetRequests.setOnClickListener(v ->
@@ -146,7 +145,7 @@ public class MineFragment extends Fragment {
                                 binding.textRole.setText(com.example.project_pandora.core.util.RoleDisplayUtil.toChinese(getStr(data, "role")));
 
                                 String avatar = getStr(data, "avatar");
-                                AvatarLoader.load(binding.imageAvatar, avatar);
+                                AvatarLoader.load(binding.imageAvatar, avatar, displayName);
                             }
                         },
                         error -> {

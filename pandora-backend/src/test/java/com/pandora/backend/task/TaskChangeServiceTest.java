@@ -73,6 +73,34 @@ class TaskChangeServiceTest {
     private long countTasks() { return db.queryForObject("SELECT COUNT(*) FROM tasks WHERE deleted = 0", Long.class); }
     private long directTask() { return number(service.submit(1, "CREATE", null, creation()), "id"); }
 
+    @ParameterizedTest @ValueSource(strings = {"2026-12-29 09:00:00", "2026-12-29 08:59:59"})
+    void creationRejectsEqualOrReversedTimesBeforeWriting(String end) {
+        Map<String, Object> data = creation();
+        data.put("startTime", "2026-12-29 09:00:00"); data.put("endTime", end);
+        assertThrows(BusinessException.class, () -> service.submit(1, "CREATE", null, data));
+        assertEquals(0, countTasks());
+        assertEquals(0L, db.queryForObject("SELECT COUNT(*) FROM task_change_requests", Long.class));
+    }
+    @Test void partialDateEditsCompareAgainstTheUnchangedOtherEndpoint() {
+        Map<String, Object> data = creation();
+        data.put("startTime", "2026-12-29 09:00:00"); data.put("endTime", "2026-12-29 10:00:00");
+        long id = number(service.submit(1, "CREATE", null, data), "id");
+        assertThrows(BusinessException.class, () -> service.submit(1, "UPDATE", id, Map.of("endTime", "2026-12-29 09:00:00")));
+        assertThrows(BusinessException.class, () -> service.submit(1, "UPDATE", id, Map.of("startTime", "2026-12-29 10:00:00")));
+        service.submit(1, "UPDATE", id, Map.of("endTime", "2026-12-29 09:00:01"));
+        assertEquals(Boolean.TRUE, db.queryForObject("SELECT end_time > start_time FROM tasks WHERE id=?", Boolean.class, id));
+    }
+    @Test void approvalRechecksDatesInOlderPendingRequests() throws Exception {
+        Map<String, Object> data = creation();
+        data.put("startTime", "2026-12-29 09:00:00"); data.put("endTime", "2026-12-29 10:00:00");
+        long requestId = number(service.submit(5, "CREATE", null, data), "requestId");
+        data.put("endTime", "2026-12-29 09:00:00");
+        db.update("UPDATE task_change_requests SET payload=? WHERE id=?", new ObjectMapper().writeValueAsString(data), requestId);
+        assertThrows(BusinessException.class, () -> service.decide(4, requestId, true, ""));
+        assertEquals(0, countTasks());
+        assertEquals("PENDING", db.queryForObject("SELECT status FROM task_change_requests WHERE id=?", String.class, requestId));
+    }
+
     @ParameterizedTest @CsvSource({"5,4", "4,3", "3,2"})
     void ordinaryRolesStageCreationUntilTheirSuperiorApproves(long actor, long reviewer) {
         Map<String, Object> result = service.submit(actor, "CREATE", null, creation());
@@ -126,9 +154,9 @@ class TaskChangeServiceTest {
         Map<String, Object> data = creation(); data.put("assigneeId", 5L);
         long id = number(service.submit(1, "CREATE", null, data), "id");
         long request = number(service.submit(5, "UPDATE", id, Map.of("name", "旧申请")), "requestId");
-        service.updateExecution(5, id, "IN_PROGRESS", "已开始");
+        service.updateExecution(5, id, "COMPLETED", "已完成");
         assertThrows(BusinessException.class, () -> service.decide(4, request, true, ""));
-        assertEquals("IN_PROGRESS", db.queryForObject("SELECT status FROM tasks WHERE id = ?", String.class, id));
+        assertEquals("COMPLETED", db.queryForObject("SELECT status FROM tasks WHERE id = ?", String.class, id));
     }
     @Test void unauthorizedEditingAndExecutionAreRejected() {
         long id = directTask();
@@ -136,6 +164,19 @@ class TaskChangeServiceTest {
         assertThrows(BusinessException.class, () -> service.submit(6, "DELETE", id, Map.of()));
         assertThrows(BusinessException.class, () -> service.updateExecution(6, id, "IN_PROGRESS", "越权"));
         assertNull(db.queryForObject("SELECT progress_note FROM tasks WHERE id = ?", String.class, id));
+    }
+
+    @Test void multipleAssigneesUseRelationRowsAndEachAssigneeCanUpdateProgress() {
+        Map<String, Object> data = creation(); data.remove("assigneeId"); data.put("assigneeIds", List.of(5L, 6L));
+        long id = number(service.submit(1, "CREATE", null, data), "id");
+        assertEquals(List.of(5L, 6L), db.queryForList(
+                "SELECT user_id FROM task_assignees WHERE task_id=? ORDER BY user_id", Long.class, id));
+        service.updateExecution(6, id, null, "协同处理中");
+        assertEquals("协同处理中", db.queryForObject("SELECT progress_note FROM tasks WHERE id=?", String.class, id));
+        assertThrows(BusinessException.class, () -> service.updateExecution(7, id, null, "越权"));
+        service.submit(1, "UPDATE", id, Map.of("assigneeIds", List.of(4L, 5L)));
+        assertEquals(List.of(4L, 5L), db.queryForList(
+                "SELECT user_id FROM task_assignees WHERE task_id=? ORDER BY user_id", Long.class, id));
     }
     @Test void directoryAndEmploymentRequireAdminAndExcludePassword() {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(5L, null, List.of(new SimpleGrantedAuthority("ROLE_EMPLOYEE"))));
@@ -149,6 +190,30 @@ class TaskChangeServiceTest {
         assertEquals("TEAM_LEADER", db.queryForObject("SELECT role FROM users WHERE id=6", String.class));
         assertEquals(100L, db.queryForObject("SELECT department_id FROM users WHERE id=6", Long.class));
         assertEquals(3L, service.approver(6));
+    }
+
+    @Test void administratorCanCreateRenameMoveAndDeleteEmptyTeamsButCannotDeleteTeamsWithMembers() {
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                1L, null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+        db.update("INSERT INTO departments (id,name) VALUES (901,'团队接口部门一'),(902,'团队接口部门二')");
+
+        Map<String, Object> created = personnel.createTeam(Map.of(
+                "name", "接口测试团队", "departmentId", 901L)).getData();
+        long teamId = ((Number) created.get("id")).longValue();
+        assertEquals(901L, db.queryForObject("SELECT department_id FROM teams WHERE id=?", Long.class, teamId));
+
+        personnel.updateTeam(teamId, Map.of("name", "已改名团队", "departmentId", 902L));
+        assertEquals("已改名团队", db.queryForObject("SELECT name FROM teams WHERE id=?", String.class, teamId));
+        assertEquals(902L, db.queryForObject("SELECT department_id FROM teams WHERE id=?", Long.class, teamId));
+
+        db.update("UPDATE users SET department_id=902,team_id=? WHERE id=5", teamId);
+        assertThrows(BusinessException.class, () -> personnel.deleteTeam(teamId));
+        assertThrows(BusinessException.class, () -> personnel.updateTeam(teamId,
+                Map.of("name", "仍有成员", "departmentId", 901L)));
+
+        db.update("UPDATE users SET team_id=NULL WHERE id=5");
+        personnel.deleteTeam(teamId);
+        assertEquals(1, db.queryForObject("SELECT deleted FROM teams WHERE id=?", Integer.class, teamId));
     }
 
     private void login(long id) {
@@ -165,6 +230,14 @@ class TaskChangeServiceTest {
                 () -> controller.updateProfile(Map.of("email", "member@example.com", "phone", "13812345678"))).getErrorCode());
         assertEquals("user5", db.queryForObject("SELECT username FROM users WHERE id=5", String.class));
         assertNull(db.queryForObject("SELECT email FROM users WHERE id=5", String.class));
+    }
+    @Test void employeeCanEditOnlyOwnBoundedSignature() {
+        login(5);
+        var controller = new com.pandora.backend.user.UserController();
+        ReflectionTestUtils.setField(controller, "jdbcTemplate", db);
+        controller.updateProfile(Map.of("signature", "专注协作"));
+        assertEquals("专注协作", db.queryForObject("SELECT signature FROM users WHERE id=5", String.class));
+        assertThrows(BusinessException.class, () -> controller.updateProfile(Map.of("signature", "签".repeat(161))));
     }
     @Test void adminSelfPasswordChecksOldPasswordAndStoresOnlyHash() {
         login(1);
@@ -221,6 +294,8 @@ class TaskChangeServiceTest {
         db.update("INSERT INTO users (id, username, password_hash, role, approval_status, deleted) VALUES (9, 'deleted9', 'hash', 'EMPLOYEE', 'APPROVED', 1)");
         TaskController tasks = new TaskController();
         ReflectionTestUtils.setField(tasks, "jdbcTemplate", db);
+        ReflectionTestUtils.setField(tasks, "hierarchyService", hierarchy());
+        login(2);
 
         List<Map<String, Object>> assignees = tasks.assignees().getBody().getData();
         Set<Long> ids = new HashSet<>();
@@ -232,6 +307,29 @@ class TaskChangeServiceTest {
         assertEquals(Set.of(2L, 3L, 4L, 5L, 6L, 7L), ids);
         assertFalse(ids.contains(8L));
         assertFalse(ids.contains(9L));
+    }
+
+    @Test void assigneesRespectHierarchyForManagersAndEmployees() {
+        TaskController tasks = new TaskController();
+        ReflectionTestUtils.setField(tasks, "jdbcTemplate", db);
+        ReflectionTestUtils.setField(tasks, "hierarchyService", hierarchy());
+        login(3);
+        Set<Long> managerIds = new HashSet<>();
+        for (Map<String, Object> row : tasks.assignees().getBody().getData()) managerIds.add(number(row, "id"));
+        assertEquals(Set.of(3L, 4L, 5L, 6L, 7L), managerIds);
+
+        login(5);
+        List<Map<String, Object>> employeeRows = tasks.assignees().getBody().getData();
+        assertEquals(1, employeeRows.size());
+        assertEquals(5L, number(employeeRows.get(0), "id"));
+    }
+
+    private HierarchyService hierarchy() {
+        HierarchyService hierarchy = new HierarchyService();
+        ReflectionTestUtils.setField(hierarchy, "jdbcTemplate", db);
+        ReflectionTestUtils.setField(hierarchy, "maxDepth", 10);
+        ReflectionTestUtils.setField(hierarchy, "cycleDetect", true);
+        return hierarchy;
     }
 
     @ParameterizedTest @ValueSource(longs = {1L, 2L, 5L})

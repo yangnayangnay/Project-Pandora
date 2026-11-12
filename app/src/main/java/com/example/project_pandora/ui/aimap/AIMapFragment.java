@@ -26,6 +26,9 @@ public class AIMapFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        com.example.project_pandora.ui.widget.CompanyBackgrounds.bind(view,
+                com.example.project_pandora.ui.widget.CompanyBackgrounds.Scene.AI);
+        binding.toolbar.setBackgroundColor(android.graphics.Color.TRANSPARENT);
 
         binding.btnDataCollect.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), DataCollectActivity.class)));

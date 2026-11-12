@@ -496,7 +496,7 @@ public class LogController {
         List<Map<String, Object>> todayTasks = jdbcTemplate.queryForList(
                 "SELECT id, name, status, progress_note FROM tasks " +
                 "WHERE assignee_id = ? AND deleted = 0 " +
-                "AND DATE(updated_at) = ? AND status IN ('IN_PROGRESS', 'COMPLETED', 'CONFIRMED')",
+                "AND DATE(updated_at) = ? AND status IN ('IN_PROGRESS', 'COMPLETED')",
                 userId, today);
 
         int generated = 0;
@@ -510,7 +510,7 @@ public class LogController {
                     Integer.class, userId, today, "[自动]" + taskName + "%");
 
             if (existing == 0) {
-                String completionStatus = "COMPLETED".equals(status) || "CONFIRMED".equals(status) ? "COMPLETED" : "PENDING";
+                String completionStatus = "COMPLETED".equals(status) ? "COMPLETED" : "PENDING";
                 String workItem = "[自动]" + taskName + " (" + status + ")";
                 jdbcTemplate.update(
                         "INSERT INTO work_logs (user_id, work_item, completion_status, log_date) VALUES (?, ?, ?, ?)",

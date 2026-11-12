@@ -69,10 +69,10 @@ const stats = reactive({ taskCount: 0, logCount: 0, userCount: 0 })
 const pendingUsers = ref([])
 const recentTasks = ref([])
 import { roleMap } from '@/utils/roleConstants'
-const statusMap = { PENDING: '待处理', IN_PROGRESS: '进行中', COMPLETED: '已完成', CONFIRMED: '已确认' }
+const statusMap = { IN_PROGRESS: '进行中', COMPLETED: '已完成' }
 
 const statusTagType = (s) => {
-  const map = { PENDING: 'info', IN_PROGRESS: 'warning', COMPLETED: 'success', CONFIRMED: 'success' }
+  const map = { IN_PROGRESS: 'warning', COMPLETED: 'success' }
   return map[s] || 'info'
 }
 

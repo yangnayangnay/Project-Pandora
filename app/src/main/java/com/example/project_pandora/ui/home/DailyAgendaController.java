@@ -32,6 +32,7 @@ public final class DailyAgendaController {
     private final Calendar selected = Calendar.getInstance();
     private final AppBarLayout.OnOffsetChangedListener offsetListener;
     private AlertDialog datePicker;
+    private com.example.project_pandora.ui.widget.DayTasksPopup dayPopup;
     private boolean expanded, loading, failed, closed;
     private boolean restoringExpansion = true;
 
@@ -49,8 +50,12 @@ public final class DailyAgendaController {
         });
         adapter = new DailyItemAdapter(busy, this::complete, item -> editor.show(item, dayFormat.format(selected.getTime())));
         binding.recyclerDailyItems.setLayoutManager(new LinearLayoutManager(context)); binding.recyclerDailyItems.setNestedScrollingEnabled(false); binding.recyclerDailyItems.setAdapter(adapter);
-        binding.dailyCalendar.setOnDateSelectedListener((year, month, day) -> { select(year, month - 1, day); revealDay(); });
-        binding.dailyCalendar.setOnDayTasksClick(day -> revealDay());
+        binding.dailyCalendar.setOnDateSelectedListener((year, month, day) -> {
+            select(year, month - 1, day);
+        });
+        binding.dailyCalendar.setOnDayTasksClick(this::showDayItems);
+        binding.dailyCalendar.setOnPeriodSwipe(direction -> { shiftMonth(direction); });
+        binding.dailyCalendar.setOnTaskMoveListener(this::move);
         binding.dailyCalendar.setOnVerticalSwipeListener(new CalendarView.OnVerticalSwipeListener() {
             @Override public void onSwipeUp() { setExpanded(true); }
             @Override public void onSwipeDown() { if (binding.scrollDailyAgenda.getScrollY() == 0) setExpanded(false); }
@@ -63,11 +68,21 @@ public final class DailyAgendaController {
         binding.btnExpandAgenda.setOnClickListener(v -> setExpanded(!expanded));
         final boolean initialExpanded = expanded;
         offsetListener = (bar, offset) -> {
+            // Resample the shared photo when the glass cards move with the app bar.
+            binding.quadrantTopLeft.invalidate();
+            binding.quadrantTopRight.invalidate();
             if (closed || restoringExpansion || bar.getTotalScrollRange() == 0) return;
             if (offset == 0) applyExpanded(false);
             else if (Math.abs(offset) >= bar.getTotalScrollRange()) applyExpanded(true);
         };
         binding.homeAppBar.addOnOffsetChangedListener(offsetListener);
+        binding.scrollDailyAgenda.setOnScrollChangeListener((androidx.core.widget.NestedScrollView.OnScrollChangeListener) (view, x, y, oldX, oldY) -> {
+            // Once inside the calendar, refreshed or resized boards must stay fully off screen.
+            if (!closed && y > 0) {
+                applyExpanded(true);
+                binding.homeAppBar.setExpanded(false, false);
+            }
+        });
         binding.dailyCalendar.setDetailed(expanded); renderExpansion(); renderDate();
         binding.homeAppBar.post(() -> {
             if (closed) return;
@@ -91,20 +106,32 @@ public final class DailyAgendaController {
         if (next.get(Calendar.YEAR) < 1900 || next.get(Calendar.YEAR) > 9999) return;
         select(next.get(Calendar.YEAR), next.get(Calendar.MONTH), 1);
     }
+    private void showDayItems(Calendar date) {
+        if (closed || loading || failed) return;
+        List<Map<String, Object>> rows = DailyItems.onDate(items, dayFormat.format(date.getTime()));
+        if (rows.isEmpty()) return;
+        if (dayPopup != null) dayPopup.dismiss();
+        dayPopup = new com.example.project_pandora.ui.widget.DayTasksPopup(context, date,
+                DailyItems.calendarEntries(rows), item -> editor.show(item, dayFormat.format(date.getTime())), true);
+        dayPopup.show(binding.dailyCalendar, binding.dailyCalendar.getDayTasksAnchor());
+    }
     private void chooseDate() {
-        if (closed || (datePicker != null && datePicker.isShowing())) return;
-        datePicker = QuickDatePickerDialog.create(context, selected, 1900, date -> {
+        if (closed) return;
+        if (datePicker != null && datePicker.isShowing()) return;
+        AlertDialog opened = QuickDatePickerDialog.create(context, selected, 1900, date -> {
             if (closed) return;
             select(date.get(Calendar.YEAR), date.get(Calendar.MONTH), date.get(Calendar.DAY_OF_MONTH));
             revealDay();
         });
-        datePicker.show();
+        datePicker = opened;
+        opened.setOnDismissListener(ignored -> { if (datePicker == opened) datePicker = null; });
+        opened.show();
     }
     private void load() {
         loading = true; failed = false; items.clear(); adapter.submit(Collections.emptyList()); binding.dailyCalendar.setItems(Collections.emptyList());
         binding.dailyProgress.setVisibility(View.VISIBLE); renderMessage("正在加载个人事项…"); renderDate();
         String loadingMonth = month();
-        request.set(repository.list(loadingMonth).observeOn(AndroidSchedulers.mainThread()).subscribe(rows -> {
+        request.set(repository.list(loadingMonth).timeout(20, java.util.concurrent.TimeUnit.SECONDS).observeOn(AndroidSchedulers.mainThread()).subscribe(rows -> {
             if (closed || !loadingMonth.equals(month())) return;
             loading = false; binding.dailyProgress.setVisibility(View.GONE); items.addAll(rows); renderItems();
         }, error -> {
@@ -136,14 +163,50 @@ public final class DailyAgendaController {
             renderItems();
         }, error -> { busy.remove(id); if (!closed) { adapter.notifyDataSetChanged(); Toast.makeText(context, "保存失败，请重试：" + error.getMessage(), Toast.LENGTH_LONG).show(); } }));
     }
+    private void move(Map<String, Object> item, Calendar target) {
+        Long id = NumberCompat.toLong(DailyItems.value(item, "id"));
+        if (id == null || !busy.add(id)) return;
+        String targetStart = dayFormat.format(target.getTime());
+        int duration = durationDays(DailyItems.startDate(item), DailyItems.endDate(item));
+        Calendar finish = (Calendar) target.clone(); finish.add(Calendar.DATE, duration);
+        String targetEnd = dayFormat.format(finish.getTime());
+        adapter.notifyDataSetChanged();
+        actions.add(repository.move(id, targetStart, targetEnd).observeOn(AndroidSchedulers.mainThread()).subscribe(saved -> {
+            busy.remove(id); if (closed) return;
+            setDateFields(targetStart); renderDate(); load();
+            Toast.makeText(context, "事项日期已更新", Toast.LENGTH_SHORT).show();
+        }, error -> {
+            busy.remove(id); if (closed) return;
+            adapter.notifyDataSetChanged();
+            Toast.makeText(context, "移动失败，请重试：" + error.getMessage(), Toast.LENGTH_LONG).show();
+        }));
+    }
+    private int durationDays(String start, String end) {
+        try {
+            Calendar from = Calendar.getInstance(), to = Calendar.getInstance();
+            from.setTime(dayFormat.parse(start)); to.setTime(dayFormat.parse(end));
+            int days = 0;
+            while (from.before(to) && days < 36600) { from.add(Calendar.DATE, 1); days++; }
+            return days;
+        } catch (Exception ignored) { return 0; }
+    }
     public void setExpanded(boolean value) {
         binding.scrollDailyAgenda.scrollTo(0, 0); binding.homeAppBar.setExpanded(!value, true);
+    }
+    /** A data refresh can change board height while the app bar is already collapsed. */
+    public void onBoardsResized() {
+        if (expanded && !closed) binding.homeAppBar.setExpanded(false, false);
     }
     private void applyExpanded(boolean value) {
         if (expanded == value) return;
         expanded = value; binding.dailyCalendar.setDetailed(value); renderExpansion();
     }
-    private void renderExpansion() { binding.btnExpandAgenda.setText(expanded ? "显示板块" : "展开日历"); binding.btnExpandAgenda.setContentDescription(expanded ? "收起完整日历并显示事件纪和任务看板" : "收起顶部板块并展开完整日历"); }
+    private void renderExpansion() {
+        // INVISIBLE preserves the scroll range while preventing stale offsets from exposing cards.
+        binding.boardPanels.setVisibility(expanded ? View.INVISIBLE : View.VISIBLE);
+        binding.btnExpandAgenda.setText(expanded ? "显示板块" : "展开日历");
+        binding.btnExpandAgenda.setContentDescription(expanded ? "收起完整日历并显示事件纪和任务看板" : "收起顶部板块并展开完整日历");
+    }
     private void revealDay() {
         binding.scrollDailyAgenda.post(() -> {
             if (closed) return;
@@ -154,6 +217,6 @@ public final class DailyAgendaController {
         });
     }
     public void close() {
-        closed = true; request.dispose(); actions.dispose(); editor.close(); if (datePicker != null) datePicker.dismiss(); binding.homeAppBar.removeOnOffsetChangedListener(offsetListener); binding.recyclerDailyItems.setAdapter(null);
+        closed = true; if (dayPopup != null) dayPopup.dismiss(); request.dispose(); actions.dispose(); editor.close(); if (datePicker != null) datePicker.dismiss(); binding.homeAppBar.removeOnOffsetChangedListener(offsetListener); binding.recyclerDailyItems.setAdapter(null);
     }
 }

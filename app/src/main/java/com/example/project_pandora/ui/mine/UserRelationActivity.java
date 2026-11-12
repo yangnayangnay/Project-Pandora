@@ -5,7 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 import com.example.project_pandora.core.network.NetworkClient;
 import com.example.project_pandora.core.network.TokenManager;
 import com.example.project_pandora.core.util.BackToolbarHelper;
@@ -25,7 +25,7 @@ import io.reactivex.rxjava3.disposables.SerialDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import retrofit2.HttpException;
 
-public class UserRelationActivity extends AppCompatActivity {
+public class UserRelationActivity extends PandoraActivity {
     private ActivityUserRelationBinding binding;
     private final SerialDisposable request = new SerialDisposable();
     private final List<Map<String, Object>> people = new ArrayList<>();

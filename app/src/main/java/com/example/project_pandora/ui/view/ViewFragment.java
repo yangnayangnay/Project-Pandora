@@ -16,6 +16,9 @@ import com.example.project_pandora.core.network.TokenManager;
 import com.example.project_pandora.core.util.NumberCompat;
 import com.example.project_pandora.R;
 import com.example.project_pandora.databinding.FragmentViewBinding;
+import com.example.project_pandora.core.exception.BusinessException;
+import com.example.project_pandora.core.network.NetworkClient;
+import com.example.project_pandora.data.remote.CompanyDirectoryApi;
 import com.example.project_pandora.repository.SyncRoutingRepository;
 import com.example.project_pandora.repository.TaskRepository;
 import com.example.project_pandora.repository.TaskDisplaySettingsRepository;
@@ -40,11 +43,14 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.disposables.SerialDisposable;
 
 public class ViewFragment extends Fragment {
+    private static final String ARG_PERSON_ID = "personId";
     private FragmentViewBinding binding;
     private TaskRepository taskRepository;
     private TaskDisplaySettingsRepository taskDisplaySettings;
     private SyncRoutingRepository syncRoutingRepository;
     private Long currentUserId;
+    private Long targetPersonId;
+    private CompanyDirectoryApi companyDirectoryApi;
     private int currentViewMode;
     private int currentPanelTab;
     private Calendar selectedDate = Calendar.getInstance();
@@ -57,6 +63,14 @@ public class ViewFragment extends Fragment {
     private AlertDialog datePicker;
     private DayTasksPopup dayTasksPopup;
 
+    public static ViewFragment forPerson(long userId) {
+        ViewFragment fragment = new ViewFragment();
+        Bundle arguments = new Bundle();
+        arguments.putLong(ARG_PERSON_ID, userId);
+        fragment.setArguments(arguments);
+        return fragment;
+    }
+
     @Nullable @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         binding = FragmentViewBinding.inflate(inflater, container, false);
@@ -65,14 +79,29 @@ public class ViewFragment extends Fragment {
 
     @Override public void onViewCreated(@NonNull View view, @Nullable Bundle state) {
         super.onViewCreated(view, state);
+        com.example.project_pandora.ui.widget.CompanyBackgrounds.bind(view,
+                com.example.project_pandora.ui.widget.CompanyBackgrounds.Scene.COMPANY);
+        binding.containerMonthView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        binding.monthHeader.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        binding.compactMonthHeader.setBackgroundColor(android.graphics.Color.TRANSPARENT);
         binding.scrollMonthCalendar.setNestedScrollingEnabled(false);
         taskRepository = new TaskRepository(requireContext());
         taskDisplaySettings = new TaskDisplaySettingsRepository(requireContext());
         syncRoutingRepository = new SyncRoutingRepository(requireContext());
         currentUserId = TokenManager.getInstance(requireContext()).getUserId();
+        if (getArguments() != null && getArguments().containsKey(ARG_PERSON_ID)) {
+            targetPersonId = getArguments().getLong(ARG_PERSON_ID);
+            companyDirectoryApi = NetworkClient.getInstance(requireContext()).createService(CompanyDirectoryApi.class);
+        }
         binding.recyclerPanelTaskTable.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerPanelTaskTable.setNestedScrollingEnabled(false);
         setupTabs();
+        if (targetPersonId != null) {
+            binding.btnCompanyDirectory.setVisibility(View.GONE);
+            binding.btnTaskDetails.setVisibility(View.GONE);
+            binding.fabAddTask.setVisibility(View.GONE);
+        }
+        binding.btnCompanyDirectory.setOnClickListener(v -> startActivity(new Intent(requireContext(), CompanyDirectoryActivity.class)));
         binding.btnTaskDetails.setOnClickListener(v -> startActivity(new Intent(requireContext(), com.example.project_pandora.ui.task.TaskDetailsActivity.class)));
         binding.calendarView.setOnDateSelectedListener((year, month, day) -> {
             selectedDate.set(year, month - 1, day); renderDates();
@@ -151,8 +180,8 @@ public class ViewFragment extends Fragment {
         });
         binding.tabLayout.selectTab(binding.tabLayout.getTabAt(currentViewMode));
         binding.tabPanelTasks.addTab(binding.tabPanelTasks.newTab().setText("全部任务"));
-        binding.tabPanelTasks.addTab(binding.tabPanelTasks.newTab().setText("我的任务"));
-        binding.tabPanelTasks.addTab(binding.tabPanelTasks.newTab().setText("我布置的任务"));
+        binding.tabPanelTasks.addTab(binding.tabPanelTasks.newTab().setText(targetPersonId == null ? "我的任务" : "进行中"));
+        binding.tabPanelTasks.addTab(binding.tabPanelTasks.newTab().setText(targetPersonId == null ? "我布置的任务" : "已完成"));
         binding.tabPanelTasks.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override public void onTabSelected(TabLayout.Tab tab) { currentPanelTab = tab.getPosition(); renderTaskTable(); }
             @Override public void onTabUnselected(TabLayout.Tab tab) {}
@@ -192,15 +221,18 @@ public class ViewFragment extends Fragment {
     }
 
     private void showDatePicker() {
-        if (binding == null || (datePicker != null && datePicker.isShowing())) return;
-        datePicker = QuickDatePickerDialog.create(requireContext(), selectedDate, date -> {
+        if (binding == null) return;
+        if (datePicker != null && datePicker.isShowing()) return;
+        androidx.appcompat.app.AlertDialog opened = QuickDatePickerDialog.create(requireContext(), selectedDate, date -> {
             if (binding == null) return;
             selectedDate = date;
             renderDates();
             revealSelectedDate();
             if (loadFailed) refreshTasks();
         });
-        datePicker.show();
+        datePicker = opened;
+        opened.setOnDismissListener(ignored -> { if (datePicker == opened) datePicker = null; });
+        opened.show();
     }
 
     private void revealSelectedDate() {
@@ -226,6 +258,7 @@ public class ViewFragment extends Fragment {
         List<Map<String, Object>> rows = DayTaskSelection.onDate(mergedTasks(),
                 new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(day.getTime()));
         if (rows.isEmpty()) return;
+        if (rows.size() == 1) { openTaskDetail(rows.get(0)); return; }
         dayTasksPopup = new DayTasksPopup(requireContext(), day, rows, this::openTaskDetail);
         dayTasksPopup.show(binding.calendarView, binding.calendarView.getDayTasksAnchor());
     }
@@ -235,6 +268,26 @@ public class ViewFragment extends Fragment {
         loading = true; loadFailed = false;
         binding.progressBar.setVisibility(View.VISIBLE);
         binding.textPanelTaskError.setVisibility(View.GONE);
+        if (targetPersonId != null) {
+            request.set(companyDirectoryApi.detail(targetPersonId, null, null, null)
+                    .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread()).subscribe(response -> {
+                        if (!response.isSuccess() || response.getData() == null)
+                            throw new BusinessException(response.getCode(), response.getMessage());
+                        loading = false;
+                        binding.progressBar.setVisibility(View.GONE);
+                        mine.clear();
+                        Object raw = response.getData().get("tasks");
+                        if (raw instanceof List<?>) for (Object item : (List<?>) raw)
+                            if (item instanceof Map<?, ?>) mine.add((Map<String, Object>) item);
+                        dispatched.clear();
+                        renderTaskTable();
+                        binding.calendarView.setTasks(mine);
+                        binding.weekSchedule.setTasks(mine);
+                        binding.daySchedule.setTasks(mine);
+                    }, error -> showTaskLoadError()));
+            return;
+        }
         request.set(taskDisplaySettings.showCompletedForLists().flatMap(showCompleted -> Observable.zip(
                 taskRepository.listTasksExtended(null, currentUserId, null, showCompleted),
                 taskRepository.listTasksExtended(null, null, currentUserId, showCompleted),
@@ -246,23 +299,27 @@ public class ViewFragment extends Fragment {
                     mine.clear(); mine.addAll(result.mine);
                     dispatched.clear();
                     for (Map<String, Object> task : result.created) {
-                        if (!currentUserId.equals(NumberCompat.toLong(task.get("assignee_id")))) dispatched.add(task);
+                        if (!com.example.project_pandora.ui.task.TaskDetailFilter.assigneeIds(task).contains(currentUserId)) dispatched.add(task);
                     }
                     renderTaskTable();
                     List<Map<String, Object>> all = mergedTasks();
                     binding.calendarView.setTasks(all);
                     binding.weekSchedule.setTasks(all);
                     binding.daySchedule.setTasks(all);
-                }, error -> {
-                    if (binding == null) return;
-                    loading = false; loadFailed = true;
-                    binding.progressBar.setVisibility(View.GONE);
-                    renderTaskTable();
-                    binding.weekSchedule.setError("任务加载失败"); binding.daySchedule.setError("任务加载失败");
-                }));
+                }, error -> showTaskLoadError()));
+    }
+
+    private void showTaskLoadError() {
+        if (binding == null) return;
+        loading = false; loadFailed = true;
+        binding.progressBar.setVisibility(View.GONE);
+        renderTaskTable();
+        binding.weekSchedule.setError("任务加载失败");
+        binding.daySchedule.setError("任务加载失败");
     }
 
     private List<Map<String, Object>> mergedTasks() {
+        if (targetPersonId != null) return new ArrayList<>(mine);
         Map<Object, Map<String, Object>> unique = new LinkedHashMap<>();
         for (Map<String, Object> task : mine) unique.put(DayTaskSelection.value(task, "id"), task);
         for (Map<String, Object> task : dispatched) unique.put(DayTaskSelection.value(task, "id"), task);
@@ -271,13 +328,24 @@ public class ViewFragment extends Fragment {
 
     private void renderTaskTable() {
         if (binding == null) return;
-        List<Map<String, Object>> rows = currentPanelTab == 0 ? mergedTasks()
+        List<Map<String, Object>> rows;
+        if (targetPersonId != null) {
+            rows = new ArrayList<>();
+            for (Map<String, Object> task : mine) {
+                String status = java.util.Objects.toString(DayTaskSelection.value(task, "status"), "");
+                if (currentPanelTab == 0 || currentPanelTab == 1 && "IN_PROGRESS".equals(status)
+                        || currentPanelTab == 2 && "COMPLETED".equals(status)) rows.add(task);
+            }
+        } else rows = currentPanelTab == 0 ? mergedTasks()
                 : new ArrayList<>(currentPanelTab == 1 ? mine : dispatched);
         rows = DayTaskSelection.onDate(rows, new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(selectedDate.getTime()));
-        String scope = currentPanelTab == 0 ? "全部任务" : currentPanelTab == 1 ? "我的任务" : "我布置的任务";
+        String scope = currentPanelTab == 0 ? "全部任务" : currentPanelTab == 1
+                ? (targetPersonId == null ? "我的任务" : "进行中")
+                : (targetPersonId == null ? "我布置的任务" : "已完成");
         binding.monthTaskHeading.setText(new SimpleDateFormat("M月d日", Locale.CHINA).format(selectedDate.getTime())
                 + " · " + scope + " · " + rows.size() + " 项");
-        binding.recyclerPanelTaskTable.setAdapter(new MonthTaskAdapter(rows, this::openTaskDetail, this::performQuickToggle));
+        binding.recyclerPanelTaskTable.setAdapter(new MonthTaskAdapter(rows, this::openTaskDetail,
+                targetPersonId == null ? this::performQuickToggle : null));
         binding.textPanelTaskEmpty.setText("当天暂无任务");
         binding.textPanelTaskError.setVisibility(loadFailed ? View.VISIBLE : View.GONE);
         binding.textPanelTaskEmpty.setVisibility(!loading && !loadFailed && rows.isEmpty() ? View.VISIBLE : View.GONE);
@@ -290,12 +358,7 @@ public class ViewFragment extends Fragment {
 
     private void performQuickToggle(Map<String, Object> task) {
         String status = task.get("status") != null ? task.get("status").toString() : "";
-        if ("CONFIRMED".equals(status)) {
-            Toast.makeText(requireContext(), "已确认任务不可快速切换，请到详情页处理", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        Long assigneeId = com.example.project_pandora.core.util.NumberCompat.toLong(task.get("assignee_id"));
-        if (assigneeId == null || currentUserId == null || !assigneeId.equals(currentUserId)) {
+        if (currentUserId == null || !com.example.project_pandora.ui.task.TaskDetailFilter.assigneeIds(task).contains(currentUserId)) {
             openTaskDetail(task);
             return;
         }

@@ -96,7 +96,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginBottom="12dp"
-                            android:hint="接口地址（OpenAI 兼容完整端点）">
+                            android:hint="接口地址（服务地址或完整聊天端点）">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/edit_api_url"
@@ -130,7 +130,7 @@
                             style="@style/Widget.Pandora.TextInput"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:hint="模型名称（如 qwen2.5:7b）">
+                            android:hint="模型名称（以服务商提供为准）">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/edit_model"
@@ -143,6 +143,12 @@
 
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnModels"
+                    style="@style/Widget.Pandora.Button.Outlined"
+                    android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp"
+                    android:text="获取可用模型" android:layout_marginBottom="8dp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_test"

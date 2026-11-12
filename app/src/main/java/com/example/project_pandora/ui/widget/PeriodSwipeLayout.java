@@ -56,7 +56,7 @@ public class PeriodSwipeLayout extends LinearLayout {
             case MotionEvent.ACTION_UP:
                 int direction = swipe.finish(event.getX(), event.getY());
                 releaseParent();
-                if (direction != 0) periodListener.accept(direction);
+                if (direction != 0) { periodListener.accept(direction); animatePeriodChange(direction); }
                 else performClick();
                 break;
             case MotionEvent.ACTION_POINTER_DOWN:
@@ -65,6 +65,10 @@ public class PeriodSwipeLayout extends LinearLayout {
                 break;
         }
         return true;
+    }
+
+    protected void animatePeriodChange(int direction) {
+        CalendarPageMotion.enter(this, direction);
     }
 
     private void releaseParent() {

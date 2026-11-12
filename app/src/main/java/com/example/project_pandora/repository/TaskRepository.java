@@ -27,14 +27,13 @@ public class TaskRepository {
         this.taskApi = taskApi;
     }
 
-    public Observable<Map<String, Object>> createTask(String name, String priority, Long assigneeId,
-                                                       Boolean isImportant, Boolean isUrgent,
+    public Observable<Map<String, Object>> createTask(String name, Long assigneeId,
+                                                       Boolean isUrgent,
                                                        String startTime, String endTime) {
         Map<String, Object> request = new HashMap<>();
         request.put("name", name);
-        request.put("priority", priority);
-        request.put("assigneeId", assigneeId);
-        request.put("isImportant", isImportant);
+        request.put("content", name);
+        request.put("assigneeIds", Collections.singletonList(assigneeId));
         request.put("isUrgent", isUrgent);
         if (startTime != null) request.put("startTime", startTime);
         if (endTime != null) request.put("endTime", endTime);
@@ -74,8 +73,7 @@ public class TaskRepository {
                         for (Map<String, Object> item : response.getData()) {
                             Map<String, Object> task = normalizeKeys(item);
                             Object taskStatus = task.get("status");
-                            if (Boolean.FALSE.equals(showCompleted)
-                                    && ("COMPLETED".equals(taskStatus) || "CONFIRMED".equals(taskStatus))) continue;
+                            if (Boolean.FALSE.equals(showCompleted) && "COMPLETED".equals(taskStatus)) continue;
                             list.add(task);
                         }
                         return list;
@@ -187,6 +185,19 @@ public class TaskRepository {
                     }
                     throw new RuntimeException(response.getMessage());
                 });
+    }
+
+    /** People visible to the current user for assignment and task filtering. */
+    public Observable<List<Map<String, Object>>> listAssignees() {
+        return taskApi.getAssignees().subscribeOn(Schedulers.io()).map(response -> {
+            if (!response.isSuccess() || response.getData() == null) throw new RuntimeException(response.getMessage());
+            List<Map<String, Object>> list = new ArrayList<>();
+            for (Map<String, Object> person : response.getData()) {
+                Map<String, Object> normalized = normalizeKeys(person);
+                if (com.example.project_pandora.ui.people.PeopleDirectory.isMobilePerson(normalized)) list.add(normalized);
+            }
+            return list;
+        });
     }
 
     public Observable<Map<String, Object>> deleteTask(Long taskId) {

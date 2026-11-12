@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="color_company_photo_secondary">#C1B5A7</color>
+    <color name="color_company_content_surface">#E024211E</color>
+    <color name="home_task_press">#2285BDDD</color>
+    <color name="home_event_press">#22EBD8A5</color>
+</resources>

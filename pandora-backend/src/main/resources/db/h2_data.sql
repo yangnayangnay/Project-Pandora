@@ -7,13 +7,24 @@
 
 -- 用户数据 (admin0已存在, 补充4个用户, 用户名统一使用编号后缀)
 -- Round26 E4: 追加 real_name 永久基线（uid5 RegTestEmployee 为 R25 巡检基线保留；uid6~7 无基线保持 NULL）
-MERGE INTO `users` (`id`, `username`, `password_hash`, `role`, `department_id`, `team_id`, `real_name`) KEY(`id`) VALUES
-(2, 'founder1',      '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'FOUNDER',     1, 1, '创始人'),
-(3, 'dept_head2',    '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'DEPT_HEAD',   1, 1, '部门负责人'),
-(4, 'team_leader3',  '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'TEAM_LEADER', 1, 2, '组长'),
-(5, 'employee4',     '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'EMPLOYEE',    1, 2, 'RegTestEmployee'),
-(6, 'zhang_san4',    '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'EMPLOYEE',    2, 3, NULL),
-(7, 'li_si3',        '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'TEAM_LEADER', 2, 3, NULL);
+INSERT INTO `users` (`id`, `username`, `password_hash`, `role`, `department_id`, `team_id`, `real_name`)
+SELECT 2, 'founder1', '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'FOUNDER', 1, 1, '创始人'
+WHERE NOT EXISTS (SELECT 1 FROM `users` WHERE `id` = 2 OR `username` = 'founder1');
+INSERT INTO `users` (`id`, `username`, `password_hash`, `role`, `department_id`, `team_id`, `real_name`)
+SELECT 3, 'dept_head2', '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'DEPT_HEAD', 1, 1, '部门负责人'
+WHERE NOT EXISTS (SELECT 1 FROM `users` WHERE `id` = 3 OR `username` = 'dept_head2');
+INSERT INTO `users` (`id`, `username`, `password_hash`, `role`, `department_id`, `team_id`, `real_name`)
+SELECT 4, 'team_leader3', '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'TEAM_LEADER', 1, 2, '组长'
+WHERE NOT EXISTS (SELECT 1 FROM `users` WHERE `id` = 4 OR `username` = 'team_leader3');
+INSERT INTO `users` (`id`, `username`, `password_hash`, `role`, `department_id`, `team_id`, `real_name`)
+SELECT 5, 'employee4', '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'EMPLOYEE', 1, 2, 'RegTestEmployee'
+WHERE NOT EXISTS (SELECT 1 FROM `users` WHERE `id` = 5 OR `username` = 'employee4');
+INSERT INTO `users` (`id`, `username`, `password_hash`, `role`, `department_id`, `team_id`, `real_name`)
+SELECT 6, 'zhang_san4', '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'EMPLOYEE', 2, 3, NULL
+WHERE NOT EXISTS (SELECT 1 FROM `users` WHERE `id` = 6 OR `username` = 'zhang_san4');
+INSERT INTO `users` (`id`, `username`, `password_hash`, `role`, `department_id`, `team_id`, `real_name`)
+SELECT 7, 'li_si3', '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'TEAM_LEADER', 2, 3, NULL
+WHERE NOT EXISTS (SELECT 1 FROM `users` WHERE `id` = 7 OR `username` = 'li_si3');
 
 -- 部门数据
 MERGE INTO `departments` (`id`, `name`, `head_user_id`, `parent_id`) KEY(`id`) VALUES
@@ -26,22 +37,21 @@ MERGE INTO `teams` (`id`, `name`, `leader_user_id`, `department_id`) KEY(`id`) V
 (2, '前端组', 4, 1),
 (3, '设计组', 7, 2);
 
--- 任务数据 (15条, 各种状态和优先级)
-MERGE INTO `tasks` (`id`, `name`, `priority`, `status`, `start_time`, `end_time`, `progress_note`, `assignee_id`, `dispatcher_id`, `is_important`, `is_urgent`) KEY(`id`) VALUES
-(1,  '完成系统架构设计文档',         'HIGH',   'COMPLETED',   '2026-10-01 09:00:00', '2026-10-10 18:00:00', '架构设计已完成, 通过评审',     4, 2, 1, 1),
-(2,  '开发用户认证模块',             'HIGH',   'IN_PROGRESS', '2026-10-05 09:00:00', '2026-10-20 18:00:00', 'JWT认证开发中, 预计本周完成',   5, 4, 1, 0),
-(3,  '编写API接口文档',              'MEDIUM', 'IN_PROGRESS', '2026-10-10 09:00:00', '2026-10-25 18:00:00', '已完成80%接口文档',             5, 4, 0, 0),
-(4,  '设计数据库ER图',               'HIGH',   'COMPLETED',   '2026-10-01 09:00:00', '2026-10-08 18:00:00', 'ER图已完成, 4NF合规',           4, 2, 1, 0),
-(5,  '实现任务分发功能',             'URGENT', 'IN_PROGRESS', '2026-10-15 09:00:00', '2026-10-22 18:00:00', '分发逻辑开发中',                4, 2, 1, 1),
-(6,  '前端登录页面开发',             'HIGH',   'COMPLETED',   '2026-10-03 09:00:00', '2026-10-12 18:00:00', '登录页已完成, 含服务器连接检测', 5, 4, 1, 0),
-(7,  '前端底部导航优化',             'MEDIUM', 'COMPLETED',   '2026-10-10 09:00:00', '2026-10-15 18:00:00', '5项导航已配置完成',             5, 4, 0, 0),
-
-(10, 'AI关键词分析接口对接',         'HIGH',   'IN_PROGRESS', '2026-10-14 09:00:00', '2026-10-28 18:00:00', 'DeepSeek API对接中',            4, 2, 1, 0),
-(11, 'MBTI性格测试页面开发',         'MEDIUM', 'PENDING',     NULL,                  '2026-10-05 18:00:00', NULL,                            6, 7, 0, 0),
-(12, '飞书多维表格导入功能',         'LOW',    'PENDING',     NULL,                  '2026-10-10 18:00:00', NULL,                            6, 7, 0, 0),
-(13, '工作周报自动生成',             'MEDIUM', 'PENDING',     NULL,                  '2026-10-08 18:00:00', NULL,                            5, 4, 0, 0),
-(14, '单元测试覆盖率提升',           'MEDIUM', 'IN_PROGRESS', '2026-10-15 09:00:00', '2026-10-30 18:00:00', '当前覆盖率45%, 目标80%',        5, 4, 0, 0),
-(15, '非功能需求测试用例编写',       'LOW',    'PENDING',     NULL,                  '2026-10-15 18:00:00', NULL,                            6, 7, 0, 0);
+-- 任务数据：状态仅保留进行中/已完成，紧急程度为二值。
+MERGE INTO `tasks` (`id`, `name`, `status`, `start_time`, `end_time`, `progress_note`, `assignee_id`, `dispatcher_id`, `is_urgent`) KEY(`id`) VALUES
+(1,  '完成系统架构设计文档',   'COMPLETED',   '2026-10-01 09:00:00', '2026-10-10 18:00:00', '架构设计已完成, 通过评审',      4, 2, 1),
+(2,  '开发用户认证模块',       'IN_PROGRESS', '2026-10-05 09:00:00', '2026-10-20 18:00:00', 'JWT认证开发中, 预计本周完成',    5, 4, 0),
+(3,  '编写API接口文档',        'IN_PROGRESS', '2026-10-10 09:00:00', '2026-10-25 18:00:00', '已完成80%接口文档',              5, 4, 0),
+(4,  '设计数据库ER图',         'COMPLETED',   '2026-10-01 09:00:00', '2026-10-08 18:00:00', 'ER图已完成, 4NF合规',            4, 2, 0),
+(5,  '实现任务分发功能',       'IN_PROGRESS', '2026-10-15 09:00:00', '2026-10-22 18:00:00', '分发逻辑开发中',                 4, 2, 1),
+(6,  '前端登录页面开发',       'COMPLETED',   '2026-10-03 09:00:00', '2026-10-12 18:00:00', '登录页已完成, 含服务器连接检测',  5, 4, 0),
+(7,  '前端底部导航优化',       'COMPLETED',   '2026-10-10 09:00:00', '2026-10-15 18:00:00', '5项导航已配置完成',              5, 4, 0),
+(10, 'AI关键词分析接口对接',   'IN_PROGRESS', '2026-10-14 09:00:00', '2026-10-28 18:00:00', 'DeepSeek API对接中',             4, 2, 0),
+(11, 'MBTI性格测试页面开发',   'IN_PROGRESS', NULL,                  '2026-10-05 18:00:00', NULL,                             6, 7, 0),
+(12, '飞书多维表格导入功能',   'IN_PROGRESS', NULL,                  '2026-10-10 18:00:00', NULL,                             6, 7, 0),
+(13, '工作周报自动生成',       'IN_PROGRESS', NULL,                  '2026-10-08 18:00:00', NULL,                             5, 4, 0),
+(14, '单元测试覆盖率提升',     'IN_PROGRESS', '2026-10-15 09:00:00', '2026-10-30 18:00:00', '当前覆盖率45%, 目标80%',         5, 4, 0),
+(15, '非功能需求测试用例编写', 'IN_PROGRESS', NULL,                  '2026-10-15 18:00:00', NULL,                             6, 7, 0);
 
 -- 工作日志数据 (12条)
 MERGE INTO `work_logs` (`id`, `user_id`, `work_item`, `completion_status`, `time_cost`, `log_date`) KEY(`id`) VALUES
@@ -101,15 +111,18 @@ MERGE INTO `teams` (`id`, `name`, `leader_user_id`, `department_id`) KEY(`id`) V
 (4, 'YJL运营组', 102, 3);
 
 -- yjl 测试任务 (创始人派发给部门老总, 部门老总派发给团队长, 团队长派发给员工)
-MERGE INTO `tasks` (`id`, `name`, `priority`, `status`, `start_time`, `end_time`, `assignee_id`, `dispatcher_id`, `is_important`, `is_urgent`, `progress_note`) KEY(`id`) VALUES
-(100, 'YJL-部门季度规划',   'HIGH',   'IN_PROGRESS', '2026-10-01 09:00:00', '2026-10-30 18:00:00', 101, 100, 1, 1, '正在制定Q4规划'),
-(101, 'YJL-团队周报汇总',   'MEDIUM', 'PENDING',     '2026-10-15 09:00:00', '2026-10-20 18:00:00', 102, 101, 0, 0, NULL),
-(102, 'YJL-客户需求调研',   'HIGH',   'IN_PROGRESS', '2026-10-10 09:00:00', '2026-10-25 18:00:00', 103, 102, 1, 0, '调研进行中，已完成50份问卷'),
-(103, 'YJL-运营数据分析',   'MEDIUM', 'PENDING',     '2026-10-20 09:00:00', '2026-10-28 18:00:00', 104, 102, 0, 0, NULL),
-(104, 'YJL-晨会准备',       'MEDIUM', 'COMPLETED',   '2026-10-03 09:00:00', '2026-10-03 18:00:00', 103, 102, 0, 1, '已完成'),
-(105, 'YJL-周报撰写',       'LOW',    'IN_PROGRESS', '2026-10-15 09:00:00', '2026-10-18 18:00:00', 103, 102, 0, 0, '撰写中'),
-(106, 'YJL-竞品调研报告',   'HIGH',   'PENDING',     '2026-10-22 09:00:00', '2026-10-28 18:00:00', 103, 102, 1, 0, NULL),
-(107, 'YJL-月度总结',       'MEDIUM', 'PENDING',     '2026-10-28 09:00:00', '2026-10-30 18:00:00', 103, 102, 0, 0, NULL);
+MERGE INTO `tasks` (`id`, `name`, `status`, `start_time`, `end_time`, `assignee_id`, `dispatcher_id`, `is_urgent`, `progress_note`) KEY(`id`) VALUES
+(100, 'YJL-部门季度规划', 'IN_PROGRESS', '2026-10-01 09:00:00', '2026-10-30 18:00:00', 101, 100, 1, '正在制定Q4规划'),
+(101, 'YJL-团队周报汇总', 'IN_PROGRESS', '2026-10-15 09:00:00', '2026-10-20 18:00:00', 102, 101, 0, NULL),
+(102, 'YJL-客户需求调研', 'IN_PROGRESS', '2026-10-10 09:00:00', '2026-10-25 18:00:00', 103, 102, 0, '调研进行中，已完成50份问卷'),
+(103, 'YJL-运营数据分析', 'IN_PROGRESS', '2026-10-20 09:00:00', '2026-10-28 18:00:00', 104, 102, 0, NULL),
+(104, 'YJL-晨会准备',     'COMPLETED',   '2026-10-03 09:00:00', '2026-10-03 18:00:00', 103, 102, 1, '已完成'),
+(105, 'YJL-周报撰写',     'IN_PROGRESS', '2026-10-15 09:00:00', '2026-10-18 18:00:00', 103, 102, 0, '撰写中'),
+(106, 'YJL-竞品调研报告', 'IN_PROGRESS', '2026-10-22 09:00:00', '2026-10-28 18:00:00', 103, 102, 0, NULL),
+(107, 'YJL-月度总结',     'IN_PROGRESS', '2026-10-28 09:00:00', '2026-10-30 18:00:00', 103, 102, 0, NULL);
+
+INSERT INTO task_assignees(task_id,user_id)
+SELECT id,assignee_id FROM tasks WHERE assignee_id IS NOT NULL;
 
 -- yjl 测试日志
 MERGE INTO `work_logs` (`id`, `user_id`, `work_item`, `completion_status`, `time_cost`, `log_date`) KEY(`id`) VALUES

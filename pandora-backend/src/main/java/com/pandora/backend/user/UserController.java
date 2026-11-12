@@ -55,7 +55,7 @@ public class UserController {
                     "SELECT u.id AS \"id\", u.username AS \"username\", u.role AS \"role\", u.email AS \"email\", " +
                     "u.real_name AS \"realName\", u.phone AS \"phone\", u.department_id AS \"departmentId\", " +
                     "u.team_id AS \"teamId\", d.name AS \"departmentName\", t.name AS \"teamName\", " +
-                    "u.avatar AS \"avatar\", u.theme_mode AS \"themeMode\", u.manual_theme AS \"manualTheme\" " +
+                    "u.avatar AS \"avatar\", u.signature AS \"signature\", u.theme_mode AS \"themeMode\", u.manual_theme AS \"manualTheme\" " +
                     "FROM users u " +
                     "LEFT JOIN departments d ON u.department_id = d.id AND d.deleted = 0 " +
                     "LEFT JOIN teams t ON u.team_id = t.id AND t.deleted = 0 " +
@@ -130,7 +130,7 @@ public class UserController {
         Long userId = getCurrentUserId();
         // APP accounts are maintained by administrators. Reject the entire request before any write.
         if (!RoleChecker.isAdminOnly(getCurrentUserRole())
-                && request.keySet().stream().anyMatch(key -> !"avatar".equals(key))) {
+                && request.keySet().stream().anyMatch(key -> !Set.of("avatar", "signature").contains(key))) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "真实姓名、邮箱、工号、手机号及密码由管理员统一维护，不能自行修改");
         }
         String username = (String) request.get("username");
@@ -138,6 +138,14 @@ public class UserController {
         String email = (String) request.get("email");
         String phone = (String) request.get("phone");
         String realName = (String) request.get("realName");
+        Object signatureRaw = request.get("signature");
+        if (signatureRaw != null && !(signatureRaw instanceof String)) throw new BusinessException(ErrorCode.BAD_REQUEST, "个人签名格式无效");
+        String signature = signatureRaw == null ? null : signatureRaw.toString().replace("\r\n", "\n").replace('\r', '\n')
+                .replace('\u0085', '\n').replace('\u2028', '\n').replace('\u2029', '\n');
+        if (signature != null && signature.chars().filter(ch -> ch == '\n').count() > 3)
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "个人签名最多 4 行");
+        if (signature != null) signature = signature.trim();
+        if (signature != null && signature.length() > 20) throw new BusinessException(ErrorCode.BAD_REQUEST, "个人签名最多 20 字");
         Map<String, Object> identity = jdbcTemplate.queryForMap(
                 "SELECT username, real_name FROM users WHERE id = ? AND deleted = 0", userId);
         if ((username != null && !username.equals(identity.get("username")))
@@ -145,7 +153,7 @@ public class UserController {
             throw new BusinessException(ErrorCode.FORBIDDEN, "用户名和真实姓名由组织统一维护，不能自行修改");
         }
         for (String key : request.keySet()) {
-            if (!Set.of("username", "realName", "email", "phone", "avatar").contains(key)) {
+            if (!Set.of("username", "realName", "email", "phone", "avatar", "signature").contains(key)) {
                 throw new BusinessException(ErrorCode.FORBIDDEN, "不能自行修改身份、职级或组织字段");
             }
         }
@@ -168,6 +176,9 @@ public class UserController {
         }
         if (phone != null) {
             jdbcTemplate.update("UPDATE users SET phone = ? WHERE id = ?", phone, userId);
+        }
+        if (signature != null) {
+            jdbcTemplate.update("UPDATE users SET signature = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", signature, userId);
         }
 
         // Round28 REQ-28-12: 基本资料变更后失效个人十大（下次查看按当日+新信息重新生成）
@@ -276,54 +287,6 @@ public class UserController {
         }
         return ResponseEntity.ok(ApiResponse.success());
     }
-
-    @PutMapping("/birthday")
-    @Auditable(operationType = "USER_BIRTHDAY_UPDATE", targetType = "USER")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> updateBirthday(@RequestBody Map<String, Object> request) {
-        Long userId = getCurrentUserId();
-        String newBirthday = (String) request.get("birthday");
-
-        Map<String, Object> user;
-        try {
-            user = jdbcTemplate.queryForMap(
-                    "SELECT birthday, last_birthday_change FROM users WHERE id = ? AND deleted = 0", userId);
-        } catch (Exception e) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
-        }
-
-        Object currentBirthdayObj = user.get("birthday");
-        Object lastChangeObj = user.get("last_birthday_change");
-
-        String currentBirthday = currentBirthdayObj != null ? currentBirthdayObj.toString() : null;
-
-        if (newBirthday != null && newBirthday.equals(currentBirthday)) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("birthday", newBirthday);
-            result.put("updated", false);
-            result.put("message", "生日未变化");
-            return ResponseEntity.ok(ApiResponse.success(result));
-        }
-
-        if (currentBirthday != null && lastChangeObj != null) {
-            java.sql.Timestamp lastChange = (java.sql.Timestamp) lastChangeObj;
-            long millisSinceLastChange = System.currentTimeMillis() - lastChange.getTime();
-            long daysSinceLastChange = millisSinceLastChange / (1000L * 60 * 60 * 24);
-            if (daysSinceLastChange < 365) {
-                long remainingDays = 365 - daysSinceLastChange;
-                throw new BusinessException(ErrorCode.INTERNAL_ERROR,
-                        "距上次修改不足365天，还需等待" + remainingDays + "天");
-            }
-        }
-
-        jdbcTemplate.update("UPDATE users SET birthday = ?, last_birthday_change = CURRENT_TIMESTAMP WHERE id = ?",
-                newBirthday, userId);
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("birthday", newBirthday);
-        result.put("updated", true);
-        return ResponseEntity.ok(ApiResponse.success(result));
-    }
-
 
     @GetMapping("/relations")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserRelations() {

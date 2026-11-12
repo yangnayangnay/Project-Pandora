@@ -3,9 +3,10 @@ package com.example.project_pandora.ui.ai;
 import android.os.Bundle;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 
 import com.example.project_pandora.core.network.AiClientConfig;
+import com.example.project_pandora.core.network.AiEndpoint;
 import com.example.project_pandora.core.network.AiConfigManager;
 import com.example.project_pandora.core.util.BackToolbarHelper;
 import com.example.project_pandora.databinding.ActivityAiConfigBinding;
@@ -27,7 +28,7 @@ import okhttp3.Response;
  * 四字段（端点/Key/模型/启用）编辑 + 测试连接（当前输入值即测，与保存解耦）+ 保存。
  * Key 回显掩码，掩码未被改动时保存沿用原 Key。
  */
-public class AiConfigActivity extends AppCompatActivity {
+public class AiConfigActivity extends PandoraActivity {
 
     private ActivityAiConfigBinding binding;
     private AiConfigManager aiConfigManager;
@@ -48,6 +49,7 @@ public class AiConfigActivity extends AppCompatActivity {
 
         binding.btnTest.setOnClickListener(v -> testConnection());
         binding.btnSave.setOnClickListener(v -> saveConfig());
+        binding.btnModels.setOnClickListener(v -> loadModels());
     }
 
     /** 回显当前持久化配置（Key 以掩码展示） */
@@ -99,6 +101,36 @@ public class AiConfigActivity extends AppCompatActivity {
                 ));
     }
 
+    private void loadModels() {
+        if (isTesting) return;
+        String input = binding.editApiUrl.getText().toString().trim();
+        final String endpoint;
+        try { endpoint = AiEndpoint.models(input); }
+        catch (IllegalArgumentException error) { binding.editApiUrl.setError(error.getMessage()); return; }
+        String key = resolveInputKey();
+        binding.btnModels.setEnabled(false); binding.btnModels.setText("正在获取模型…");
+        disposables.add(io.reactivex.rxjava3.core.Single.<java.util.List<String>>fromCallable(() -> {
+            OkHttpClient client = new OkHttpClient.Builder().callTimeout(20, TimeUnit.SECONDS).build();
+            Request.Builder request = new Request.Builder().url(endpoint);
+            if (!key.isEmpty()) request.header("Authorization", "Bearer " + key);
+            try (Response response = client.newCall(request.build()).execute()) {
+                if (!response.isSuccessful()) throw new IllegalArgumentException("HTTP " + response.code() + "：" + AiEndpoint.error(response.code()));
+                com.google.gson.JsonArray data = com.google.gson.JsonParser.parseString(response.body().string()).getAsJsonObject().getAsJsonArray("data");
+                java.util.List<String> names = new java.util.ArrayList<>();
+                if (data != null) for (com.google.gson.JsonElement item : data)
+                    if (item.isJsonObject() && item.getAsJsonObject().has("id")) names.add(item.getAsJsonObject().get("id").getAsString());
+                if (names.isEmpty()) throw new IllegalArgumentException("服务未返回可用模型，请按服务商说明填写");
+                java.util.Collections.sort(names); return names;
+            }
+        }).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(names -> {
+            resetModelsButton();
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle("选择服务提供的模型")
+                    .setItems(names.toArray(new String[0]), (dialog, which) -> binding.editModel.setText(names.get(which)))
+                    .setNegativeButton("取消", null).show();
+        }, error -> { resetModelsButton(); Toast.makeText(this, briefError(error), Toast.LENGTH_LONG).show(); }));
+    }
+    private void resetModelsButton() { binding.btnModels.setEnabled(true); binding.btnModels.setText("获取可用模型"); }
+
     private void resetTestButton() {
         isTesting = false;
         binding.btnTest.setEnabled(true);
@@ -108,9 +140,9 @@ public class AiConfigActivity extends AppCompatActivity {
     /** 同步探测（io 线程执行）：HTTP 2xx 即连通 */
     private String probe(String url, String key, String model) throws Exception {
         OkHttpClient client = new OkHttpClient.Builder()
-                .connectTimeout(3, TimeUnit.SECONDS)
-                .readTimeout(5, TimeUnit.SECONDS)
-                .writeTimeout(5, TimeUnit.SECONDS)
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(45, TimeUnit.SECONDS)
+                .writeTimeout(15, TimeUnit.SECONDS)
                 .build();
 
         JsonObject message = new JsonObject();
@@ -123,17 +155,21 @@ public class AiConfigActivity extends AppCompatActivity {
         body.add("messages", messages);
         body.addProperty("max_tokens", 8);
 
-        Request request = new Request.Builder()
-                .url(url)
-                .header("Authorization", "Bearer " + key)
-                .post(RequestBody.create(body.toString(), MediaType.parse("application/json; charset=utf-8")))
-                .build();
+        Request.Builder builder = new Request.Builder().url(AiEndpoint.chat(url))
+                .post(RequestBody.create(body.toString(), MediaType.parse("application/json; charset=utf-8")));
+        if (!key.isEmpty()) builder.header("Authorization", "Bearer " + key);
+        Request request = builder.build();
 
         try (Response response = client.newCall(request).execute()) {
             if (response.isSuccessful()) {
+                String json = response.body() == null ? "" : response.body().string();
+                try {
+                    com.google.gson.JsonArray choices = com.google.gson.JsonParser.parseString(json).getAsJsonObject().getAsJsonArray("choices");
+                    if (choices == null || choices.size() == 0) return "接口返回成功，但不是兼容的聊天响应";
+                } catch (RuntimeException invalid) { return "接口返回成功，但不是兼容的聊天响应"; }
                 return "连接成功（HTTP " + response.code() + "）";
             }
-            return "接口可达但返回异常（HTTP " + response.code() + "），请核对地址与鉴权";
+            return "HTTP " + response.code() + "：" + AiEndpoint.error(response.code());
         }
     }
 
@@ -157,7 +193,12 @@ public class AiConfigActivity extends AppCompatActivity {
             return;
         }
 
+        if (!url.isEmpty()) {
+            try { url = AiEndpoint.chat(url); }
+            catch (IllegalArgumentException error) { binding.editApiUrl.setError(error.getMessage()); return; }
+        }
         aiConfigManager.saveConfig(new AiClientConfig(url, key, model, enabled));
+        binding.editApiUrl.setText(url);
         Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show();
     }
 
@@ -179,14 +220,8 @@ public class AiConfigActivity extends AppCompatActivity {
         if (error instanceof java.net.UnknownHostException || error instanceof java.net.ConnectException) {
             return "无法连接到该地址";
         }
-        String msg = error.getMessage();
-        if (msg == null) {
-            return name;
-        }
-        if (msg.length() > 60) {
-            msg = msg.substring(0, 60) + "...";
-        }
-        return msg;
+        if (error instanceof IllegalArgumentException) return error.getMessage();
+        return "请求未完成（" + name + "），请检查网络或服务证书";
     }
 
     @Override

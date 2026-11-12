@@ -63,7 +63,6 @@
     <!-- 任务管理 -->
     <string name="task_create">创建任务</string>
     <string name="task_name">任务名称</string>
-    <string name="task_priority">优先级</string>
     <string name="task_status">状态</string>
     <string name="task_assignee">责任人</string>
     <string name="task_start_time">开始时间</string>
@@ -75,7 +74,6 @@
     <string name="task_quadrant_not_important_not_urgent">不重要不紧急</string>
     <string name="btn_create_task">创建任务</string>
     <string name="hint_task_name">请输入任务名称</string>
-    <string name="label_priority">优先级</string>
     <string name="label_important">重要</string>
     <string name="label_urgent">紧急</string>
     <string name="quadrant_important_urgent">重要且紧急</string>
@@ -135,7 +133,7 @@
     <string name="btn_test_server">测试连接</string>
     <string name="btn_save_server">保存</string>
     <string name="btn_reset_server">恢复默认</string>
-    <string name="server_config_note">未配置时使用默认地址：模拟器 10.0.2.2 / 真机局域网。配置仅保存在本设备。测试连接使用当前输入值直接探测，与保存操作互不影响。</string>
+    <string name="server_config_note">未配置时使用默认云服务器：http://123.56.153.138:8080/api/。配置仅保存在本设备。测试连接使用当前输入值直接探测，与保存操作互不影响。</string>
     <string name="settings_server_card_title">服务器地址</string>
     <string name="server_summary_current">当前：%1$s</string>
     <string name="server_summary_default">默认：%1$s</string>
@@ -193,5 +191,5 @@
     <string name="session_expired_content">登录状态已失效，请重新登录以恢复消息接收</string>
     <string name="log_filters_collapse">收起日志筛选栏</string>
     <string name="log_filters_expand">展开日志筛选栏</string>
-    <string name="avatar_upload_hint">点击头像修改 · 原图不限大小，超过5MB自动压缩</string>
+    <string name="avatar_upload_hint">点击头像修改</string>
 </resources>

@@ -33,7 +33,7 @@ public class AiConfigInterceptor implements Interceptor {
             if (manager.isTransmitReady() && isAiPath(request)) {
                 AiClientConfig config = manager.getConfig();
                 Request.Builder builder = request.newBuilder()
-                        .header("X-AI-Api-Url", config.apiUrl)
+                        .header("X-AI-Api-Url", AiEndpoint.chat(config.apiUrl))
                         .header("X-AI-Api-Key", config.apiKey)
                         .header("X-AI-Model", config.model.trim())
                         .header("X-AI-Enabled", "true");

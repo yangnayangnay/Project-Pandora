@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { getToken, isTokenValid, removeToken, removeUser } from '@/utils/auth'
+import { getToken, getUser, isTokenValid, removeToken, removeUser } from '@/utils/auth'
 
 const routes = [
   {
@@ -70,8 +70,14 @@ const routes = [
       {
         path: 'user/dept-team',
         name: 'DeptTeam',
-        redirect: '/user',
-        meta: { title: '人员管理', requiresAuth: true }
+        component: () => import('@/views/user/DeptTeamView.vue'),
+        meta: { title: '部门与团队', requiresAuth: true, adminOnly: true }
+      },
+      {
+        path: 'user/password-resets',
+        name: 'PasswordResetRequests',
+        component: () => import('@/views/user/PasswordResetRequestsView.vue'),
+        meta: { title: '密码重置申请', requiresAuth: true, adminOnly: true }
       },
       {
         path: 'user/hierarchy-relation',
@@ -175,9 +181,12 @@ router.beforeEach((to, from, next) => {
   }
   const token = getToken()
   const authenticated = isTokenValid()
+  const role = getUser()?.role
   if (token && !authenticated) { removeToken(); removeUser() }
   if (to.meta.requiresAuth !== false && !authenticated) {
     next('/login')
+  } else if (to.meta.adminOnly && role !== 'ADMIN') {
+    next('/user')
   } else if ((to.path === '/login' || to.path === '/register') && authenticated) {
     next('/')
   } else {

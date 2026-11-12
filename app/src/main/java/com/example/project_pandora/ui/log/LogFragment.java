@@ -2,19 +2,14 @@ package com.example.project_pandora.ui.log;
 
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.graphics.Outline;
-import android.graphics.Path;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewOutlineProvider;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -23,12 +18,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.project_pandora.R;
 import com.example.project_pandora.core.config.LogDisplayLimitConfig;
-import com.example.project_pandora.core.network.TokenManager;
-import com.example.project_pandora.core.network.NetworkClient;
-import com.example.project_pandora.data.remote.UserApi;
 import com.example.project_pandora.databinding.FragmentLogBinding;
 import com.example.project_pandora.repository.LogRepository;
-import com.google.android.material.tabs.TabLayout;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -43,37 +34,20 @@ import io.reactivex.rxjava3.disposables.SerialDisposable;
 
 public class LogFragment extends Fragment {
 
-    private static final int TAB_MY_LOG = 0;
-    private static final int TAB_OTHER_LOG = 1;
     private static final String STATE_FILTERS_EXPANDED = "filtersExpanded";
 
     private FragmentLogBinding binding;
     private LogRepository logRepository;
     private LogAdapter logAdapter;
-    private SubordinateLogAdapter subordinateLogAdapter;
     private LogDisplayLimitConfig logDisplayLimitConfig;
     private final CompositeDisposable disposables = new CompositeDisposable();
     private final SerialDisposable logLoad = new SerialDisposable();
-    private final SerialDisposable roleRefresh = new SerialDisposable();
-
-    private String currentRole;
-    private boolean isMyLogTab = true;
-    private boolean hasOtherLogTab = false;
     private boolean keyboardVisible = false;
-    private boolean filtersExpanded = true;
+    private boolean filtersExpanded = false;
     private long currentUserId = -1L;
-
-    private Long selectedSubordinateId, selectedDepartmentId;
-    private String selectedPersonLabel = "全部可查看人员";
-    private final ActivityResultLauncher<Intent> peoplePicker = registerForActivityResult(
-            new ActivityResultContracts.StartActivityForResult(), result -> {
-                if (result.getResultCode() != android.app.Activity.RESULT_OK || result.getData() == null) return;
-                Intent data = result.getData();
-                selectedSubordinateId = data.hasExtra(LogPeoplePickerActivity.EXTRA_USER) ? data.getLongExtra(LogPeoplePickerActivity.EXTRA_USER, -1) : null;
-                selectedDepartmentId = data.hasExtra(LogPeoplePickerActivity.EXTRA_DEPARTMENT) ? data.getLongExtra(LogPeoplePickerActivity.EXTRA_DEPARTMENT, -1) : null;
-                selectedPersonLabel = data.getStringExtra(LogPeoplePickerActivity.EXTRA_LABEL);
-                if (binding != null) { updatePersonSelection(); applyFilters(); }
-            });
+    private com.google.android.material.button.MaterialButton filterToggle;
+    private androidx.appcompat.app.AlertDialog filterDatePicker;
+    private int activeFilters;
 
     @Nullable
     @Override
@@ -85,32 +59,26 @@ public class LogFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        com.example.project_pandora.ui.widget.CompanyBackgrounds.bind(view,
+                com.example.project_pandora.ui.widget.CompanyBackgrounds.Scene.LOG);
+        binding.toolbar.setBackgroundColor(android.graphics.Color.TRANSPARENT);
 
         logRepository = new LogRepository(requireContext());
         logDisplayLimitConfig = new LogDisplayLimitConfig(requireContext());
-        currentRole = TokenManager.getInstance(requireContext()).getRole();
-        Long uid = TokenManager.getInstance(requireContext()).getUserId();
+        Long uid = com.example.project_pandora.core.network.TokenManager.getInstance(requireContext()).getUserId();
         currentUserId = uid != null ? uid : -1L;
-        isMyLogTab = true;
         keyboardVisible = false;
         if (savedInstanceState != null) {
-            filtersExpanded = savedInstanceState.getBoolean(STATE_FILTERS_EXPANDED, true);
-            selectedSubordinateId = savedInstanceState.containsKey("filterUser") ? savedInstanceState.getLong("filterUser") : null;
-            selectedDepartmentId = savedInstanceState.containsKey("filterDepartment") ? savedInstanceState.getLong("filterDepartment") : null;
-            selectedPersonLabel = savedInstanceState.getString("filterPersonLabel", "全部可查看人员");
+            filtersExpanded = savedInstanceState.getBoolean(STATE_FILTERS_EXPANDED, false);
         }
 
         setupAdapters();
-        setupTabs();
         setupSearch();
         setupFilterToggle();
         setupFab();
         setupSwipeRefresh();
         setupKeyboardFabToggle();
-
-        if (binding.tabLayout.getTabCount() > 0) {
-            binding.tabLayout.getTabAt(TAB_MY_LOG).select();
-        }
+        binding.buttonRetryLog.setOnClickListener(v -> applyFilters());
     }
 
     private void setupAdapters() {
@@ -143,68 +111,6 @@ public class LogFragment extends Fragment {
         binding.recyclerLogs.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerLogs.setAdapter(logAdapter);
 
-        subordinateLogAdapter = new SubordinateLogAdapter(currentUserId);
-        binding.recyclerSubordinateLogs.setLayoutManager(new LinearLayoutManager(requireContext()));
-        binding.recyclerSubordinateLogs.setAdapter(subordinateLogAdapter);
-    }
-
-    private void setupTabs() {
-        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("我的日志"));
-
-        hasOtherLogTab = canViewOtherLogs();
-        if (hasOtherLogTab) {
-            binding.tabLayout.addTab(binding.tabLayout.newTab().setText("他人日志"));
-        }
-
-        binding.tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                if (tab.getPosition() == TAB_MY_LOG) {
-                    isMyLogTab = true;
-                    binding.recyclerLogs.setVisibility(View.VISIBLE);
-                    binding.recyclerSubordinateLogs.setVisibility(View.GONE);
-                    binding.buttonSelectLogPerson.setVisibility(View.GONE);
-                    updateFabVisibility();
-                    clearSearchInputs();
-                    applyFilters();
-                } else {
-                    isMyLogTab = false;
-                    binding.recyclerLogs.setVisibility(View.GONE);
-                    binding.recyclerSubordinateLogs.setVisibility(View.VISIBLE);
-                    binding.buttonSelectLogPerson.setVisibility(View.VISIBLE);
-                    updatePersonSelection();
-                    updateFabVisibility();
-                    clearSearchInputs();
-                    applyFilters();
-                }
-            }
-
-            @Override
-            public void onTabUnselected(TabLayout.Tab tab) {}
-
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {}
-        });
-    }
-
-    private boolean canViewOtherLogs() {
-        return "ADMIN".equals(currentRole) || "FOUNDER".equals(currentRole)
-                || "DEPT_HEAD".equals(currentRole) || "TEAM_LEADER".equals(currentRole);
-    }
-
-    private void refreshRoleTabs() {
-        boolean allowed = canViewOtherLogs();
-        if (allowed == hasOtherLogTab) return;
-        hasOtherLogTab = allowed;
-        selectedSubordinateId = null; selectedDepartmentId = null; selectedPersonLabel = "全部可查看人员";
-        updatePersonSelection();
-        if (allowed) {
-            binding.tabLayout.addTab(binding.tabLayout.newTab().setText("他人日志"));
-        } else {
-            binding.tabLayout.getTabAt(TAB_MY_LOG).select();
-            binding.tabLayout.removeTabAt(TAB_OTHER_LOG);
-            subordinateLogAdapter.setLogs(new ArrayList<>());
-        }
     }
 
     private void setupSearch() {
@@ -212,38 +118,39 @@ public class LogFragment extends Fragment {
         binding.editEndDate.setOnClickListener(v -> pickFilterDate(binding.editEndDate));
         binding.btnSearch.setOnClickListener(v -> applyFilters());
         binding.btnResetFilters.setOnClickListener(v -> {
-            clearSearchInputs(); selectedSubordinateId = null; selectedDepartmentId = null;
-            selectedPersonLabel = "全部可查看人员"; updatePersonSelection();
+            clearSearchInputs();
             binding.chipFilterToday.setChecked(false); binding.chipFilterWeek.setChecked(false); binding.chipFilterAll.setChecked(true);
             applyFilters();
         });
         binding.chipFilterToday.setOnClickListener(v -> setDateRange(0));
         binding.chipFilterWeek.setOnClickListener(v -> setDateRange(6));
         binding.chipFilterAll.setOnClickListener(v -> { binding.editStartDate.setText(""); binding.editEndDate.setText(""); applyFilters(); });
-        binding.buttonSelectLogPerson.setOnClickListener(v -> peoplePicker.launch(new Intent(requireContext(), LogPeoplePickerActivity.class)));
     }
 
     private void setupFilterToggle() {
-        binding.buttonToggleLogFilters.setOutlineProvider(new ViewOutlineProvider() {
-            @Override
-            public void getOutline(View view, Outline outline) {
-                int width = view.getWidth();
-                int handleHeight = view.getHeight() - view.getPaddingBottom();
-                if (width <= 0 || handleHeight <= 0) {
-                    outline.setEmpty();
-                    return;
-                }
-                // Match the visible semicircle, excluding the transparent touch area below it.
-                Path semicircle = new Path();
-                semicircle.moveTo(0f, 0f);
-                semicircle.lineTo(width, 0f);
-                semicircle.arcTo(0f, -handleHeight, width, handleHeight, 0f, 180f, false);
-                semicircle.close();
-                outline.setConvexPath(semicircle);
-            }
-        });
-        updateFilterVisibility();
-        binding.buttonToggleLogFilters.setOnClickListener(v -> {
+        android.view.MenuItem item = binding.toolbar.getMenu().findItem(R.id.actionLogFilters);
+        filterToggle = new com.google.android.material.button.MaterialButton(requireContext(), null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        filterToggle.setLayoutParams(new android.view.ViewGroup.LayoutParams(
+                Math.round(104 * getResources().getDisplayMetrics().density),
+                Math.round(48 * getResources().getDisplayMetrics().density)));
+        filterToggle.setMinWidth(0);
+        filterToggle.setMinHeight(Math.round(48 * getResources().getDisplayMetrics().density));
+        filterToggle.setTextSize(14);
+        filterToggle.setCornerRadius(Math.round(14 * getResources().getDisplayMetrics().density));
+        filterToggle.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                androidx.core.content.ContextCompat.getColor(requireContext(), R.color.color_accent)));
+        filterToggle.setStrokeColor(android.content.res.ColorStateList.valueOf(
+                androidx.core.content.ContextCompat.getColor(requireContext(), R.color.color_accent)));
+        filterToggle.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.color_on_accent));
+        filterToggle.setIconGravity(com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_END);
+        filterToggle.setIconSize(Math.round(16 * getResources().getDisplayMetrics().density));
+        filterToggle.setIconPadding(Math.round(4 * getResources().getDisplayMetrics().density));
+        filterToggle.setIconTint(filterToggle.getTextColors());
+        filterToggle.setStateListAnimator(android.animation.AnimatorInflater.loadStateListAnimator(requireContext(), R.animator.pandora_button_press));
+        filterToggle.setStrokeWidth(Math.max(1, Math.round(getResources().getDisplayMetrics().density)));
+        item.setActionView(filterToggle);
+        filterToggle.setOnClickListener(view -> {
             filtersExpanded = !filtersExpanded;
             if (!filtersExpanded) {
                 binding.editKeyword.clearFocus();
@@ -252,22 +159,30 @@ public class LogFragment extends Fragment {
             }
             updateFilterVisibility();
         });
+        updateFilterVisibility();
     }
 
     private void updateFilterVisibility() {
         binding.cardLogFilters.setVisibility(filtersExpanded ? View.VISIBLE : View.GONE);
-        binding.buttonToggleLogFilters.setImageLevel(filtersExpanded ? 0 : 10000);
-        binding.buttonToggleLogFilters.setContentDescription(getString(filtersExpanded
-                ? R.string.log_filters_collapse : R.string.log_filters_expand));
+        android.view.MenuItem item = binding.toolbar.getMenu().findItem(R.id.actionLogFilters);
+        if (item != null) item.setTitle(filtersExpanded ? "收起筛选" : "筛选");
+        if (filterToggle != null) {
+            filterToggle.setText("筛选" + (activeFilters == 0 ? "" : " (" + activeFilters + ")"));
+            filterToggle.setIconResource(filtersExpanded ? R.drawable.ic_triangle_up : R.drawable.ic_triangle_down);
+            filterToggle.setIconTint(filterToggle.getTextColors());
+            filterToggle.setContentDescription(filtersExpanded ? "收起日志筛选" : "展开日志筛选");
+        }
     }
 
     private void pickFilterDate(android.widget.EditText field) {
         Calendar now = Calendar.getInstance();
-        android.app.DatePickerDialog picker = new android.app.DatePickerDialog(requireContext(), (view, year, month, day) -> {
-            field.setText(String.format(Locale.ROOT, "%04d-%02d-%02d", year, month + 1, day));
+        try { if (!field.getText().toString().isEmpty()) now.setTime(new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).parse(field.getText().toString())); } catch (Exception ignored) { }
+        filterDatePicker = com.example.project_pandora.ui.widget.QuickDatePickerDialog.create(requireContext(), now, chosen -> {
+            field.setText(String.format(Locale.ROOT, "%04d-%02d-%02d", chosen.get(Calendar.YEAR), chosen.get(Calendar.MONTH) + 1, chosen.get(Calendar.DATE)));
             binding.chipFilterToday.setChecked(false); binding.chipFilterWeek.setChecked(false); binding.chipFilterAll.setChecked(false);
-        }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH));
-        picker.show();
+        });
+        filterDatePicker.setButton(android.content.DialogInterface.BUTTON_NEUTRAL, "清除日期", (dialog, which) -> field.setText(""));
+        filterDatePicker.show();
     }
 
     private void setDateRange(int days) {
@@ -281,15 +196,15 @@ public class LogFragment extends Fragment {
         String start = binding.editStartDate.getText().toString().trim();
         String end = binding.editEndDate.getText().toString().trim();
         String keyword = binding.editKeyword.getText().toString().trim();
+        activeFilters = (start.isEmpty() ? 0 : 1) + (end.isEmpty() ? 0 : 1) + (keyword.isEmpty() ? 0 : 1);
+        updateFilterVisibility();
         if (!start.isEmpty() && !end.isEmpty() && start.compareTo(end) > 0) {
             Toast.makeText(requireContext(), "开始日期不能晚于结束日期", Toast.LENGTH_SHORT).show();
             binding.swipeRefresh.setRefreshing(false); return;
         }
-        binding.textFilterSummary.setText((isMyLogTab ? "我的日志" : selectedPersonLabel)
-                + " · " + (start.isEmpty() ? "不限起始日期" : start) + " 至 " + (end.isEmpty() ? "不限结束日期" : end)
+        binding.textFilterSummary.setText("我的日志 · " + (start.isEmpty() ? "不限起始日期" : start) + " 至 " + (end.isEmpty() ? "不限结束日期" : end)
                 + (keyword.isEmpty() ? "" : " · 关键词：" + keyword));
-        if (isMyLogTab) loadMyLogs(start.isEmpty() ? null : start, end.isEmpty() ? null : end, keyword.isEmpty() ? null : keyword);
-        else loadSubordinateLogs(selectedSubordinateId, start.isEmpty() ? null : start, end.isEmpty() ? null : end, keyword.isEmpty() ? null : keyword);
+        loadMyLogs(start.isEmpty() ? null : start, end.isEmpty() ? null : end, keyword.isEmpty() ? null : keyword);
     }
 
     private void setupFab() {
@@ -315,7 +230,7 @@ public class LogFragment extends Fragment {
 
     private void updateFabVisibility() {
         if (binding == null) return;
-        if (keyboardVisible || !isMyLogTab) {
+        if (keyboardVisible) {
             binding.fabAddLog.setVisibility(View.GONE);
         } else {
             binding.fabAddLog.setVisibility(View.VISIBLE);
@@ -333,6 +248,9 @@ public class LogFragment extends Fragment {
     }
 
     private void loadMyLogs(String startDate, String endDate, String keyword) {
+        binding.buttonRetryLog.setVisibility(View.GONE);
+        binding.textEmpty.setVisibility(View.GONE);
+        binding.swipeRefresh.setRefreshing(true);
         boolean isUnsearched = startDate == null && endDate == null && keyword == null;
         String effectiveStartDate = applyDisplayLimitIfNeeded(startDate, isUnsearched);
         logLoad.set(logRepository.listLogs(effectiveStartDate, endDate, keyword)
@@ -344,12 +262,15 @@ public class LogFragment extends Fragment {
                             List<Map<String, Object>> displayLogs = truncateByCountLimit(logs, isUnsearched);
                             logAdapter.setLogs(displayLogs);
                             binding.textEmpty.setVisibility(displayLogs.isEmpty() ? View.VISIBLE : View.GONE);
-                            binding.textEmpty.setText("暂无日志");
+                            binding.textEmpty.setText(isUnsearched ? "暂无日志，点击右下角新增" : "没有符合筛选条件的日志，可调整或重置筛选");
                         },
                         error -> {
                             if (binding == null) return;
                             binding.swipeRefresh.setRefreshing(false);
-                            Toast.makeText(requireContext(), "加载失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                            binding.textEmpty.setText(logAdapter.getItemCount() == 0 ? "日志加载失败，请稍后重试" : "刷新失败，已保留原有日志");
+                            binding.textEmpty.setVisibility(logAdapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
+                            if (logAdapter.getItemCount() > 0) binding.textFilterSummary.setText("刷新失败，已保留原有日志；请重新加载");
+                            binding.buttonRetryLog.setVisibility(View.VISIBLE);
                         }
                 ));
     }
@@ -383,34 +304,6 @@ public class LogFragment extends Fragment {
         return new ArrayList<>(logs.subList(0, countLimit));
     }
 
-    private void updatePersonSelection() {
-        if (binding != null) binding.buttonSelectLogPerson.setText(selectedPersonLabel + " · 选择部门/人员");
-    }
-
-    private void loadSubordinateLogs(Long subordinateId, String startDate, String endDate, String keyword) {
-        logLoad.set(logRepository.getSubordinateLogs(subordinateId, selectedDepartmentId, startDate, endDate, keyword)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        logs -> {
-                            if (binding == null) return;
-                            binding.swipeRefresh.setRefreshing(false);
-                            subordinateLogAdapter.setLogs(logs);
-                            binding.textEmpty.setVisibility(logs.isEmpty() ? View.VISIBLE : View.GONE);
-                            binding.textEmpty.setText("暂无下属日志");
-                        },
-                        error -> {
-                            if (binding == null) return;
-                            binding.swipeRefresh.setRefreshing(false);
-                            String msg = error.getMessage();
-                            if (msg != null && msg.contains("403")) {
-                                Toast.makeText(requireContext(), "无权访问他人日志", Toast.LENGTH_SHORT).show();
-                            } else {
-                                Toast.makeText(requireContext(), "加载失败: " + msg, Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                ));
-    }
-
     private void deleteLog(long logId) {
         disposables.add(logRepository.deleteLog(logId)
                 .observeOn(AndroidSchedulers.mainThread())
@@ -427,34 +320,20 @@ public class LogFragment extends Fragment {
     public void onResume() {
         super.onResume();
         if (binding == null) return;
-        UserApi api = NetworkClient.getInstance(requireContext()).createService(UserApi.class);
-        roleRefresh.set(api.getCurrentUser().observeOn(AndroidSchedulers.mainThread()).subscribe(response -> {
-            if (binding == null) return;
-            if (response.isSuccess() && response.getData() != null) {
-                Object role = response.getData().get("role");
-                if (role != null) currentRole = role.toString();
-                refreshRoleTabs();
-            }
-            applyFilters();
-        }, error -> {
-            if (binding != null) applyFilters();
-        }));
+        applyFilters();
     }
 
     @Override public void onSaveInstanceState(@NonNull Bundle state) {
         state.putBoolean(STATE_FILTERS_EXPANDED, filtersExpanded);
-        if (selectedSubordinateId != null) state.putLong("filterUser", selectedSubordinateId);
-        if (selectedDepartmentId != null) state.putLong("filterDepartment", selectedDepartmentId);
-        state.putString("filterPersonLabel", selectedPersonLabel);
         super.onSaveInstanceState(state);
     }
 
     @Override
     public void onDestroyView() {
+        if (filterDatePicker != null) filterDatePicker.dismiss();
         super.onDestroyView();
         disposables.clear();
         logLoad.set(null);
-        roleRefresh.set(null);
         binding = null;
     }
 }

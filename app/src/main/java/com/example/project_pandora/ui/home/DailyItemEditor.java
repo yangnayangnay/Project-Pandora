@@ -36,15 +36,17 @@ public final class DailyItemEditor {
     private AlertDialog dialog, deleteDialog;
     private AlertDialog datePicker;
     private DialogDailyItemBinding form;
-    private String selectedDate;
+    private String startDate, endDate;
     private Long id;
     private boolean writing;
 
     public DailyItemEditor(Context context, DailyItemRepository repository, Consumer<Map<String, Object>> onSaved) { this.context = context; this.repository = repository; this.onSaved = onSaved; }
     public void show(Map<String, Object> item, String date) {
         if (dialog != null && dialog.isShowing()) return;
+        writing = false;
         id = item == null ? null : NumberCompat.toLong(DailyItems.value(item, "id"));
-        selectedDate = item == null ? date : DailyItems.date(item);
+        startDate = item == null ? date : DailyItems.startDate(item);
+        endDate = item == null ? date : DailyItems.endDate(item);
         form = DialogDailyItemBinding.inflate(LayoutInflater.from(context));
         form.textEditorTitle.setText(id == null ? "新增事项" : "编辑事项");
         form.editDailyContent.setText(item == null ? "" : DailyItems.content(item));
@@ -56,8 +58,9 @@ public final class DailyItemEditor {
             }
             @Override public void afterTextChanged(Editable s) {}
         });
-        renderDate();
-        form.btnDailyDate.setOnClickListener(v -> chooseDate());
+        renderDates();
+        form.btnDailyStartDate.setOnClickListener(v -> chooseDate(true));
+        form.btnDailyEndDate.setOnClickListener(v -> chooseDate(false));
         form.btnSaveDailyItem.setOnClickListener(v -> save());
         form.btnCancelDailyItem.setOnClickListener(v -> dialog.dismiss());
         form.btnDeleteDailyItem.setVisibility(id == null ? View.GONE : View.VISIBLE);
@@ -65,47 +68,61 @@ public final class DailyItemEditor {
         MaterialShapeDrawable background = new MaterialShapeDrawable(ShapeAppearanceModel.builder()
                 .setAllCornerSizes(dp(24)).build());
         background.setFillColor(ColorStateList.valueOf(ContextCompat.getColor(context, R.color.color_bg_page)));
-        dialog = new MaterialAlertDialogBuilder(context).setView(form.getRoot()).setBackground(background)
+        AlertDialog opened = new MaterialAlertDialogBuilder(context).setView(form.getRoot()).setBackground(background)
                 .setBackgroundInsetStart(0).setBackgroundInsetEnd(0).create();
-        dialog.setOnShowListener(ignored -> {
-            Window window = dialog.getWindow();
-            if (window == null) return;
+        dialog = opened;
+        opened.setOnDismissListener(ignored -> {
+            // Dismiss callbacks are queued by Dialog. An old callback must not
+            // clear a newly opened editor or its date selector.
+            if (dialog != opened) return;
+            if (datePicker != null) { datePicker.dismiss(); datePicker = null; }
+            dialog = null;
+        });
+        opened.show();
+        Window window = opened.getWindow();
+        if (window != null) {
             window.setLayout(Math.min(dp(480), context.getResources().getDisplayMetrics().widthPixels - dp(32)),
                     WindowManager.LayoutParams.WRAP_CONTENT);
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
-        });
-        dialog.setOnDismissListener(ignored -> {
-            if (datePicker != null) { datePicker.dismiss(); datePicker = null; }
-        });
-        dialog.show();
+        }
     }
-    private void renderDate() {
-        String[] parts = selectedDate.split("-");
-        form.btnDailyDate.setText(String.format(Locale.CHINA, "%s年%d月%d日", parts[0],
-                Integer.parseInt(parts[1]), Integer.parseInt(parts[2])));
-        form.btnDailyDate.setContentDescription("所属日期：" + selectedDate + "，点击选择日期");
+    private void renderDates() {
+        renderDate(form.btnDailyStartDate, startDate, "开始日期");
+        renderDate(form.btnDailyEndDate, endDate, "结束日期");
     }
-    private void chooseDate() {
+    private void renderDate(android.widget.Button button, String value, String label) {
+        String[] parts = value.split("-");
+        button.setText(String.format(Locale.CHINA, "%s年%d月%d日", parts[0], Integer.parseInt(parts[1]), Integer.parseInt(parts[2])));
+        button.setContentDescription(label + "：" + value + "，点击选择日期");
+    }
+    private void chooseDate(boolean start) {
         if (datePicker != null && datePicker.isShowing()) return;
-        Calendar calendar = Calendar.getInstance(); String[] parts = selectedDate.split("-");
+        Calendar calendar = Calendar.getInstance(); String[] parts = (start ? startDate : endDate).split("-");
         calendar.set(Calendar.DAY_OF_MONTH, 1);
         calendar.set(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]) - 1, Integer.parseInt(parts[2]));
-        datePicker = QuickDatePickerDialog.create(context, calendar, 1900, date -> {
+        AlertDialog opened = QuickDatePickerDialog.create(context, calendar, 1900, date -> {
             if (dialog == null || !dialog.isShowing()) return;
-            selectedDate = String.format(Locale.ROOT, "%04d-%02d-%02d", date.get(Calendar.YEAR),
+            String chosen = String.format(Locale.ROOT, "%04d-%02d-%02d", date.get(Calendar.YEAR),
                     date.get(Calendar.MONTH) + 1, date.get(Calendar.DAY_OF_MONTH));
-            renderDate();
+            if (start) {
+                startDate = chosen;
+                if (endDate.compareTo(startDate) < 0) endDate = startDate;
+            } else endDate = chosen;
+            renderDates();
         });
-        datePicker.show();
+        datePicker = opened;
+        opened.setOnDismissListener(ignored -> { if (datePicker == opened) datePicker = null; });
+        opened.show();
     }
     private void save() {
         if (writing) return;
         String text = form.editDailyContent.getText().toString().trim();
         if (text.isEmpty()) { form.dailyContentLayout.setError("请输入事项内容"); form.editDailyContent.requestFocus(); return; }
-        if (!DailyItems.validDate(selectedDate)) { showError("请选择有效日期"); return; }
+        if (!DailyItems.validDate(startDate) || !DailyItems.validDate(endDate)) { showError("请选择有效日期"); return; }
+        if (endDate.compareTo(startDate) < 0) { showError("结束日期不能早于开始日期"); return; }
         setWriting(true);
         form.btnSaveDailyItem.setText("正在保存…");
-        writingRequest.set(repository.save(id, text, selectedDate).observeOn(AndroidSchedulers.mainThread()).subscribe(saved -> {
+        writingRequest.set(repository.save(id, text, startDate, endDate).timeout(20, java.util.concurrent.TimeUnit.SECONDS).observeOn(AndroidSchedulers.mainThread()).subscribe(saved -> {
             setWriting(false); dialog.dismiss(); onSaved.accept(saved);
         }, error -> { setWriting(false); showError("保存失败：" + errorMessage(error)); }));
     }
@@ -115,20 +132,23 @@ public final class DailyItemEditor {
         deleteDialog.setOnShowListener(ignored -> deleteDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             if (writing) return; setWriting(true); deleteDialog.setCancelable(false); deleteDialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false); deleteDialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false);
             form.btnDeleteDailyItem.setText("正在删除…");
-            writingRequest.set(repository.delete(id).observeOn(AndroidSchedulers.mainThread()).subscribe(done -> {
+            writingRequest.set(repository.delete(id).timeout(20, java.util.concurrent.TimeUnit.SECONDS).observeOn(AndroidSchedulers.mainThread()).subscribe(done -> {
                 setWriting(false); deleteDialog.dismiss(); dialog.dismiss(); onSaved.accept(null);
             }, error -> { setWriting(false); deleteDialog.dismiss(); Toast.makeText(context, "删除失败：" + errorMessage(error), Toast.LENGTH_LONG).show(); }));
         })); deleteDialog.show();
     }
     private void setWriting(boolean value) {
         writing = value;
-        form.dailyContentLayout.setEnabled(!value); form.btnDailyDate.setEnabled(!value); dialog.setCancelable(!value);
+        form.dailyContentLayout.setEnabled(!value); form.btnDailyStartDate.setEnabled(!value); form.btnDailyEndDate.setEnabled(!value); dialog.setCancelable(!value);
         form.btnSaveDailyItem.setEnabled(!value); form.btnCancelDailyItem.setEnabled(!value); form.btnDeleteDailyItem.setEnabled(!value);
         if (!value) { form.btnSaveDailyItem.setText("保存事项"); form.btnDeleteDailyItem.setText("删除事项"); }
         else form.textDailyEditorError.setVisibility(View.GONE);
     }
     private void showError(String message) { form.textDailyEditorError.setText(message); form.textDailyEditorError.setVisibility(View.VISIBLE); }
     private static String errorMessage(Throwable error) {
+        if (error instanceof java.util.concurrent.TimeoutException || error instanceof java.net.SocketTimeoutException) {
+            return "服务器确认超时。内容已保留，请关闭并刷新事项列表，确认结果后再操作，避免重复提交。";
+        }
         if (error instanceof BusinessException) {
             BusinessException business = (BusinessException) error;
             return ErrorMessageMapper.map(business.getCode(), business.getMessage());

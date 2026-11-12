@@ -188,6 +188,17 @@ public class MonthTaskLayoutTest {
     }
 
     @Test
+    public void fourVisibleLanesKeepDailyAndCrossWeekEntriesSeparate() {
+        List<MonthTaskLayout.Task> tasks = new ArrayList<>();
+        for (int i = 0; i < 7; i++) tasks.add(task(i, "2026-10-26", i < 5 ? "2026-11-03" : "2026-10-27"));
+        List<MonthTaskLayout.Segment> visible = MonthTaskLayout.visibleSegments(tasks, days(), CalendarCellMetrics.VISIBLE_ENTRIES);
+        for (int week = 0; week < 2; week++) {
+            for (int column = 0; column < (week == 0 ? 7 : 2); column++) assertLanes(onDay(visible, week, column), 4);
+        }
+        assertNoOverlapInDateColumnsAndLane(visible);
+    }
+
+    @Test
     public void fourOverlappingTasksAreAllVisibleOnTheirDay() {
         List<MonthTaskLayout.Task> tasks = Arrays.asList(
                 task(0, "2026-10-28", "2026-10-28"),

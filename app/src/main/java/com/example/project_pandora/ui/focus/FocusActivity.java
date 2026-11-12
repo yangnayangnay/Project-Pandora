@@ -2,14 +2,14 @@ package com.example.project_pandora.ui.focus;
 
 import android.os.Bundle;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 import androidx.fragment.app.FragmentTransaction;
 
 import com.example.project_pandora.R;
 import com.example.project_pandora.databinding.ActivityFocusBinding;
 import com.example.project_pandora.core.util.BackToolbarHelper;
 
-public class FocusActivity extends AppCompatActivity {
+public class FocusActivity extends PandoraActivity {
 
     private ActivityFocusBinding binding;
 

@@ -3,7 +3,7 @@ package com.example.project_pandora.ui.aimap;
 import android.content.Intent;
 import android.os.Bundle;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 
 import com.example.project_pandora.core.util.BackToolbarHelper;
 import com.example.project_pandora.databinding.ActivityDataCollectBinding;
@@ -17,10 +17,11 @@ import java.util.Map;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 
-public class DataCollectActivity extends AppCompatActivity {
+public class DataCollectActivity extends PandoraActivity {
 
     private ActivityDataCollectBinding binding;
     private final CompositeDisposable disposables = new CompositeDisposable();
+    private boolean tasksFailed, logsFailed;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,6 +30,8 @@ public class DataCollectActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         BackToolbarHelper.setupBack(binding.toolbar, this::finish);
+        com.example.project_pandora.ui.widget.CompanyBackgrounds.bind(binding.getRoot(), com.example.project_pandora.ui.widget.CompanyBackgrounds.Scene.AI);
+        binding.toolbar.setBackgroundColor(android.graphics.Color.TRANSPARENT);
 
         loadTaskData();
         loadLogCount();
@@ -45,12 +48,13 @@ public class DataCollectActivity extends AppCompatActivity {
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 this::updateTaskStats,
-                                error -> binding.textTaskCount.setText("0")
+                                error -> { tasksFailed = true; binding.textTaskCount.setText("—"); binding.textCompletedCount.setText("—"); renderState(); }
                         )
         );
     }
 
     private void updateTaskStats(List<Map<String, Object>> tasks) {
+        tasksFailed = false; renderState();
         if (tasks == null) {
             binding.textTaskCount.setText("0");
             binding.textCompletedCount.setText("0");
@@ -60,7 +64,7 @@ public class DataCollectActivity extends AppCompatActivity {
         int completed = 0;
         for (Map<String, Object> task : tasks) {
             String status = task.get("status") != null ? task.get("status").toString() : "";
-            if ("COMPLETED".equals(status) || "CONFIRMED".equals(status)) {
+            if ("COMPLETED".equals(status)) {
                 completed++;
             }
         }
@@ -74,9 +78,13 @@ public class DataCollectActivity extends AppCompatActivity {
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 logs -> binding.textLogCount.setText(String.valueOf(logs.size())),
-                                error -> binding.textLogCount.setText("0")
+                                error -> { logsFailed = true; binding.textLogCount.setText("—"); renderState(); }
                         )
         );
+    }
+
+    private void renderState() {
+        binding.textDataState.setText(tasksFailed || logsFailed ? "部分统计暂未加载成功，不影响进入关键词分析。" : "统计来自当前账号已有的任务与日志。");
     }
 
     @Override

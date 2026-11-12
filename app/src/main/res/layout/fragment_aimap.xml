@@ -20,18 +20,23 @@
             app:titleTextColor="@color/color_text_primary"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <LinearLayout
+        <ScrollView
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:orientation="vertical"
-            android:padding="24dp"
+            android:fillViewport="true"
             app:layout_constraintTop_toBottomOf="@id/toolbar"
             app:layout_constraintBottom_toBottomOf="parent">
+
+          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="从记录出发，认识自己" android:textSize="24sp" android:textStyle="bold" android:textColor="@color/color_text_primary" android:layout_marginTop="8dp" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="工作洞察 · 性格探索 · 文化体验" android:textSize="14sp" android:textColor="@color/color_company_photo_secondary" android:layout_marginTop="8dp" android:layout_marginBottom="16dp" />
+            <ImageView android:layout_width="match_parent" android:layout_height="120dp" android:src="@drawable/mbti_four_groups" android:scaleType="fitCenter" android:importantForAccessibility="no" android:layout_marginBottom="20dp" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/btn_data_collect"
                 android:layout_width="match_parent"
-                android:layout_height="120dp"
+                android:layout_height="wrap_content"
+                android:minHeight="112dp"
                 android:layout_marginBottom="16dp"
                 app:cardBackgroundColor="@color/color_surface"
                 app:cardCornerRadius="20dp"
@@ -43,7 +48,7 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
                     android:padding="24dp">
@@ -53,6 +58,7 @@
                         android:background="@drawable/bg_brand_tile" android:src="@drawable/ic_data_outline"
                         android:tint="@color/color_accent" android:importantForAccessibility="no" />
 
+                    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -60,6 +66,8 @@
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/color_text_primary" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="整理工作记录，为分析提供依据" android:textSize="13sp" android:textColor="@color/color_text_secondary" android:layout_marginTop="6dp" />
+                    </LinearLayout>
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -68,7 +76,8 @@
 
                 android:id="@+id/btn_ai_analysis"
                 android:layout_width="match_parent"
-                android:layout_height="120dp"
+                android:layout_height="wrap_content"
+                android:minHeight="112dp"
                 app:cardBackgroundColor="@color/color_surface"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="0dp"
@@ -79,7 +88,7 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
                     android:padding="24dp">
@@ -89,18 +98,22 @@
                         android:background="@drawable/bg_brand_tile" android:src="@drawable/ic_ai_map"
                         android:tint="@color/color_accent" android:importantForAccessibility="no" />
 
+                    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="AI数据分析展示"
+                        android:text="测试分析"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/color_text_primary" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="建议分析、MBTI、梅花易数与生辰运势" android:textSize="13sp" android:textColor="@color/color_text_secondary" android:layout_marginTop="6dp" />
+                    </LinearLayout>
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-        </LinearLayout>
+          </LinearLayout>
+        </ScrollView>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </layout>

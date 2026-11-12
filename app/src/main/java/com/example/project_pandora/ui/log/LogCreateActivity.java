@@ -7,7 +7,7 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 
 import com.example.project_pandora.core.autosave.AutoSaveManager;
 import com.example.project_pandora.core.autosave.DraftRestoreDialog;
@@ -17,7 +17,9 @@ import com.example.project_pandora.R;
 import com.example.project_pandora.core.sync.SyncRouteResult;
 import com.example.project_pandora.databinding.ActivityLogCreateBinding;
 import com.example.project_pandora.repository.DraftRepository;
+import com.example.project_pandora.repository.DailyItemRepository;
 import com.example.project_pandora.repository.LogRepository;
+import com.example.project_pandora.ui.home.DailyItems;
 import com.example.project_pandora.repository.SyncRoutingRepository;
 
 import java.text.SimpleDateFormat;
@@ -30,12 +32,13 @@ import java.util.Map;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 
-public class LogCreateActivity extends AppCompatActivity {
+public class LogCreateActivity extends PandoraActivity {
 
     private ActivityLogCreateBinding binding;
     private LogRepository logRepository;
     private SyncRoutingRepository syncRoutingRepository;
     private DraftRepository draftRepository;
+    private DailyItemRepository dailyItemRepository;
     private AutoSaveManager autoSaveManager;
     private String selectedDate;
     private boolean syncingDateControls = false;
@@ -44,6 +47,7 @@ public class LogCreateActivity extends AppCompatActivity {
     private final CompositeDisposable disposables = new CompositeDisposable();
     private boolean isRestoringDraft = false;
     private boolean saveCompleted = false;
+    private String dailyPrefill;
 
     /** DEF-32-02 修复：提交超 5s 的中间反馈定时器（成功/失败回调取消，onDestroy 兜底清理） */
     private final android.os.Handler saveHintHandler = new android.os.Handler(android.os.Looper.getMainLooper());
@@ -60,6 +64,7 @@ public class LogCreateActivity extends AppCompatActivity {
         logRepository = new LogRepository(this);
         syncRoutingRepository = new SyncRoutingRepository(this);
         draftRepository = new DraftRepository(this);
+        dailyItemRepository = new DailyItemRepository(this);
 
         BackToolbarHelper.setupBack(binding.toolbar, this::finish);
 
@@ -71,6 +76,9 @@ public class LogCreateActivity extends AppCompatActivity {
         setupDateControls();
         setupAutoSave();
         checkDraftRestore();
+        // Do not make daily-item prefill wait for the independent draft request.
+        // Whichever response arrives first still preserves any non-empty user/draft text.
+        loadDailyItemsForDate(selectedDate);
 
         binding.btnSave.setOnClickListener(v -> handleSave());
     }
@@ -145,10 +153,10 @@ public class LogCreateActivity extends AppCompatActivity {
                                             isRestoringDraft = false;
                                         },
                                         () -> disposables.add(draftRepository.deleteDraft("LOG")
-                                                .subscribe(r -> {}, Throwable::printStackTrace)));
-                            }
+                                                .subscribe(r -> loadDailyItemsForDate(selectedDate), error -> loadDailyItemsForDate(selectedDate))));
+                            } else loadDailyItemsForDate(selectedDate);
                         },
-                        error -> {}
+                        error -> loadDailyItemsForDate(selectedDate)
                 ));
     }
 
@@ -167,6 +175,10 @@ public class LogCreateActivity extends AppCompatActivity {
             binding.textLogDate.setText(selectedDate);
             updateDateControls();
         }
+        dailyPrefill = null;
+        // A restored empty draft must still receive the selected day's items. The loader
+        // keeps non-empty draft/user text intact, so this cannot overwrite their content.
+        loadDailyItemsForDate(selectedDate);
     }
 
     private void checkEditMode() {
@@ -225,7 +237,7 @@ public class LogCreateActivity extends AppCompatActivity {
         disposables.add(logRepository.listLogs(date, date, null)
                 .observeOn(AndroidSchedulers.mainThread()).subscribe(logs -> {
                     if (!date.equals(selectedDate) || isFinishing()) return;
-                    if (logs.isEmpty()) return;
+                    if (logs.isEmpty()) { loadDailyItemsForDate(date); return; }
                     new android.app.AlertDialog.Builder(this).setTitle("该日期已有日志")
                             .setMessage("每人每天一篇日志。是否打开已有日志进行编辑？当前未提交内容不会覆盖原日志。")
                             .setPositiveButton("打开编辑", (dialog, which) -> {
@@ -242,6 +254,26 @@ public class LogCreateActivity extends AppCompatActivity {
                             }).setNegativeButton("取消", (dialog, which) -> { selectedDate = previous; updateDateControls(); })
                             .setOnCancelListener(dialog -> { selectedDate = previous; updateDateControls(); }).show();
                 }, error -> { /* Offline saves still go through the queue; the server enforces date uniqueness. */ }));
+    }
+
+    private void loadDailyItemsForDate(String date) {
+        if (isEditMode || date == null) return;
+        disposables.add(dailyItemRepository.listForDate(date).observeOn(AndroidSchedulers.mainThread()).subscribe(items -> {
+            if (!date.equals(selectedDate) || isFinishing() || items.isEmpty()) return;
+            String current = binding.editWorkContent.getText().toString();
+            if (!current.trim().isEmpty() && !current.equals(dailyPrefill)) return;
+            StringBuilder text = new StringBuilder("当日事项：");
+            for (Map<String, Object> item : items) {
+                String content = DailyItems.content(item).trim();
+                if (!content.isEmpty()) text.append("\n- ").append(content);
+            }
+            if (text.length() == "当日事项：".length()) return;
+            dailyPrefill = text.toString();
+            isRestoringDraft = true;
+            binding.editWorkContent.setText(dailyPrefill);
+            binding.editWorkContent.setSelection(binding.editWorkContent.length());
+            isRestoringDraft = false;
+        }, error -> { /* 日志仍可离线填写，事项预填失败不阻塞编辑。 */ }));
     }
 
     private void showDatePicker() {

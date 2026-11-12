@@ -35,6 +35,24 @@ import static org.junit.Assert.*;
 /** Verifies actual Canvas output and hit targets for the expanded month calendar. */
 @RunWith(AndroidJUnit4.class)
 public class PhoneMonthViewTest {
+    @Test public void holidayFollowsTasksWithoutPushingTheFirstTaskDown() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            Fixture fixture = new Fixture(2026, Calendar.DECEMBER, 25);
+            for (int count : new int[]{0, 1, 4, 6}) {
+                java.util.ArrayList<Map<String, Object>> entries = new java.util.ArrayList<>();
+                for (int i = 0; i < count; i++) entries.add(task("事项" + i, "2026-12-25", "2026-12-25"));
+                fixture.view.setTasks(entries);
+                Bitmap bitmap = fixture.draw();
+                if (count > 0) assertEquals(fixture.taskColor("事项0"), fixture.barPixel(bitmap, 25, 0));
+                int rows = count > 4 ? 5 : count;
+                int x = Math.round((fixture.columnOf(25) + 1) * fixture.cellWidth - fixture.dp(3));
+                int y = Math.round(fixture.cellTop(fixture.rowOf(25)) + fixture.dp(
+                        fixture.metrics.specialTop(Math.min(4, count), count > 4) + (fixture.metrics.specialRowHeight() - 2) / 2));
+                assertEquals("Holiday must be below " + rows + " occupied rows",
+                        ContextCompat.getColor(fixture.context, R.color.color_surface_soft), bitmap.getPixel(x, y));
+            }
+        });
+    }
     @Test public void multiDayBarFillsDateBoundariesAndEveryDayOpensSameTask() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             Fixture fixture = new Fixture(2026, Calendar.OCTOBER, 28);
@@ -103,7 +121,7 @@ public class PhoneMonthViewTest {
         });
     }
 
-    @Test public void fiveOverlappingTasksOnlyOpenPopupFromTaskBarsAndOverflow() {
+    @Test public void sixOverlappingTasksShowFourBarsAndOpenPopupFromOverflow() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             Fixture fixture = new Fixture(2026, Calendar.OCTOBER, 30);
             List<Map<String, Object>> tasks = Arrays.asList(
@@ -111,16 +129,17 @@ public class PhoneMonthViewTest {
                     task("重叠二", "2026-10-27", "2026-10-29"),
                     task("重叠三", "2026-10-27", "2026-10-29"),
                     task("重叠四", "2026-10-27", "2026-10-29"),
-                    task("重叠五", "2026-10-27", "2026-10-29"));
+                    task("重叠五", "2026-10-27", "2026-10-29"),
+                    task("重叠六", "2026-10-27", "2026-10-29"));
             fixture.view.setTasks(tasks);
             Bitmap bitmap = fixture.draw();
             int day = 28;
             int secondary = ContextCompat.getColor(fixture.context, R.color.color_text_secondary);
-            for (int lane = 0; lane < 4; lane++) {
+            for (int lane = 0; lane < PhoneMonthView.VISIBLE_TASK_LIMIT; lane++) {
                 assertNotEquals("lane " + lane + " must show a task bar, not the overflow bar",
                         secondary, fixture.barPixel(bitmap, day, lane));
             }
-            assertTrue(fixture.barContainsColor(bitmap, day, 4, secondary));
+            assertTrue(fixture.barContainsColor(bitmap, day, PhoneMonthView.VISIBLE_TASK_LIMIT, secondary));
 
             Clicks clicks = new Clicks(fixture.view);
             int centerX = Math.round((fixture.columnOf(day) + .5f) * fixture.cellWidth);
@@ -132,11 +151,11 @@ public class PhoneMonthViewTest {
                     fixture.columnOf(day) * fixture.cellWidth + fixture.dp(.5f),
                     fixture.taskY(fixture.rowOf(day), 0), "blank");
             assertRoutesToDayPopup(fixture, clicks, day, centerX,
-                    fixture.taskY(fixture.rowOf(day), 4), "+N");
+                    fixture.taskY(fixture.rowOf(day), PhoneMonthView.VISIBLE_TASK_LIMIT), "+N");
         });
     }
 
-    @Test public void normalMonthDateWithManyTasksOnlySelectsDate() {
+    @Test public void normalMonthDateOnlySelectsAndTaskDotOpensDayAgenda() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             Fixture fixture = new Fixture(2026, Calendar.OCTOBER, 30);
             fixture.view.setTasks(Arrays.asList(
@@ -150,6 +169,9 @@ public class PhoneMonthViewTest {
             assertSelectsWithoutPopup(fixture, clicks, 28,
                     (fixture.columnOf(28) + .5f) * fixture.cellWidth,
                     fixture.cellTop(fixture.rowOf(28)) + fixture.dp(10), "normal date");
+            assertRoutesToDayPopup(fixture, clicks, 28,
+                    (fixture.columnOf(28) + .5f) * fixture.cellWidth,
+                    fixture.cellTop(fixture.rowOf(28)) + fixture.dp(fixture.metrics.dateHeight() - 4), "task dot");
         });
     }
 
@@ -158,6 +180,9 @@ public class PhoneMonthViewTest {
             Fixture fixture = new Fixture(2026, Calendar.OCTOBER, 28);
             fixture.view.setTasks(Collections.singletonList(task("一", "2026-10-28", "2026-10-28")));
             Clicks clicks = new Clicks(fixture.view);
+            assertSelectsWithoutPopup(fixture, clicks, 28,
+                    (fixture.columnOf(28) + .5f) * fixture.cellWidth,
+                    fixture.cellTop(fixture.rowOf(28)) + fixture.dp(10), "date with one task");
             assertRoutesToDayPopup(fixture, clicks, 28,
                     (fixture.columnOf(28) + .5f) * fixture.cellWidth,
                     fixture.taskY(fixture.rowOf(28), 0), "one task");
@@ -212,11 +237,31 @@ public class PhoneMonthViewTest {
                     fixture.taskColor("AlphaAlpha"), fixture.taskColor("AlphaBeta"));
 
             Bitmap bitmap = fixture.draw();
-            int primary = ContextCompat.getColor(fixture.context, R.color.color_text_primary);
-            assertTrue("first task bar must paint text in color_text_primary",
+            int primary = Color.BLACK;
+            assertTrue("first task bar must paint black text",
                     fixture.barContainsColor(bitmap, 28, 0, primary));
-            assertTrue("second task bar must paint text in color_text_primary",
+            assertTrue("second task bar must paint black text",
                     fixture.barContainsColor(bitmap, 28, 1, primary));
+        });
+    }
+
+    @Test public void selectedCircleContainsReadableLunarCaptionAndDateSizeMatchesMonthTitle() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            Fixture fixture = new Fixture(2026, Calendar.NOVEMBER, 23);
+            Bitmap bitmap = fixture.draw();
+            int row = fixture.rowOf(23), column = fixture.columnOf(23);
+            int left = Math.round(column * fixture.cellWidth + fixture.dp(2));
+            int right = Math.round((column + 1) * fixture.cellWidth - fixture.dp(2));
+            int top = Math.round(fixture.cellTop(row) + fixture.dp(fixture.metrics.lunarTop()));
+            int bottom = Math.round(top + fixture.dp(fixture.metrics.lunarHeight()));
+            boolean captionVisible = false;
+            int caption = ContextCompat.getColor(fixture.context, R.color.color_on_accent);
+            for (int y = top; y < bottom; y++) for (int x = left; x < right; x++) {
+                if (bitmap.getPixel(x, y) == caption) captionVisible = true;
+            }
+            assertTrue("the selected date still draws its lunar caption", captionVisible);
+            assertEquals(CalendarCellMetrics.DATE_TEXT_SP * fixture.context.getResources().getDisplayMetrics().scaledDensity,
+                    fixture.context.getResources().getDimension(R.dimen.calendar_date_text_size), .1f);
         });
     }
 
@@ -252,7 +297,8 @@ public class PhoneMonthViewTest {
         view.measure(View.MeasureSpec.makeMeasureSpec(dp(context, 320), View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
 
-        int expected = Math.round(dpf(context, 34) + expectedRows * dpf(context, 152));
+        CalendarCellMetrics metrics = new CalendarCellMetrics(context.getResources().getConfiguration().fontScale);
+        int expected = Math.round(dpf(context, metrics.weekdayHeight()) + expectedRows * dpf(context, metrics.rowHeight()));
         assertEquals("wrap_content must reserve the detailed minimum height",
                 expected, view.getMeasuredHeight());
     }
@@ -326,12 +372,13 @@ public class PhoneMonthViewTest {
         final Calendar date;
         final int rows, width, height;
         final float cellWidth, rowHeight;
+        final CalendarCellMetrics metrics = new CalendarCellMetrics(context.getResources().getConfiguration().fontScale);
 
         Fixture(int year, int month, int day) {
             date = calendar(year, month, day);
             rows = rowCount(date);
             width = Math.round(dp(390));
-            height = Math.round(dp(34) + rows * dp(152));
+            height = Math.round(dp(metrics.weekdayHeight()) + rows * dp(metrics.rowHeight()));
             view.setDate(date);
             view.setDetailed(true);
             parent.addView(view, new FrameLayout.LayoutParams(width, height));
@@ -339,15 +386,14 @@ public class PhoneMonthViewTest {
                     View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY));
             parent.layout(0, 0, width, height);
             cellWidth = view.getWidth() / 7f;
-            rowHeight = Math.max(dp(152f), (view.getHeight() - dp(34)) / rows);
+            rowHeight = Math.max(dp(metrics.rowHeight()), (view.getHeight() - dp(metrics.weekdayHeight())) / rows);
         }
 
         float dp(float value) { return dpf(context, value); }
-        float cellTop(int row) { return dp(34) + row * rowHeight; }
-        float taskY(int row, int lane) { return cellTop(row) + dp(53 + lane * 19 + 8.5f); }
+        float cellTop(int row) { return dp(metrics.weekdayHeight()) + row * rowHeight; }
+        float taskY(int row, int lane) { return cellTop(row) + dp(metrics.taskTop() + lane * metrics.entryStep() + metrics.entryHeight() / 2); }
         int taskColor(String name) {
-            String[] colors = context.getResources().getStringArray(R.array.calendar_month_detail_colors);
-            return Color.parseColor(colors[(name.hashCode() & Integer.MAX_VALUE) % colors.length]);
+            return ContextCompat.getColor(context, R.color.color_calendar_neutral_entry);
         }
         int rowOf(int day) { return offsetOf(day) / 7; }
         int columnOf(int day) { return offsetOf(day) % 7; }
@@ -374,8 +420,8 @@ public class PhoneMonthViewTest {
             int row = rowOf(day), column = columnOf(day);
             int left = Math.round(column * cellWidth + dp(2));
             int right = Math.round((column + 1) * cellWidth - dp(2));
-            int top = Math.round(cellTop(row) + dp(53 + lane * 19));
-            int bottom = Math.round(cellTop(row) + dp(53 + lane * 19 + 17));
+            int top = Math.round(cellTop(row) + dp(metrics.taskTop() + lane * metrics.entryStep()));
+            int bottom = Math.round(cellTop(row) + dp(metrics.taskTop() + lane * metrics.entryStep() + metrics.entryHeight()));
             for (int y = Math.max(0, top + 1); y < Math.min(bitmap.getHeight(), bottom - 1); y++) {
                 for (int x = Math.max(0, left + 1); x < Math.min(bitmap.getWidth(), right - 1); x++) {
                     if (bitmap.getPixel(x, y) == color) return true;

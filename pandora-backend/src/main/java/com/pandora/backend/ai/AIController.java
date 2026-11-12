@@ -255,24 +255,30 @@ public class AIController {
         suggestion.put("userInfo", userInfo);
 
         Map<String, Object> taskStats = new HashMap<>();
-        int totalTasks = 0, completedTasks = 0, inProgressTasks = 0, pendingTasks = 0, overdueTasks = 0;
+        int totalTasks = 0, completedTasks = 0, inProgressTasks = 0, overdueTasks = 0;
         try {
             totalTasks = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND deleted = 0", Integer.class, userId);
+                    "SELECT COUNT(DISTINCT t.id) FROM tasks t LEFT JOIN task_assignees ta ON ta.task_id=t.id " +
+                            "WHERE (ta.user_id=? OR (ta.user_id IS NULL AND t.assignee_id=?)) AND t.deleted=0",
+                    Integer.class, userId, userId);
             completedTasks = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND deleted = 0 AND status IN ('COMPLETED','CONFIRMED')", Integer.class, userId);
+                    "SELECT COUNT(DISTINCT t.id) FROM tasks t LEFT JOIN task_assignees ta ON ta.task_id=t.id " +
+                            "WHERE (ta.user_id=? OR (ta.user_id IS NULL AND t.assignee_id=?)) AND t.deleted=0 AND t.status='COMPLETED'",
+                    Integer.class, userId, userId);
             inProgressTasks = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND deleted = 0 AND status = 'IN_PROGRESS'", Integer.class, userId);
-            pendingTasks = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND deleted = 0 AND status = 'PENDING'", Integer.class, userId);
+                    "SELECT COUNT(DISTINCT t.id) FROM tasks t LEFT JOIN task_assignees ta ON ta.task_id=t.id " +
+                            "WHERE (ta.user_id=? OR (ta.user_id IS NULL AND t.assignee_id=?)) AND t.deleted=0 AND t.status='IN_PROGRESS'",
+                    Integer.class, userId, userId);
             overdueTasks = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND deleted = 0 AND end_time IS NOT NULL AND end_time < CURRENT_TIMESTAMP AND status NOT IN ('COMPLETED','CONFIRMED')", Integer.class, userId);
+                    "SELECT COUNT(DISTINCT t.id) FROM tasks t LEFT JOIN task_assignees ta ON ta.task_id=t.id " +
+                            "WHERE (ta.user_id=? OR (ta.user_id IS NULL AND t.assignee_id=?)) AND t.deleted=0 " +
+                            "AND t.end_time IS NOT NULL AND t.end_time<CURRENT_TIMESTAMP AND t.status='IN_PROGRESS'",
+                    Integer.class, userId, userId);
         } catch (Exception ignored) {}
         double completionRate = totalTasks > 0 ? (completedTasks * 100.0 / totalTasks) : 0.0;
         taskStats.put("totalTasks", totalTasks);
         taskStats.put("completedTasks", completedTasks);
         taskStats.put("inProgressTasks", inProgressTasks);
-        taskStats.put("pendingTasks", pendingTasks);
         taskStats.put("overdueTasks", overdueTasks);
         taskStats.put("completionRate", Math.round(completionRate * 100) / 100.0);
         suggestion.put("taskStats", taskStats);
@@ -287,7 +293,7 @@ public class AIController {
         suggestion.put("logStats", logStats);
 
         String roleDisplay = getRoleDisplay(role);
-        String workAdvice = generateWorkAdvice(role, totalTasks, completedTasks, inProgressTasks, pendingTasks, overdueTasks, logCount);
+        String workAdvice = generateWorkAdvice(role, totalTasks, completedTasks, inProgressTasks, overdueTasks, logCount);
         String careerAdvice = generateCareerAdvice(role, completionRate, totalTasks, logCount);
         String developmentPlan = generateDevelopmentPlan(role, completionRate, totalTasks, overdueTasks);
         String aiSource = "LOCAL";
@@ -347,7 +353,7 @@ public class AIController {
     }
 
     /**
-     * Round24 T4.3: 查询当前用户当日梅花易数记录（每日一次约束的回显入口）。
+     * 查询当前用户当天最近一次梅花易数记录。
      * 有记录: {exists:true, record:{originalName, mutualName, changedName, movingLine, analysis, source, divinationDate}}
      * 无记录/查询异常: {exists:false}（200 不抛 404——宁可放行不可误拦）
      */
@@ -367,11 +373,11 @@ public class AIController {
     }
 
     /**
-     * Round24 T4.4: 起卦收口接口（服务端生成解读并落库，每日一次幂等锁定）。
-     * 入参: {originalName(必填), mutualName/changedName/movingLine(可选, 仅 1~6 整数)}
+     * 起卦并保存当天记录；显式 reroll=true 时更新为本次结果。
+     * 入参: {originalName(必填), mutualName/changedName/movingLine(可选, 仅 1~6 整数), reroll(可选布尔值)}
      * 出参: {alreadyToday, record{...含 analysis/source/divinationDate}}
-     * 先查当日记录（有→alreadyToday=true+已存记录）→ 无→generateDivinationAnalysis→INSERT→alreadyToday=false+新记录。
-     * UNIQUE 冲突（并发窗口）→ catch 后改查当日记录返回 alreadyToday=true；
+     * 默认保留已有记录；reroll=true 则生成新解读并更新当天唯一记录，无记录时插入。
+     * UNIQUE 冲突（并发窗口）→ 默认返回已有记录，明确重测时更新该记录；
      * 非 UNIQUE 落库失败 → 记日志 + 仍返回当次解读（alreadyToday=false 放行语义，下次可重试）。
      */
     @PostMapping("/divination/record")
@@ -386,9 +392,10 @@ public class AIController {
         String changedName = strOrEmpty(request.get("changedName"));
         Integer movingLine = parseMovingLine(request.get("movingLine"));
 
-        // 幂等锁定：当日已有记录 → 直接返回已存记录
+        boolean reroll = Boolean.TRUE.equals(request.get("reroll"));
+        // 保留旧客户端的每日回显语义；新客户端可明确重新起卦。
         Map<String, Object> existing = findTodayDivinationRecord(userId);
-        if (existing != null) {
+        if (existing != null && !reroll) {
             return ResponseEntity.ok(ApiResponse.success(buildDivinationResponse(true, formatDivinationRecord(existing))));
         }
 
@@ -409,7 +416,7 @@ public class AIController {
         record.put("divinationDate", java.time.LocalDate.now().toString());
 
         try {
-            jdbcTemplate.update(
+            if (!reroll || updateTodayDivination(userId, record) == 0) jdbcTemplate.update(
                     "INSERT INTO divination_records (user_id, divination_date, original_name, mutual_name, changed_name, moving_line, analysis, source) "
                             + "VALUES (?, CURRENT_DATE, ?, ?, ?, ?, ?, ?)",
                     userId, originalName,
@@ -420,6 +427,12 @@ public class AIController {
             // 并发窗口兜底：UNIQUE 冲突 → 改查当日记录返回 alreadyToday=true
             Map<String, Object> concurrent = findTodayDivinationRecord(userId);
             if (concurrent != null) {
+                if (reroll) {
+                    // Another request inserted today's row after our update.
+                    // Keep the unique row, but persist the explicitly requested new result.
+                    updateTodayDivination(userId, record);
+                    return ResponseEntity.ok(ApiResponse.success(buildDivinationResponse(false, record)));
+                }
                 return ResponseEntity.ok(ApiResponse.success(buildDivinationResponse(true, formatDivinationRecord(concurrent))));
             }
             // 非 UNIQUE 落库失败（或冲突后仍查不到）：记日志 + 仍返回当次解读（放行语义）
@@ -427,6 +440,13 @@ public class AIController {
         }
 
         return ResponseEntity.ok(ApiResponse.success(buildDivinationResponse(false, record)));
+    }
+
+    private int updateTodayDivination(Long userId, Map<String, Object> record) {
+        return jdbcTemplate.update("UPDATE divination_records SET original_name = ?, mutual_name = ?, changed_name = ?, "
+                        + "moving_line = ?, analysis = ?, source = ? WHERE user_id = ? AND divination_date = CURRENT_DATE",
+                record.get("originalName"), record.get("mutualName"), record.get("changedName"),
+                record.get("movingLine"), record.get("analysis"), record.get("source"), userId);
     }
 
     /**
@@ -557,12 +577,11 @@ public class AIController {
         }
     }
 
-    private String generateWorkAdvice(String role, int total, int completed, int inProgress, int pending, int overdue, int logs) {
+    private String generateWorkAdvice(String role, int total, int completed, int inProgress, int overdue, int logs) {
         StringBuilder sb = new StringBuilder();
         switch (role) {
             case "EMPLOYEE":
                 sb.append("您当前共有 ").append(total).append(" 个任务");
-                if (pending > 0) sb.append("，其中 ").append(pending).append(" 个待处理，建议尽快开始执行");
                 if (inProgress > 0) sb.append("，").append(inProgress).append(" 个进行中，请保持进度");
                 if (overdue > 0) sb.append("。注意：有 ").append(overdue).append(" 个任务已逾期，请优先处理");
                 if (logs == 0) sb.append("。建议开始记录工作日志，有助于总结经验");
@@ -677,7 +696,7 @@ public class AIController {
 
         result.put("overview", getProjectOverview());
         result.put("statusDistribution", getStatusDistribution());
-        result.put("priorityAnalysis", getPriorityAnalysis());
+        result.put("urgencyAnalysis", getUrgencyAnalysis());
         result.put("completionTrend", getCompletionTrend());
         result.put("overdueAnalysis", getOverdueAnalysis());
         result.put("teamRanking", getTeamRanking());
@@ -692,13 +711,9 @@ public class AIController {
             Integer totalTasks = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM tasks WHERE deleted = 0", Integer.class);
             Integer completedTasks = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tasks WHERE deleted = 0 AND status IN ('COMPLETED', 'CONFIRMED')", Integer.class);
+                    "SELECT COUNT(*) FROM tasks WHERE deleted = 0 AND status = 'COMPLETED'", Integer.class);
             Integer inProgressTasks = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM tasks WHERE deleted = 0 AND status = 'IN_PROGRESS'", Integer.class);
-            Integer pendingTasks = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tasks WHERE deleted = 0 AND status = 'PENDING'", Integer.class);
-            Integer rejectedTasks = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tasks WHERE deleted = 0 AND status = 'REJECTED'", Integer.class);
 
             totalTasks = totalTasks == null ? 0 : totalTasks;
             completedTasks = completedTasks == null ? 0 : completedTasks;
@@ -708,8 +723,6 @@ public class AIController {
             overview.put("totalTasks", totalTasks);
             overview.put("completedTasks", completedTasks);
             overview.put("inProgressTasks", inProgressTasks);
-            overview.put("pendingTasks", pendingTasks);
-            overview.put("rejectedTasks", rejectedTasks);
             overview.put("completionRate", Math.round(completionRate * 100) / 100.0);
         } catch (Exception e) {
             overview.put("error", "统计数据查询失败");
@@ -737,20 +750,21 @@ public class AIController {
         return distribution;
     }
 
-    private List<Map<String, Object>> getPriorityAnalysis() {
+    private List<Map<String, Object>> getUrgencyAnalysis() {
         List<Map<String, Object>> analysis = new ArrayList<>();
         try {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "SELECT priority, " +
+                    "SELECT is_urgent, " +
                     "COUNT(*) as total, " +
-                    "SUM(CASE WHEN status IN ('COMPLETED','CONFIRMED') THEN 1 ELSE 0 END) as completed, " +
+                    "SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed, " +
                     "SUM(CASE WHEN status = 'IN_PROGRESS' THEN 1 ELSE 0 END) as inProgress " +
-                    "FROM tasks WHERE deleted = 0 GROUP BY priority");
+                    "FROM tasks WHERE deleted = 0 GROUP BY is_urgent");
             for (Map<String, Object> row : rows) {
                 Map<String, Object> item = new HashMap<>();
-                String priority = (String) row.get("priority");
-                item.put("priority", priority);
-                item.put("priorityName", getPriorityDisplayName(priority));
+                boolean urgent = row.get("is_urgent") instanceof Boolean ? (Boolean) row.get("is_urgent")
+                        : row.get("is_urgent") instanceof Number && ((Number) row.get("is_urgent")).intValue() != 0;
+                item.put("urgent", urgent);
+                item.put("name", urgent ? "紧急" : "不紧急");
                 item.put("total", row.get("total"));
                 item.put("completed", row.get("completed"));
                 item.put("inProgress", row.get("inProgress"));
@@ -762,7 +776,7 @@ public class AIController {
             }
         } catch (Exception e) {
             Map<String, Object> item = new HashMap<>();
-            item.put("error", "优先级分析查询失败");
+            item.put("error", "紧急程度分析查询失败");
             analysis.add(item);
         }
         return analysis;
@@ -773,7 +787,7 @@ public class AIController {
         try {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                     "SELECT DATE(updated_at) as date, COUNT(*) as count " +
-                    "FROM tasks WHERE deleted = 0 AND status IN ('COMPLETED','CONFIRMED') " +
+                    "FROM tasks WHERE deleted = 0 AND status = 'COMPLETED' " +
                     "AND updated_at >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY) " +
                     "GROUP BY DATE(updated_at) ORDER BY date");
             for (Map<String, Object> row : rows) {
@@ -796,14 +810,14 @@ public class AIController {
             Integer overdueCount = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM tasks WHERE deleted = 0 " +
                     "AND end_time IS NOT NULL AND end_time < CURRENT_TIMESTAMP " +
-                    "AND status NOT IN ('COMPLETED','CONFIRMED')", Integer.class);
+                    "AND status = 'IN_PROGRESS'", Integer.class);
             overdueCount = overdueCount == null ? 0 : overdueCount;
 
             List<Map<String, Object>> overdueTasks = jdbcTemplate.queryForList(
-                    "SELECT id, name, priority, status, assignee_id, end_time " +
+                    "SELECT id, name, is_urgent, status, assignee_id, end_time " +
                     "FROM tasks WHERE deleted = 0 " +
                     "AND end_time IS NOT NULL AND end_time < CURRENT_TIMESTAMP " +
-                    "AND status NOT IN ('COMPLETED','CONFIRMED') " +
+                    "AND status = 'IN_PROGRESS' " +
                     "ORDER BY end_time ASC LIMIT 10");
 
             overdue.put("overdueCount", overdueCount);
@@ -820,7 +834,7 @@ public class AIController {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                     "SELECT u.username, u.role, " +
                     "COUNT(t.id) as totalTasks, " +
-                    "SUM(CASE WHEN t.status IN ('COMPLETED','CONFIRMED') THEN 1 ELSE 0 END) as completedTasks " +
+                    "SUM(CASE WHEN t.status = 'COMPLETED' THEN 1 ELSE 0 END) as completedTasks " +
                     "FROM users u LEFT JOIN tasks t ON u.id = t.assignee_id AND t.deleted = 0 " +
                     "WHERE u.deleted = 0 " +
                     "GROUP BY u.id, u.username, u.role " +
@@ -872,11 +886,11 @@ public class AIController {
                 suggestions.add("暂无逾期任务，时间管理良好");
             }
 
-            List<Map<String, Object>> priorityAnalysis = (List<Map<String, Object>>) analysisData.get("priorityAnalysis");
-            for (Map<String, Object> pa : priorityAnalysis) {
-                String priority = (String) pa.get("priority");
+            List<Map<String, Object>> urgencyAnalysis = (List<Map<String, Object>>) analysisData.get("urgencyAnalysis");
+            for (Map<String, Object> pa : urgencyAnalysis) {
+                boolean urgent = Boolean.TRUE.equals(pa.get("urgent"));
                 Number rate = (Number) pa.get("completionRate");
-                if ("URGENT".equals(priority) && rate != null && rate.doubleValue() < 50) {
+                if (urgent && rate != null && rate.doubleValue() < 50) {
                     suggestions.add("紧急任务完成率仅 " + rate + "%，建议集中资源优先处理");
                     break;
                 }
@@ -898,23 +912,9 @@ public class AIController {
     private String getStatusDisplayName(String status) {
         if (status == null) return "未知";
         switch (status) {
-            case "PENDING": return "待接收";
             case "IN_PROGRESS": return "进行中";
             case "COMPLETED": return "已完成";
-            case "CONFIRMED": return "已确认";
-            case "REJECTED": return "已退回";
             default: return status;
-        }
-    }
-
-    private String getPriorityDisplayName(String priority) {
-        if (priority == null) return "中";
-        switch (priority) {
-            case "LOW": return "低";
-            case "MEDIUM": return "中";
-            case "HIGH": return "高";
-            case "URGENT": return "紧急";
-            default: return priority;
         }
     }
 

@@ -5,12 +5,10 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 
 import androidx.annotation.NonNull;
 import androidx.activity.EdgeToEdge;
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -30,21 +28,20 @@ import java.util.Map;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 
 /** A separate screen leaves the original home, selected date and board positions on the back stack. */
-public final class HomeBoardsActivity extends AppCompatActivity {
+public final class HomeBoardsActivity extends PandoraActivity {
     public static final int TAB_EVENTS = 0, TAB_TASKS = 1;
-    public static final String EXTRA_TAB = "homeBoardTab", EXTRA_COMPLETED = "homeBoardCompleted";
+    public static final String EXTRA_TAB = "homeBoardTab";
     private ActivityHomeBoardsBinding binding;
     private HomeBoardLoader loader;
     private final HomeBoardAdapter events = new HomeBoardAdapter(true), tasks = new HomeBoardAdapter(false);
     private LinearLayoutManager eventLayout, taskLayout;
     private Parcelable eventScroll, taskScroll;
     private int tab;
-    private boolean completed, eventsLoaded, tasksLoaded, eventsLoading, tasksLoading, resetTasksScroll;
+    private boolean eventsLoaded, tasksLoaded, eventsLoading, tasksLoading, resetTasksScroll;
     private String eventsError, tasksError;
 
-    public static Intent createIntent(Context context, int tab, boolean completed) {
-        return new Intent(context, HomeBoardsActivity.class)
-                .putExtra(EXTRA_TAB, tab == TAB_TASKS ? TAB_TASKS : TAB_EVENTS).putExtra(EXTRA_COMPLETED, completed);
+    public static Intent createIntent(Context context, int tab) {
+        return new Intent(context, HomeBoardsActivity.class).putExtra(EXTRA_TAB, tab == TAB_TASKS ? TAB_TASKS : TAB_EVENTS);
     }
 
     @Override protected void onCreate(Bundle state) {
@@ -52,9 +49,13 @@ public final class HomeBoardsActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         tab = state == null ? getIntent().getIntExtra(EXTRA_TAB, TAB_EVENTS) : state.getInt(EXTRA_TAB);
         tab = tab == TAB_TASKS ? TAB_TASKS : TAB_EVENTS;
-        completed = state == null ? getIntent().getBooleanExtra(EXTRA_COMPLETED, false) : state.getBoolean(EXTRA_COMPLETED);
         if (state != null) { eventScroll = state.getParcelable("eventsScroll"); taskScroll = state.getParcelable("tasksScroll"); }
         binding = ActivityHomeBoardsBinding.inflate(getLayoutInflater()); setContentView(binding.getRoot());
+        com.example.project_pandora.ui.widget.CompanyBackgrounds.bind(binding.getRoot(),
+                com.example.project_pandora.ui.widget.CompanyBackgrounds.Scene.HOME);
+        binding.toolbar.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        binding.boardTabs.setTabRippleColor(android.content.res.ColorStateList.valueOf(
+                androidx.core.content.ContextCompat.getColor(this, R.color.home_task_press)));
         ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom); return insets;
@@ -88,19 +89,6 @@ public final class HomeBoardsActivity extends AppCompatActivity {
                 tasksLoading = false; tasksError = errorMessage(error); updateDisplay();
             }
         });
-        ArrayAdapter<String> filters = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
-                new String[]{"未完成任务", "已完成任务"});
-        filters.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        binding.taskFilter.setAdapter(filters); binding.taskFilter.setSelection(completed ? 1 : 0);
-        binding.taskFilter.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (completed == (position == 1)) return;
-                completed = position == 1; tasks.submit(java.util.Collections.emptyList());
-                resetTasksScroll = true; taskScroll = null;
-                taskLayout.scrollToPositionWithOffset(0, 0); loader.load(completed, false);
-            }
-            @Override public void onNothingSelected(AdapterView<?> parent) {}
-        });
         binding.boardTabs.addTab(binding.boardTabs.newTab().setText("事件纪"), false);
         binding.boardTabs.addTab(binding.boardTabs.newTab().setText("任务看板"), false);
         binding.boardTabs.selectTab(binding.boardTabs.getTabAt(tab));
@@ -109,7 +97,7 @@ public final class HomeBoardsActivity extends AppCompatActivity {
             @Override public void onTabUnselected(TabLayout.Tab selected) {}
             @Override public void onTabReselected(TabLayout.Tab selected) {}
         });
-        binding.retryBoard.setOnClickListener(view -> loader.load(completed, tab == TAB_EVENTS));
+        binding.retryBoard.setOnClickListener(view -> loader.load(tab == TAB_EVENTS));
         updateDisplay();
     }
 
@@ -122,13 +110,12 @@ public final class HomeBoardsActivity extends AppCompatActivity {
         boolean content = loaded && count > 0;
         binding.eventsList.setVisibility(eventTab && content ? View.VISIBLE : View.GONE);
         binding.tasksList.setVisibility(!eventTab && content ? View.VISIBLE : View.GONE);
-        binding.taskFilter.setVisibility(eventTab ? View.GONE : View.VISIBLE);
         binding.boardProgress.setVisibility(loading ? View.VISIBLE : View.INVISIBLE);
         binding.boardCount.setText(eventTab ? (loaded ? "公司重要事项 · 共 " + count + " 项" : "公司重要事项")
                 : (loaded ? "分派给我的任务 · 共 " + count + " 项" : "分派给我的任务"));
         binding.boardFeedback.setVisibility(content ? View.GONE : View.VISIBLE);
         binding.boardMessage.setText(loading ? "正在加载…" : error != null ? error : eventTab ? "暂无重要事项"
-                : completed ? "暂无已完成任务" : "暂无分派给我的未完成任务");
+                : "暂无分派给我的未完成任务");
         binding.retryBoard.setVisibility(!loading && error != null ? View.VISIBLE : View.GONE);
     }
 
@@ -140,10 +127,10 @@ public final class HomeBoardsActivity extends AppCompatActivity {
         return NetworkErrorClassifier.classify(error);
     }
 
-    @Override protected void onResume() { super.onResume(); loader.refresh(completed); }
+    @Override protected void onResume() { super.onResume(); loader.refresh(); }
 
     @Override protected void onSaveInstanceState(@NonNull Bundle state) {
-        super.onSaveInstanceState(state); state.putInt(EXTRA_TAB, tab); state.putBoolean(EXTRA_COMPLETED, completed);
+        super.onSaveInstanceState(state); state.putInt(EXTRA_TAB, tab);
         state.putParcelable("eventsScroll", eventScroll != null ? eventScroll : eventLayout.onSaveInstanceState());
         if (!resetTasksScroll) state.putParcelable("tasksScroll", taskScroll != null ? taskScroll : taskLayout.onSaveInstanceState());
     }

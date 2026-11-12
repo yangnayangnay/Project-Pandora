@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical"
+    android:background="@color/color_bg_page" android:fitsSystemWindows="true">
+    <com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar"
+        android:layout_width="match_parent" android:layout_height="56dp" android:background="@color/color_surface"
+        app:title="人员日志" app:titleTextColor="@color/color_text_primary" app:navigationIcon="@drawable/ic_back"
+        app:navigationIconTint="@color/color_text_primary" app:navigationContentDescription="返回人员详情" />
+    <androidx.core.widget.NestedScrollView android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" android:fillViewport="true" android:clipToPadding="false">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"
+            android:paddingHorizontal="12dp" android:paddingBottom="24dp">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="12dp"
+                android:text="每日日志" android:textSize="20sp" android:textStyle="bold" android:textColor="@color/color_text_primary" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                <com.google.android.material.button.MaterialButton android:id="@+id/buttonPreviousMonth" style="@style/Widget.Pandora.Button.Text"
+                    android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:text="‹"
+                    android:textSize="24sp" android:contentDescription="上个月" />
+                <TextView android:id="@+id/textMonth" android:layout_width="0dp" android:layout_height="48dp"
+                    android:layout_weight="1" android:gravity="center" android:textSize="22sp" android:textStyle="bold"
+                    android:textColor="@color/color_text_primary" android:background="?attr/selectableItemBackground"
+                    android:clickable="true" android:focusable="true" android:contentDescription="选择日志日期" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/buttonNextMonth" style="@style/Widget.Pandora.Button.Text"
+                    android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:text="›"
+                    android:textSize="24sp" android:contentDescription="下个月" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/buttonToday" style="@style/Widget.Pandora.Button.Text"
+                    android:layout_width="56dp" android:layout_height="48dp" android:minWidth="0dp" android:text="今天" />
+            </LinearLayout>
+            <com.example.project_pandora.ui.home.DailyItemsMonthView android:id="@+id/calendar"
+                android:layout_width="match_parent" android:layout_height="wrap_content" />
+            <TextView android:id="@+id/textHeading" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:paddingTop="8dp" android:paddingBottom="8dp" android:textSize="16sp" android:textStyle="bold"
+                android:textColor="@color/color_text_primary" />
+            <ProgressBar android:id="@+id/progress" style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent" android:layout_height="3dp" android:visibility="gone" />
+            <TextView android:id="@+id/message" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:minHeight="48dp" android:gravity="center" android:padding="12dp"
+                android:textColor="@color/color_text_secondary" />
+            <androidx.recyclerview.widget.RecyclerView android:id="@+id/list" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:nestedScrollingEnabled="false" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

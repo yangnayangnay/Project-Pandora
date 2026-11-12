@@ -35,7 +35,6 @@ public class TaskScheduleView extends PeriodSwipeLayout {
     private java.util.function.Consumer<Map<String, Object>> taskListener;
     private Runnable datePickerListener;
     private final SimpleDateFormat dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ROOT);
-    private int[] backgrounds;
     private boolean initialScroll = true;
     private String loadError;
     private final Runnable clockTick = new Runnable() {
@@ -48,9 +47,8 @@ public class TaskScheduleView extends PeriodSwipeLayout {
         super(c, attrs, style);
         TypedArray a = c.obtainStyledAttributes(attrs, R.styleable.TaskScheduleView);
         dayMode = a.getInt(R.styleable.TaskScheduleView_scheduleMode, 0) == 1; a.recycle();
-        backgrounds = colors(R.array.calendar_month_detail_colors);
         setOrientation(VERTICAL);
-        setBackgroundColor(color(R.color.color_bg_page));
+        setBackgroundColor(android.graphics.Color.TRANSPARENT);
         build();
         setOnPeriodSwipe(direction -> shift(dayMode ? direction : direction * 7));
         if (isInEditMode()) {
@@ -60,6 +58,11 @@ public class TaskScheduleView extends PeriodSwipeLayout {
             samples.add(sample("整理今日工作纪要", 14, false));
             setTasks(samples);
         } else render();
+    }
+
+    @Override protected void animatePeriodChange(int direction) {
+        // Keep the task surface stationary while only the calendar dates slide.
+        CalendarPageMotion.enter(dates, direction);
     }
 
     public void setOnDateChanged(java.util.function.Consumer<Calendar> listener) { dateListener = listener; }
@@ -118,21 +121,23 @@ public class TaskScheduleView extends PeriodSwipeLayout {
         nav.addView(next, new LayoutParams(dp(48), dp(48))); addView(nav);
         dates = new WeekDateStrip(getContext());
         dates.setOnDateSelected(date -> { selected = midnight(date); initialScroll = true; render(); notifyDate(); });
-        addView(dates, new LayoutParams(LayoutParams.MATCH_PARENT, dp(88)));
+        addView(dates, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
         LinearLayout allDay = new LinearLayout(getContext()); allDayRow = allDay; allDay.setPadding(0, dp(6), dp(6), dp(6));
-        allDay.setBackgroundColor(color(R.color.color_calendar_bg));
+        allDay.setBackgroundColor(color(R.color.color_company_content_surface));
         TextView allDayLabel = label("全天", 12); allDayLabel.setTextColor(color(R.color.color_text_secondary));
         allDay.addView(allDayLabel, new LayoutParams(dp(44), dp(48)));
         allDayColumns = new LinearLayout(getContext());
         allDay.addView(allDayColumns, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1)); addView(allDay);
         message = label("", 12); message.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        message.setBackgroundColor(color(R.color.color_company_content_surface));
         message.setTextColor(color(R.color.color_text_secondary)); message.setPadding(dp(16), dp(4), dp(16), dp(4));
         addView(message, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
         scroll = new ScrollView(getContext()); scroll.setFillViewport(false); scroll.setClipToPadding(false);
         scroll.setPadding(0, 0, 0, dp(88));
         timeline = new Timeline(getContext());
-        GradientDrawable surface = rounded(color(R.color.color_calendar_bg), 20);
-        scroll.setBackground(surface); scroll.setClipToOutline(true);
+        // Join both day and week content to adjacent surfaces without corner cutouts.
+        scroll.setBackgroundColor(color(R.color.color_company_content_surface));
+        scroll.setClipToOutline(false);
         if (dayMode) {
             scroll.addView(timeline, new ScrollView.LayoutParams(LayoutParams.MATCH_PARENT, hourHeight() * 24 + dp(64)));
         } else {
@@ -209,14 +214,17 @@ public class TaskScheduleView extends PeriodSwipeLayout {
         }
         for (Entry e : visible) {
             LinearLayout card = new LinearLayout(getContext()); card.setOrientation(VERTICAL);
-            card.setPadding(dp(14), dp(12), dp(14), dp(12)); card.setBackground(rounded(backgrounds[e.color], 12));
-            TextView title = label(e.name, 12); title.setGravity(Gravity.START); title.setTextColor(color(R.color.color_text_primary));
+            card.setPadding(dp(14), dp(12), dp(14), dp(12)); card.setBackground(rounded(com.example.project_pandora.ui.task.TaskTagColors.task(getContext(), e.raw), 12));
+            int ink = com.example.project_pandora.ui.task.TaskTagColors.text(getContext(),
+                    com.example.project_pandora.ui.task.TaskTagColors.task(getContext(), e.raw), android.graphics.Color.BLACK);
+            TextView title = label(e.name, 14); title.setGravity(Gravity.START); title.setTextColor(ink);
             title.setTextSize(TypedValue.COMPLEX_UNIT_PX, getResources().getDimension(R.dimen.schedule_week_task_text_size));
             title.setTypeface(null, Typeface.BOLD);
+            title.setMaxLines(1); title.setEllipsize(android.text.TextUtils.TruncateAt.END);
             card.addView(title, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
             SimpleDateFormat format = new SimpleDateFormat(e.allDay ? "M/d" : "M/d HH:mm", Locale.ROOT);
             TextView interval = label((e.allDay ? "全天 · " : "") + format.format(new Date(e.start)) + " — " + format.format(new Date(e.end)), 12);
-            interval.setTextColor(color(R.color.color_text_primary)); interval.setGravity(Gravity.START);
+            interval.setTextColor(ink); interval.setGravity(Gravity.START);
             LayoutParams textParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT); textParams.topMargin = dp(8);
             card.addView(interval, textParams); card.setMinimumHeight(dp(76)); card.setFocusable(true);
             card.setContentDescription(e.name + "，" + interval.getText() + "，点击查看详情");
@@ -234,9 +242,11 @@ public class TaskScheduleView extends PeriodSwipeLayout {
         TextView v = label(e.name, size);
         v.setTextSize(TypedValue.COMPLEX_UNIT_PX, getResources().getDimension(dayMode ? R.dimen.schedule_day_task_text_size : R.dimen.schedule_week_task_text_size));
         v.setGravity(Gravity.TOP | Gravity.START);
-        v.setPadding(dp(5), dp(4), dp(4), dp(3)); v.setMaxLines(dayMode ? 3 : 2);
-        v.setEllipsize(android.text.TextUtils.TruncateAt.END); v.setBackground(rounded(backgrounds[e.color], 6));
-        v.setTextColor(color(R.color.color_text_primary)); v.setContentDescription(e.name + "，" + (e.allDay ? "全天任务" : "定时任务") + "，点击查看详情");
+        v.setPadding(dp(5), dp(2), dp(4), dp(2)); v.setMaxLines(1);
+        v.setEllipsize(android.text.TextUtils.TruncateAt.END); v.setBackground(rounded(com.example.project_pandora.ui.task.TaskTagColors.task(getContext(), e.raw), 6));
+        v.setTextColor(com.example.project_pandora.ui.task.TaskTagColors.text(getContext(),
+                com.example.project_pandora.ui.task.TaskTagColors.task(getContext(), e.raw), android.graphics.Color.BLACK));
+        v.setContentDescription(e.name + "，" + (e.allDay ? "全天任务" : "定时任务") + "，点击查看详情");
         v.setOnClickListener(view -> open(e)); v.setFocusable(true); return v;
     }
     private void open(Entry e) { if (taskListener != null) taskListener.accept(e.raw); }
@@ -283,14 +293,9 @@ public class TaskScheduleView extends PeriodSwipeLayout {
                 for (ScheduleLayout.Slot slot : slots) {
                     Entry e = entries.get(slot.taskIndex);
                     TextView v = eventLabel(e, dayMode ? 15 : 12);
-                    SimpleDateFormat clock = new SimpleDateFormat("HH:mm", Locale.ROOT);
-                    String range = (e.start < start ? "前日 " : "") + clock.format(new Date(e.start))
-                            + "—" + (e.end >= end ? "次日 " : "") + clock.format(new Date(e.end));
                     int cardWidth = Math.max(1, (int) (width / slot.columns) - dp(3));
                     int cardHeight = Math.max(dp(28), Math.round((slot.end - slot.start) * hourHeight() / 60f) - dp(2));
-                    int lines = Math.max(1, (int) ((cardHeight - dp(7)) / (v.getTextSize() * 1.25f)));
-                    v.setMaxLines(Math.min(3, lines));
-                    v.setText(e.name + (lines >= 2 ? "\n" + range : ""));
+                    v.setMaxLines(1); v.setText(e.name);
                     v.setContentDescription(e.name + "，" + new SimpleDateFormat("M月d日 HH:mm", Locale.CHINA).format(new Date(e.start))
                             + " 至 " + new SimpleDateFormat("M月d日 HH:mm", Locale.CHINA).format(new Date(e.end)) + "，点击查看详情");
                     FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(cardWidth, cardHeight);
@@ -342,7 +347,6 @@ public class TaskScheduleView extends PeriodSwipeLayout {
             if (!allDay && end == start) end += 60 * MINUTE;
             Entry entry = new Entry(); entry.raw = task; entry.start = start; entry.end = end; entry.allDay = allDay;
             entry.name = Objects.toString(get(task, "name"), "未命名任务");
-            entry.color = com.example.project_pandora.core.util.TaskTags.colorIndex(task, backgrounds.length);
             return entry;
         } catch (Exception e) { return null; }
     }
@@ -355,15 +359,17 @@ public class TaskScheduleView extends PeriodSwipeLayout {
     private Calendar weekStart() { Calendar c = midnight(selected); c.add(Calendar.DATE, -((c.get(Calendar.DAY_OF_WEEK) + 5) % 7)); return c; }
     private static Calendar midnight(Calendar value) { Calendar c = (Calendar) value.clone(); c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0); c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0); return c; }
     private boolean sameDay(Calendar a, Calendar b) { return a.get(Calendar.YEAR) == b.get(Calendar.YEAR) && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR); }
-    private int[] colors(int id) { String[] strings = getResources().getStringArray(id); int[] result = new int[strings.length]; for (int i = 0; i < strings.length; i++) result[i] = android.graphics.Color.parseColor(strings[i]); return result; }
-    private int color(int id) { return ContextCompat.getColor(getContext(), id); }
+    private int color(int id) {
+        return ContextCompat.getColor(getContext(), id == R.color.color_text_secondary
+                ? R.color.color_company_photo_secondary : id);
+    }
     private int dp(float value) { return Math.round(value * getResources().getDisplayMetrics().density); }
     private float sp(float value) { return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, value, getResources().getDisplayMetrics()); }
     private int hourHeight() { return getResources().getDimensionPixelSize(R.dimen.schedule_hour_height); }
     private GradientDrawable rounded(int color, int radius) { GradientDrawable d = new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); return d; }
     private TextView label(String text, float size) { TextView v = new TextView(getContext()); v.setText(text); v.setTextSize(size); v.setTextColor(color(R.color.color_text_primary)); v.setGravity(Gravity.CENTER); v.setIncludeFontPadding(false); return v; }
     private TextView action(String text, String description) { TextView v = label(text, 26); v.setContentDescription(description); v.setFocusable(true); return v; }
-    private static class Entry { Map<String, Object> raw; long start, end; boolean allDay; String name; int color; }
+    private static class Entry { Map<String, Object> raw; long start, end; boolean allDay; String name; }
     private Map<String, Object> sample(String title, int hour, boolean allDay) {
         Map<String, Object> task = new HashMap<>(); String day = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(selected.getTime());
         task.put("name", title); task.put("start_time", day + String.format(Locale.ROOT, " %02d:00", hour));

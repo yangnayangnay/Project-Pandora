@@ -11,14 +11,4 @@
         <item>#F8BBD0</item>
     </string-array>
 
-    <string-array name="calendar_month_detail_text_colors">
-        <item>#795548</item>
-        <item>#A52A36</item>
-        <item>#65357A</item>
-        <item>#285F8E</item>
-        <item>#3C6742</item>
-        <item>#8F4C19</item>
-        <item>#25645D</item>
-        <item>#8C3452</item>
-    </string-array>
 </resources>

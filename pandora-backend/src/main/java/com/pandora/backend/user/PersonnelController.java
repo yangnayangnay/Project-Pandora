@@ -25,6 +25,157 @@ public class PersonnelController {
                 "teams", db.queryForList("SELECT id, name, department_id FROM teams WHERE deleted = 0 ORDER BY name")));
     }
 
+    @PostMapping("/departments")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    @Auditable(operationType = "DEPARTMENT_CREATE", targetType = "DEPARTMENT")
+    public ApiResponse<Map<String, Object>> createDepartment(@RequestBody Map<String, Object> body) {
+        String name = departmentName(body.get("name"));
+        if (!db.queryForList("SELECT id FROM departments WHERE name=? AND deleted=0", Long.class, name).isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "部门名称已存在");
+        }
+        var key = new org.springframework.jdbc.support.GeneratedKeyHolder();
+        db.update(connection -> {
+            var statement = connection.prepareStatement(
+                    "INSERT INTO departments(name) VALUES (?)", new String[]{"id"});
+            statement.setString(1, name);
+            return statement;
+        }, key);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", Objects.requireNonNull(key.getKey()).longValue());
+        result.put("name", name);
+        return ApiResponse.success(result);
+    }
+
+    @PutMapping("/departments/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    @Auditable(operationType = "DEPARTMENT_UPDATE", targetType = "DEPARTMENT")
+    public ApiResponse<Void> updateDepartment(@PathVariable long id, @RequestBody Map<String, Object> body) {
+        String name = departmentName(body.get("name"));
+        if (!db.queryForList("SELECT id FROM departments WHERE id=? AND deleted=0", Long.class, id).contains(id)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "部门不存在");
+        }
+        if (!db.queryForList("SELECT id FROM departments WHERE name=? AND id<>? AND deleted=0", Long.class, name, id).isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "部门名称已存在");
+        }
+        db.update("UPDATE departments SET name=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND deleted=0", name, id);
+        return ApiResponse.success();
+    }
+
+    @DeleteMapping("/departments/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    @Auditable(operationType = "DEPARTMENT_DELETE", targetType = "DEPARTMENT")
+    public ApiResponse<Void> deleteDepartment(@PathVariable long id) {
+        if (db.queryForList("SELECT id FROM departments WHERE id=? AND deleted=0", Long.class, id).isEmpty()) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "部门不存在");
+        }
+        if (!db.queryForList("SELECT id FROM users WHERE department_id=? AND deleted=0", Long.class, id).isEmpty()
+                || !db.queryForList("SELECT id FROM teams WHERE department_id=? AND deleted=0", Long.class, id).isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "部门仍有人员或团队，无法删除");
+        }
+        db.update("UPDATE departments SET deleted=1, updated_at=CURRENT_TIMESTAMP WHERE id=?", id);
+        return ApiResponse.success();
+    }
+
+    private String departmentName(Object raw) {
+        if (!(raw instanceof String value) || value.trim().isEmpty() || value.trim().length() > 128) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "部门名称长度应为1至128个字符");
+        }
+        return value.trim();
+    }
+
+    @PostMapping("/teams")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    @Auditable(operationType = "TEAM_CREATE", targetType = "TEAM")
+    public ApiResponse<Map<String, Object>> createTeam(@RequestBody Map<String, Object> body) {
+        String name = teamName(body.get("name"));
+        Long departmentId = requiredDepartmentId(body.get("departmentId"));
+        requireDepartment(departmentId);
+        requireUniqueTeamName(name, departmentId, null);
+        var key = new org.springframework.jdbc.support.GeneratedKeyHolder();
+        db.update(connection -> {
+            var statement = connection.prepareStatement(
+                    "INSERT INTO teams(name,department_id) VALUES (?,?)", new String[]{"id"});
+            statement.setString(1, name);
+            statement.setLong(2, departmentId);
+            return statement;
+        }, key);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", Objects.requireNonNull(key.getKey()).longValue());
+        result.put("name", name);
+        result.put("department_id", departmentId);
+        return ApiResponse.success(result);
+    }
+
+    @PutMapping("/teams/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    @Auditable(operationType = "TEAM_UPDATE", targetType = "TEAM")
+    public ApiResponse<Void> updateTeam(@PathVariable long id, @RequestBody Map<String, Object> body) {
+        String name = teamName(body.get("name"));
+        Long departmentId = requiredDepartmentId(body.get("departmentId"));
+        List<Map<String, Object>> rows = db.queryForList(
+                "SELECT department_id FROM teams WHERE id=? AND deleted=0 FOR UPDATE", id);
+        if (rows.isEmpty()) throw new BusinessException(ErrorCode.NOT_FOUND, "团队不存在");
+        requireDepartment(departmentId);
+        Long originalDepartment = rows.get(0).get("department_id") instanceof Number value
+                ? value.longValue() : null;
+        if (!Objects.equals(originalDepartment, departmentId)
+                && !db.queryForList("SELECT id FROM users WHERE team_id=? AND deleted=0", Long.class, id).isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "团队仍有成员，不能直接更换所属部门");
+        }
+        requireUniqueTeamName(name, departmentId, id);
+        db.update("UPDATE teams SET name=?,department_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND deleted=0",
+                name, departmentId, id);
+        return ApiResponse.success();
+    }
+
+    @DeleteMapping("/teams/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    @Auditable(operationType = "TEAM_DELETE", targetType = "TEAM")
+    public ApiResponse<Void> deleteTeam(@PathVariable long id) {
+        if (db.queryForList("SELECT id FROM teams WHERE id=? AND deleted=0", Long.class, id).isEmpty()) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "团队不存在");
+        }
+        if (!db.queryForList("SELECT id FROM users WHERE team_id=? AND deleted=0", Long.class, id).isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "团队仍有成员，无法删除");
+        }
+        db.update("UPDATE teams SET deleted=1,updated_at=CURRENT_TIMESTAMP WHERE id=?", id);
+        return ApiResponse.success();
+    }
+
+    private String teamName(Object raw) {
+        if (!(raw instanceof String value) || value.trim().isEmpty() || value.trim().length() > 128) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "团队名称长度应为1至128个字符");
+        }
+        return value.trim();
+    }
+
+    private Long requiredDepartmentId(Object raw) {
+        Long value = id(raw);
+        if (value == null) throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择所属部门");
+        return value;
+    }
+
+    private void requireDepartment(Long departmentId) {
+        if (db.queryForList("SELECT id FROM departments WHERE id=? AND deleted=0", Long.class, departmentId).isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "所属部门不存在");
+        }
+    }
+
+    private void requireUniqueTeamName(String name, Long departmentId, Long excludedId) {
+        List<Long> matches = excludedId == null
+                ? db.queryForList("SELECT id FROM teams WHERE name=? AND department_id=? AND deleted=0",
+                    Long.class, name, departmentId)
+                : db.queryForList("SELECT id FROM teams WHERE name=? AND department_id=? AND id<>? AND deleted=0",
+                    Long.class, name, departmentId, excludedId);
+        if (!matches.isEmpty()) throw new BusinessException(ErrorCode.BAD_REQUEST, "该部门已存在同名团队");
+    }
+
     @GetMapping("/directory")
     public ApiResponse<List<Map<String, Object>>> directory() {
         var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();

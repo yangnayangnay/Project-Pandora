@@ -16,9 +16,12 @@ public final class DailyItemsMonthView extends PhoneMonthView {
         setContentDescription("每日事项月历，选择日期查看个人待办，上滑收起顶部板块");
     }
     public void setItems(List<Map<String, Object>> items) { setTasks(DailyItems.calendarEntries(items)); }
+    @Override protected int color(int id) {
+        return super.color(id == R.color.color_text_secondary ? R.color.home_photo_secondary : id);
+    }
     @Override protected String entryName(Map<String, Object> item) { return (DailyItems.completed(item) ? "✓ " : "") + DailyItems.content(item); }
     @Override protected int entryColor(Map<String, Object> item) {
-        return ContextCompat.getColor(getContext(), DailyItems.completed(item) ? R.color.color_surface_soft : R.color.color_schedule_tab_selected_background);
+        return ContextCompat.getColor(getContext(), R.color.color_calendar_neutral_entry);
     }
     @Override protected boolean entryCompleted(Map<String, Object> item) { return DailyItems.completed(item); }
 }

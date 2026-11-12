@@ -194,7 +194,7 @@ public class PersonalTop10Generator {
             totalTasks = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND deleted = 0", Integer.class, userId);
             completedTasks = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND deleted = 0 AND status IN ('COMPLETED','CONFIRMED')", Integer.class, userId);
+                    "SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND deleted = 0 AND status = 'COMPLETED'", Integer.class, userId);
         } catch (Exception ignored) {}
 
         StringBuilder summary = new StringBuilder();

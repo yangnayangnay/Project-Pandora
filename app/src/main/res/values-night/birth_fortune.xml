@@ -1,0 +1,10 @@
+<resources>
+    <color name="fortune_chart_surface">#3D3529</color>
+    <color name="fortune_zodiac_surface">#2C392D</color>
+    <color name="fortune_star_surface">#2B354B</color>
+    <color name="fortune_work_surface">#3C3043</color>
+    <color name="fortune_chart_ink">#F3D5A7</color>
+    <color name="fortune_zodiac_ink">#C9E1BD</color>
+    <color name="fortune_star_ink">#CBDAFC</color>
+    <color name="fortune_work_ink">#E5C9EE</color>
+</resources>

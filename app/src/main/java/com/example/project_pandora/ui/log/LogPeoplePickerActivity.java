@@ -5,7 +5,7 @@ import android.os.Bundle;
 import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 import com.example.project_pandora.core.util.BackToolbarHelper;
 import com.example.project_pandora.core.util.NumberCompat;
 import com.example.project_pandora.databinding.ActivityLogPeoplePickerBinding;
@@ -14,7 +14,7 @@ import com.example.project_pandora.ui.people.PeopleDirectory;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.SerialDisposable;
 
-public class LogPeoplePickerActivity extends AppCompatActivity {
+public class LogPeoplePickerActivity extends PandoraActivity {
     public static final String EXTRA_USER = "logFilterUserId", EXTRA_DEPARTMENT = "logFilterDepartmentId", EXTRA_LABEL = "logFilterLabel";
     private ActivityLogPeoplePickerBinding binding;
     private final SerialDisposable request = new SerialDisposable();

@@ -5,8 +5,6 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -26,6 +24,10 @@ import com.example.project_pandora.databinding.FragmentMindmapBinding;
 import com.example.project_pandora.model.Task;
 import com.example.project_pandora.notification.NotificationPollWorker;
 import com.example.project_pandora.repository.ViewRepository;
+import com.example.project_pandora.core.network.NetworkClient;
+import com.example.project_pandora.core.network.TokenManager;
+import com.example.project_pandora.data.remote.UserApi;
+import com.example.project_pandora.ui.home.BirthdayConfettiView;
 import com.example.project_pandora.ui.home.DailyAgendaController;
 import com.example.project_pandora.ui.home.DailyItems;
 import com.example.project_pandora.ui.home.HomeBoardLoader;
@@ -38,6 +40,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.disposables.SerialDisposable;
 
 /** Home keeps company events and assigned tasks above the independent personal agenda. */
 public class MindMapFragment extends Fragment {
@@ -46,10 +49,11 @@ public class MindMapFragment extends Fragment {
     private DailyAgendaController agenda;
     private HomeBoardLoader boardLoader;
     private Bundle viewState;
-    private boolean showCompleted;
     private boolean boardSizePending;
     private boolean returningFromBoards;
     private int pendingEventsScroll = -1, pendingTasksScroll = -1;
+    private final SerialDisposable birthdayRequest = new SerialDisposable();
+    private String birthdayCheckDate = "";
 
     @Nullable @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -62,7 +66,6 @@ public class MindMapFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         Bundle state = viewState != null ? viewState : savedInstanceState;
         returningFromBoards = false;
-        showCompleted = state != null && state.getBoolean("homeCompleted");
         pendingEventsScroll = state == null ? 0 : state.getInt("homeEventsScroll");
         pendingTasksScroll = state == null ? 0 : state.getInt("homeTasksScroll");
         boardSizePending = true;
@@ -94,33 +97,59 @@ public class MindMapFragment extends Fragment {
             @Override public boolean canDrag(@NonNull AppBarLayout appBarLayout) { return false; }
         });
         ((CoordinatorLayout.LayoutParams) binding.homeAppBar.getLayoutParams()).setBehavior(boardBehavior);
-        ArrayAdapter<String> options = new ArrayAdapter<>(requireContext(), R.layout.item_home_board_filter,
-                new String[]{"未完成任务", "已完成任务"});
-        options.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        binding.spinnerBoardStatus.setAdapter(options);
-        binding.spinnerBoardStatus.setSelection(showCompleted ? 1 : 0);
-        binding.spinnerBoardStatus.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(AdapterView<?> parent, View selected, int position, long id) {
-                boolean completed = position == 1;
-                if (showCompleted != completed) {
-                    showCompleted = completed; pendingTasksScroll = 0;
-                    boardLoader.load(showCompleted, false);
-                }
-            }
-            @Override public void onNothingSelected(AdapterView<?> parent) {}
-        });
         binding.btnExpandEvents.setOnClickListener(v -> expandBoard(HomeBoardsActivity.TAB_EVENTS));
         binding.btnExpandTasks.setOnClickListener(v -> expandBoard(HomeBoardsActivity.TAB_TASKS));
         resizeBoards();
     }
 
     private void loadHome() {
-        if (boardLoader != null) boardLoader.refresh(showCompleted);
+        if (boardLoader != null) boardLoader.refresh();
+    }
+
+    private void checkBirthdayGreeting() {
+        java.text.SimpleDateFormat day = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT);
+        day.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Shanghai"));
+        String today = day.format(new java.util.Date());
+        if (today.equals(birthdayCheckDate)) return;
+        birthdayCheckDate = today;
+        Long userId = TokenManager.getInstance(requireContext()).getUserId();
+        if (userId == null || userId <= 0) return;
+        android.content.SharedPreferences preferences = requireContext().getSharedPreferences("birthday_greeting", android.content.Context.MODE_PRIVATE);
+        String key = "hidden_" + userId;
+        if (today.equals(preferences.getString(key, ""))) return;
+        UserApi api = NetworkClient.getInstance(requireContext()).createService(UserApi.class);
+        birthdayRequest.set(api.getUserSettings().subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread()).subscribe(response -> {
+            if (binding == null || !response.isSuccess() || response.getData() == null) return;
+            String birthday = java.util.Objects.toString(response.getData().get("birthday"), "");
+            if (birthday.length() < 10 || !birthday.substring(5, 10).equals(today.substring(5, 10))) return;
+            showBirthdayGreeting(preferences, key, today);
+        }, error -> birthdayCheckDate = ""));
+    }
+
+    private void showBirthdayGreeting(android.content.SharedPreferences preferences, String key, String today) {
+        android.widget.LinearLayout content = new android.widget.LinearLayout(requireContext());
+        content.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int padding = dp(20); content.setPadding(padding, 0, padding, padding);
+        BirthdayConfettiView confetti = new BirthdayConfettiView(requireContext());
+        content.addView(confetti, new android.widget.LinearLayout.LayoutParams(-1, dp(180)));
+        android.widget.TextView greeting = itemText("生日快乐！\n愿新的一岁平安顺遂，心愿皆成。\n今天也要好好庆祝自己。");
+        greeting.setTextSize(17); greeting.setGravity(android.view.Gravity.CENTER); greeting.setLineSpacing(dp(4), 1f);
+        content.addView(greeting, new android.widget.LinearLayout.LayoutParams(-1, -2));
+        com.google.android.material.checkbox.MaterialCheckBox hideToday = new com.google.android.material.checkbox.MaterialCheckBox(requireContext());
+        hideToday.setText("今天不再显示"); hideToday.setTextColor(ContextCompat.getColor(requireContext(), R.color.color_text_primary));
+        hideToday.setPadding(0, dp(12), 0, 0); content.addView(hideToday);
+        androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("生日祝福").setView(content).setPositiveButton("谢谢", null).create();
+        dialog.setOnDismissListener(ignored -> {
+            if (hideToday.isChecked()) preferences.edit().putString(key, today).apply();
+        });
+        dialog.show();
     }
 
     private void expandBoard(int tab) {
         returningFromBoards = true;
-        startActivity(HomeBoardsActivity.createIntent(requireContext(), tab, showCompleted));
+        startActivity(HomeBoardsActivity.createIntent(requireContext(), tab));
     }
 
     private void resizeBoards() {
@@ -134,7 +163,10 @@ public class MindMapFragment extends Fragment {
             int height = Math.min(maximum, Math.max(dp(160), contentHeight
                     + current.boardPanels.getPaddingTop() + current.boardPanels.getPaddingBottom()));
             ViewGroup.LayoutParams params = current.boardPanels.getLayoutParams();
-            if (params.height != height) { params.height = height; current.boardPanels.setLayoutParams(params); }
+            if (params.height != height) {
+                params.height = height; current.boardPanels.setLayoutParams(params);
+                if (agenda != null) agenda.onBoardsResized();
+            }
         });
     }
 
@@ -156,7 +188,9 @@ public class MindMapFragment extends Fragment {
         for (int i = 0; i < items.size(); i++) {
             String content = Objects.toString(DailyItems.value(items.get(i), "content"), "").trim();
             if (content.isEmpty() || content.matches("[0-9]+")) content = "未命名";
-            addRow(container, itemText((i + 1) + ". " + content));
+            TextView row = itemText((i + 1) + ". " + content);
+            row.setMaxLines(2); row.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            addRow(container, row);
         }
         restoreScroll(binding.scrollCompanyImportant, scroll);
     }
@@ -166,7 +200,7 @@ public class MindMapFragment extends Fragment {
         pendingTasksScroll = -1;
         LinearLayout container = binding.listCompanyDispatch;
         container.removeAllViews();
-        if (items.isEmpty()) message(container, showCompleted ? "暂无已完成任务" : "暂无分派给我的未完成任务", false);
+        if (items.isEmpty()) message(container, "暂无分派给我的未完成任务", false);
         for (Map<String, Object> item : items) {
             Task display = new Task();
             display.setStatus(Objects.toString(DailyItems.value(item, "status"), ""));
@@ -177,7 +211,7 @@ public class MindMapFragment extends Fragment {
             TextView row = itemText(name + "\n" + display.getStatusDisplayName() + " · " + dispatcher
                     + (date.isEmpty() ? "" : "\n截止 " + date));
             row.setMinHeight(dp(64));
-            row.setBackgroundResource(android.R.drawable.list_selector_background);
+            row.setBackgroundResource(R.drawable.bg_home_task_row);
             row.setContentDescription(name + "，" + display.getStatusDisplayName() + "，派发人 " + dispatcher + "，点击查看任务详情");
             row.setOnClickListener(v -> {
                 Long id = NumberCompat.toLong(DailyItems.value(item, "id"));
@@ -196,7 +230,6 @@ public class MindMapFragment extends Fragment {
     }
 
     private void saveBoardState(Bundle state) {
-        state.putBoolean("homeCompleted", showCompleted);
         if (binding != null) {
             state.putInt("homeEventsScroll", pendingEventsScroll >= 0 ? pendingEventsScroll : binding.scrollCompanyImportant.getScrollY());
             state.putInt("homeTasksScroll", pendingTasksScroll >= 0 ? pendingTasksScroll : binding.scrollCompanyDispatch.getScrollY());
@@ -204,9 +237,11 @@ public class MindMapFragment extends Fragment {
     }
 
     private void addRow(LinearLayout container, TextView row) {
+        boolean events = container == binding.listCompanyImportant;
+        row.setTextColor(ContextCompat.getColor(requireContext(), events ? R.color.home_event_text : R.color.home_task_text));
         if (container.getChildCount() > 0) {
             View divider = new View(requireContext());
-            divider.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.color_divider));
+            divider.setBackgroundColor(ContextCompat.getColor(requireContext(), events ? R.color.home_event_divider : R.color.home_task_divider));
             container.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
         }
         container.addView(row);
@@ -216,17 +251,18 @@ public class MindMapFragment extends Fragment {
         TextView row = new TextView(requireContext());
         row.setText(text); row.setTextSize(13);
         row.setTextColor(ContextCompat.getColor(requireContext(), R.color.color_text_primary));
-        row.setPadding(dp(4), dp(8), dp(4), dp(8));
+        row.setPadding(dp(4), dp(6), dp(4), dp(6));
         return row;
     }
 
     private void message(LinearLayout container, String text, boolean retry) {
         container.removeAllViews();
         TextView row = itemText(text);
-        row.setTextColor(ContextCompat.getColor(requireContext(), R.color.color_text_secondary));
+        row.setTextColor(ContextCompat.getColor(requireContext(), container == binding.listCompanyImportant
+                ? R.color.home_event_secondary : R.color.home_task_secondary));
         row.setGravity(android.view.Gravity.CENTER);
         row.setMinHeight(dp(48));
-        if (retry) row.setOnClickListener(v -> boardLoader.load(showCompleted, container == binding.listCompanyImportant));
+        if (retry) row.setOnClickListener(v -> boardLoader.load(container == binding.listCompanyImportant));
         container.addView(row);
     }
 
@@ -242,6 +278,7 @@ public class MindMapFragment extends Fragment {
 
     @Override public void onResume() {
         super.onResume(); loadHome();
+        checkBirthdayGreeting();
         // The boards cannot edit the personal agenda; keep its content and scroll intact on return.
         if (agenda != null && !returningFromBoards) agenda.refresh();
         returningFromBoards = false;
@@ -259,6 +296,7 @@ public class MindMapFragment extends Fragment {
         viewState = new Bundle(); saveBoardState(viewState);
         if (agenda != null) { agenda.saveState(viewState); agenda.close(); agenda = null; }
         if (boardLoader != null) { boardLoader.close(); boardLoader = null; }
+        birthdayRequest.set(null);
         binding = null;
         super.onDestroyView();
     }

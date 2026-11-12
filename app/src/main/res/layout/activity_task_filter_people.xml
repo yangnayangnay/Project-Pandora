@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical"
+    android:background="@color/color_bg_page" android:fitsSystemWindows="true">
+    <com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar"
+        android:layout_width="match_parent" android:layout_height="56dp" android:background="@color/color_surface"
+        app:title="选择负责人" app:titleTextColor="@color/color_text_primary" app:navigationIcon="@drawable/ic_back"
+        app:navigationIconTint="@color/color_text_primary" app:navigationContentDescription="返回任务筛选" />
+    <com.example.project_pandora.ui.people.PeopleDirectoryView android:id="@+id/peopleDirectory"
+        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+</LinearLayout>

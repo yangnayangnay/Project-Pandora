@@ -12,12 +12,16 @@ CREATE TABLE IF NOT EXISTS `users` (
     `avatar`          VARCHAR(256) DEFAULT NULL,
     `theme_mode`      VARCHAR(10)  NOT NULL DEFAULT 'AUTO',
     `manual_theme`    VARCHAR(32)  DEFAULT NULL,
+    `signature`       VARCHAR(160) DEFAULT NULL,
     `created_at`      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at`      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `deleted`         TINYINT      NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
     CONSTRAINT `uk_username` UNIQUE (`username`)
 );
+-- CREATE TABLE IF NOT EXISTS does not add new columns to an existing file database.
+-- Keep upgrades idempotent so Android Studio users can retain their local test data.
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `signature` VARCHAR(160) DEFAULT NULL;
 CREATE INDEX IF NOT EXISTS `idx_users_department` ON `users` (`department_id`);
 CREATE INDEX IF NOT EXISTS `idx_users_team` ON `users` (`team_id`);
 CREATE INDEX IF NOT EXISTS `idx_users_role` ON `users` (`role`);
@@ -51,14 +55,12 @@ CREATE INDEX IF NOT EXISTS `idx_team_leader` ON `teams` (`leader_user_id`);
 CREATE TABLE IF NOT EXISTS `tasks` (
     `id`             BIGINT       NOT NULL AUTO_INCREMENT,
     `name`           VARCHAR(256) NOT NULL,
-    `priority`       VARCHAR(10)  NOT NULL DEFAULT 'MEDIUM',
-    `status`         VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
+    `status`         VARCHAR(20)  NOT NULL DEFAULT 'IN_PROGRESS',
     `start_time`     TIMESTAMP    DEFAULT NULL,
     `end_time`       TIMESTAMP    DEFAULT NULL,
     `progress_note`  CLOB         DEFAULT NULL,
     `assignee_id`    BIGINT       NOT NULL,
     `dispatcher_id`  BIGINT       DEFAULT NULL,
-    `is_important`   TINYINT      NOT NULL DEFAULT 0,
     `is_urgent`      TINYINT      NOT NULL DEFAULT 0,
     `version`        INT          NOT NULL DEFAULT 0,
     `created_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -69,7 +71,24 @@ CREATE TABLE IF NOT EXISTS `tasks` (
 CREATE INDEX IF NOT EXISTS `idx_task_assignee_status` ON `tasks` (`assignee_id`, `status`);
 CREATE INDEX IF NOT EXISTS `idx_task_dispatcher` ON `tasks` (`dispatcher_id`);
 CREATE INDEX IF NOT EXISTS `idx_task_status` ON `tasks` (`status`);
-CREATE INDEX IF NOT EXISTS `idx_task_quadrant` ON `tasks` (`is_important`, `is_urgent`);
+CREATE INDEX IF NOT EXISTS `idx_task_urgency` ON `tasks` (`is_urgent`);
+
+CREATE TABLE IF NOT EXISTS `task_assignees` (
+    `task_id` BIGINT NOT NULL,
+    `user_id` BIGINT NOT NULL,
+    `assigned_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`task_id`, `user_id`)
+);
+CREATE INDEX IF NOT EXISTS `idx_task_assignees_user` ON `task_assignees` (`user_id`, `task_id`);
+INSERT INTO `task_assignees` (`task_id`, `user_id`)
+SELECT t.`id`, t.`assignee_id` FROM `tasks` t
+WHERE t.`assignee_id` IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM `task_assignees` ta WHERE ta.`task_id` = t.`id` AND ta.`user_id` = t.`assignee_id`);
+UPDATE `tasks` SET `status` = 'IN_PROGRESS' WHERE `status` IN ('PENDING', 'ACCEPTED', 'REJECTED');
+UPDATE `tasks` SET `status` = 'COMPLETED' WHERE `status` = 'CONFIRMED';
+DROP INDEX IF EXISTS `idx_task_quadrant`;
+ALTER TABLE `tasks` DROP COLUMN IF EXISTS `priority`;
+ALTER TABLE `tasks` DROP COLUMN IF EXISTS `is_important`;
 
 CREATE TABLE IF NOT EXISTS `task_tags` (
     `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -92,12 +111,21 @@ CREATE TABLE IF NOT EXISTS `daily_items` (
     `user_id` BIGINT NOT NULL,
     `content` VARCHAR(500) NOT NULL,
     `item_date` DATE NOT NULL,
+    `start_date` DATE NOT NULL,
+    `end_date` DATE NOT NULL,
     `completed` TINYINT NOT NULL DEFAULT 0,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `deleted` TINYINT NOT NULL DEFAULT 0
 );
+ALTER TABLE `daily_items` ADD COLUMN IF NOT EXISTS `start_date` DATE DEFAULT NULL;
+ALTER TABLE `daily_items` ADD COLUMN IF NOT EXISTS `end_date` DATE DEFAULT NULL;
+UPDATE `daily_items` SET `start_date` = `item_date` WHERE `start_date` IS NULL;
+UPDATE `daily_items` SET `end_date` = `item_date` WHERE `end_date` IS NULL;
+ALTER TABLE `daily_items` ALTER COLUMN `start_date` SET NOT NULL;
+ALTER TABLE `daily_items` ALTER COLUMN `end_date` SET NOT NULL;
 CREATE INDEX IF NOT EXISTS `idx_daily_items_owner_date` ON `daily_items` (`user_id`, `item_date`, `deleted`);
+CREATE INDEX IF NOT EXISTS `idx_daily_items_owner_range` ON `daily_items` (`user_id`, `start_date`, `end_date`, `deleted`);
 
 CREATE TABLE IF NOT EXISTS `work_logs` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT,
@@ -241,8 +269,9 @@ CREATE INDEX IF NOT EXISTS `idx_org_team` ON `user_org_affiliation` (`team_id`);
 -- =============================================================================
 -- 初始化数据：管理员账号（BCrypt 加密，密码由项目所有者另行提供）
 -- =============================================================================
-MERGE INTO `users` (`id`, `username`, `password_hash`, `role`) KEY(`id`) VALUES
-(1, 'admin0', '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'ADMIN');
+INSERT INTO `users` (`id`, `username`, `password_hash`, `role`)
+SELECT 1, 'admin0', '$2a$10$sT4ev7WP3x1xvVoudhxUkeXoXOtQHp3eq2LNQRLQTvPoL39OXwSm6', 'ADMIN'
+WHERE NOT EXISTS (SELECT 1 FROM `users` WHERE `id` = 1 OR `username` = 'admin0');
 -- =============================================================================
 -- 扩展字段：用户邮箱/实名认证/审批状态 (ALTER TABLE, 幂等)
 -- =============================================================================
@@ -257,7 +286,7 @@ CREATE INDEX IF NOT EXISTS `idx_users_approval` ON `users` (`approval_status`);
 -- Round26 E4: admin0 real_name 永久基线。
 -- 注意：上方 L207 MERGE 执行时 real_name 列尚未由 ALTER 创建（建表语句无此列），
 -- 故 admin0 基线值在此处以列建成后的幂等 UPDATE 落库（空值才写，重放不覆盖人工修改）。
-UPDATE `users` SET `real_name` = '管理员' WHERE `id` = 1 AND (`real_name` IS NULL OR `real_name` = '');
+UPDATE `users` SET `real_name` = '管理员' WHERE `username` = 'admin0' AND (`real_name` IS NULL OR `real_name` = '');
 
 -- =============================================================================
 -- 员工预登记表 (管理员预录入员工信息, 注册时自动匹配)

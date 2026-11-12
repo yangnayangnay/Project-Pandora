@@ -26,26 +26,18 @@
                 app:title="@string/nav_log"
                 app:titleTextColor="@color/color_text_primary"
                 style="@style/Widget.Pandora.Toolbar"
+                app:menu="@menu/menu_log"
                 app:navigationIconTint="@color/color_text_primary"
                 android:elevation="0dp" />
-
-            <com.google.android.material.tabs.TabLayout
-                android:id="@+id/tabLayout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:tabGravity="fill"
-                app:tabIndicatorColor="?attr/colorPrimary"
-                app:tabMode="fixed"
-                app:tabSelectedTextColor="?attr/colorPrimary" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardLogFilters"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
+                android:layout_marginStart="12dp"
                 android:layout_marginTop="12dp"
-                android:layout_marginEnd="16dp"
-                app:cardBackgroundColor="@color/color_surface"
+                android:layout_marginEnd="12dp"
+                app:cardBackgroundColor="@color/color_surface_soft"
                 app:cardCornerRadius="18dp"
                 app:cardElevation="0dp"
                 app:strokeColor="@color/color_divider"
@@ -89,7 +81,7 @@
                         android:layout_marginTop="4dp"
                         android:text="日期范围"
                         android:textColor="@color/color_text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="14sp" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -101,10 +93,10 @@
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/editStartDate"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="52dp"
                             android:layout_weight="1"
-                            android:background="@drawable/bg_date_picker"
-                            android:backgroundTint="@color/color_calendar_header_bg"
+                            android:background="@drawable/bg_task_filter_control"
+                            android:backgroundTint="@null"
                             android:clickable="true"
                             android:cursorVisible="false"
                             android:focusable="false"
@@ -116,7 +108,7 @@
                             android:paddingEnd="12dp"
                             android:textColor="@color/color_text_primary"
                             android:textColorHint="@color/color_text_secondary"
-                            android:textSize="13sp"
+                            android:textSize="14sp"
                             tools:text="2026-06-01" />
 
                         <TextView
@@ -130,10 +122,10 @@
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/editEndDate"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="52dp"
                             android:layout_weight="1"
-                            android:background="@drawable/bg_date_picker"
-                            android:backgroundTint="@color/color_calendar_header_bg"
+                            android:background="@drawable/bg_task_filter_control"
+                            android:backgroundTint="@null"
                             android:clickable="true"
                             android:cursorVisible="false"
                             android:focusable="false"
@@ -145,7 +137,7 @@
                             android:paddingEnd="12dp"
                             android:textColor="@color/color_text_primary"
                             android:textColorHint="@color/color_text_secondary"
-                            android:textSize="13sp"
+                            android:textSize="14sp"
                             tools:text="2026-06-07" />
 
                     </LinearLayout>
@@ -157,7 +149,7 @@
                         android:labelFor="@id/editKeyword"
                         android:text="关键词"
                         android:textColor="@color/color_text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="14sp" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -169,10 +161,10 @@
                         <EditText
                             android:id="@+id/editKeyword"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="52dp"
                             android:layout_weight="1"
-                            android:background="@drawable/bg_date_picker"
-                            android:backgroundTint="@color/color_calendar_header_bg"
+                            android:background="@drawable/bg_task_filter_control"
+                            android:backgroundTint="@null"
                             android:hint="搜索内容关键字"
                             android:inputType="text"
                             android:maxLines="1"
@@ -181,18 +173,18 @@
                             android:paddingEnd="12dp"
                             android:textColor="@color/color_text_primary"
                             android:textColorHint="@color/color_text_secondary"
-                            android:textSize="13sp"
+                            android:textSize="14sp"
                             tools:text="登录模块" />
 
-                        <Button
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnSearch"
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            android:layout_height="52dp"
                             android:layout_marginStart="8dp"
                             android:minHeight="48dp"
                             android:minWidth="72dp"
-                            android:text="查询"
-                            android:textSize="13sp"
+                            android:text="搜索"
+                            android:textSize="14sp"
                             android:textColor="@color/color_on_accent" />
 
                     </LinearLayout>
@@ -203,7 +195,7 @@
                         android:layout_marginTop="12dp"
                         android:text="快捷筛选"
                         android:textColor="@color/color_text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="14sp" />
 
                     <com.google.android.material.chip.ChipGroup
                         android:layout_width="match_parent"
@@ -240,49 +232,22 @@
 
                     </com.google.android.material.chip.ChipGroup>
 
-                    <TextView
-                        android:id="@+id/textFilterSummary"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="全部日志"
-                        android:textColor="@color/color_text_secondary"
-                        android:textSize="13sp"
-                        tools:text="本周 · 共 12 条日志" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/buttonSelectLogPerson"
-                        style="@style/Widget.Pandora.Button.Outlined"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:minHeight="48dp"
-                        android:padding="8dp"
-                        android:text="全部可查看人员 · 选择部门/人员"
-                        android:visibility="gone"
-                        tools:visibility="visible" />
-
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <androidx.appcompat.widget.AppCompatImageButton
-                android:id="@+id/buttonToggleLogFilters"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="-1dp"
-                android:background="@drawable/bg_log_filter_handle"
-                android:contentDescription="@string/log_filters_collapse"
-                android:elevation="4dp"
-                android:paddingStart="0dp"
-                android:paddingTop="0dp"
-                android:paddingEnd="0dp"
-                android:paddingBottom="24dp"
-                android:scaleType="center"
-                app:backgroundTint="@null"
-                app:srcCompat="@drawable/ic_log_filter_chevron"
-                app:tint="#756D63" />
+
+                    <TextView
+                        android:id="@+id/textFilterSummary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="8dp"
+                        android:text="我的日志"
+                        android:textColor="@color/color_company_photo_secondary"
+                        android:textSize="14sp"
+                        tools:text="本周 · 共 12 条日志" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/buttonRetryLog" style="@style/Widget.Pandora.Button.Outlined" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginTop="12dp" android:text="重新加载" android:visibility="gone" />
 
             <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
                 android:id="@+id/swipeRefresh"
@@ -296,6 +261,7 @@
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/recyclerLogs"
+                        android:paddingBottom="88dp"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:clipToPadding="false"
@@ -303,25 +269,18 @@
                         tools:itemCount="3"
                         tools:listitem="@layout/item_log" />
 
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/recyclerSubordinateLogs"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:clipToPadding="false"
-                        android:padding="8dp"
-                        android:visibility="gone"
-                        tools:itemCount="3"
-                        tools:listitem="@layout/item_log" />
-
-                    <TextView
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="center" android:gravity="center" android:orientation="vertical" android:padding="24dp">
+<TextView
                         android:id="@+id/textEmpty"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="center"
+                        android:gravity="center" android:accessibilityLiveRegion="polite"
                         android:text="暂无日志"
-                        android:textColor="@color/color_text_secondary"
+                        android:textColor="@color/color_company_photo_secondary"
                         android:textSize="16sp"
                         android:visibility="gone" />
+
+</LinearLayout>
                 </FrameLayout>
 
             </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

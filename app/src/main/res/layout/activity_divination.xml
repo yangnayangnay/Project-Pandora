@@ -37,6 +37,9 @@
                 android:gravity="center"
                 android:layout_marginBottom="12dp" />
 
+            <com.example.project_pandora.ui.aimap.DivinationRitualView
+                android:id="@+id/ritualView" android:layout_width="match_parent" android:layout_height="180dp" />
+
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnDivine"
                 android:layout_width="match_parent"

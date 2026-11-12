@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer name="home_photo_alpha">36</integer>
+    <color name="home_photo_secondary">#C1B5A7</color>
+    <color name="home_event_glass_top">#F83D3B33</color>
+    <color name="home_event_glass_bottom">#F25E4D27</color>
+    <color name="home_event_glass_border">#B0C6A967</color>
+    <color name="home_event_text">#FFF3CD</color>
+    <color name="home_event_secondary">#EBD8A5</color>
+    <color name="home_event_divider">#50AB9152</color>
+    <color name="home_task_glass_top">#F8333C43</color>
+    <color name="home_task_glass_bottom">#F22B4A60</color>
+    <color name="home_task_glass_border">#B07FB5D2</color>
+    <color name="home_task_text">#E5F5FF</color>
+    <color name="home_task_secondary">#BEDDF0</color>
+    <color name="home_task_divider">#50698EA8</color>
+    <color name="home_glass_highlight">#18FFFFFF</color>
+    <color name="home_glass_shadow">#99000000</color>
+</resources>

@@ -17,9 +17,23 @@ public final class DailyItemRepository {
             return response.getData();
         });
     }
-    public Observable<Map<String, Object>> save(Long id, String content, String date) {
-        Map<String, Object> body = new HashMap<>(); body.put("content", content); body.put("itemDate", date);
+    public Observable<List<Map<String, Object>>> listForDate(String day) {
+        return api.listForDate(day).subscribeOn(Schedulers.io()).map(response -> {
+            if (!response.isSuccess() || response.getData() == null) throw new BusinessException(response.getCode(), response.getMessage());
+            return response.getData();
+        });
+    }
+    public Observable<Map<String, Object>> save(Long id, String content, String startDate, String endDate) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("content", content); body.put("startDate", startDate); body.put("endDate", endDate);
         return (id == null ? api.create(body) : api.update(id, body)).subscribeOn(Schedulers.io()).map(response -> {
+            if (!response.isSuccess() || response.getData() == null) throw new BusinessException(response.getCode(), response.getMessage());
+            return response.getData();
+        });
+    }
+    public Observable<Map<String, Object>> move(long id, String startDate, String endDate) {
+        Map<String, Object> body = new HashMap<>(); body.put("startDate", startDate); body.put("endDate", endDate);
+        return api.update(id, body).subscribeOn(Schedulers.io()).map(response -> {
             if (!response.isSuccess() || response.getData() == null) throw new BusinessException(response.getCode(), response.getMessage());
             return response.getData();
         });

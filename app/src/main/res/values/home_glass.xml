@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="HomeGlassPanel">
+        <attr name="homeGlassTone" format="enum">
+            <enum name="events" value="0" />
+            <enum name="tasks" value="1" />
+        </attr>
+    </declare-styleable>
+    <dimen name="home_section_title_size">20sp</dimen>
+    <integer name="home_photo_alpha">56</integer>
+    <color name="home_photo_secondary">#514A42</color>
+    <color name="home_event_glass_top">#F8FFFFFF</color>
+    <color name="home_event_glass_bottom">#F2FFE8B5</color>
+    <color name="home_event_glass_border">#B3B8A36F</color>
+    <color name="home_event_text">#46351A</color>
+    <color name="home_event_secondary">#604C28</color>
+    <color name="home_event_divider">#408F773E</color>
+    <color name="home_task_glass_top">#F8FFFFFF</color>
+    <color name="home_task_glass_bottom">#F2CCEAFB</color>
+    <color name="home_task_glass_border">#B37EA7BD</color>
+    <color name="home_task_text">#183849</color>
+    <color name="home_task_secondary">#294B60</color>
+    <color name="home_task_divider">#40618CA7</color>
+    <color name="home_glass_highlight">#80FFFFFF</color>
+    <color name="home_glass_shadow">#403D3028</color>
+</resources>

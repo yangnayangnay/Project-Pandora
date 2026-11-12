@@ -3,7 +3,7 @@ package com.example.project_pandora.ui.mine;
 import android.os.Bundle;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.project_pandora.R;
@@ -29,7 +29,7 @@ import okhttp3.Response;
  * + 底部添加区（校验/归一化/去重/上限）+ 删除守卫（空列表回退默认预置）。
  * 保存经 ServerUrlManager.saveServerList，BaseUrlInterceptor 次请求即生效。
  */
-public class ServerConfigActivity extends AppCompatActivity implements ServerListAdapter.Listener {
+public class ServerConfigActivity extends PandoraActivity implements ServerListAdapter.Listener {
 
     private ActivityServerConfigBinding binding;
     private ServerUrlManager serverUrlManager;

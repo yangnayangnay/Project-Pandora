@@ -5,7 +5,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.example.project_pandora.ui.PandoraActivity;
 
 import com.example.project_pandora.R;
 import com.example.project_pandora.databinding.ActivitySuggestionBinding;
@@ -16,7 +16,7 @@ import java.util.Map;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import com.example.project_pandora.core.util.BackToolbarHelper;
 
-public class SuggestionActivity extends AppCompatActivity {
+public class SuggestionActivity extends PandoraActivity {
 
     private ActivitySuggestionBinding binding;
     private AIRepository aiRepository;
@@ -165,7 +165,6 @@ public class SuggestionActivity extends AppCompatActivity {
             sb.append("总任务数：").append(getNum(stats, "totalTasks")).append("\n");
             sb.append("已完成：").append(getNum(stats, "completedTasks")).append("\n");
             sb.append("进行中：").append(getNum(stats, "inProgressTasks")).append("\n");
-            sb.append("待处理：").append(getNum(stats, "pendingTasks")).append("\n");
             sb.append("已逾期：").append(getNum(stats, "overdueTasks")).append("\n");
             sb.append("完成率：").append(getNum(stats, "completionRate")).append("%");
         } else {

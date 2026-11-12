@@ -77,8 +77,8 @@ public class ViewRepository {
                 });
     }
 
-    public Observable<Map<String, Object>> getHome(boolean completed) {
-        return viewApi.getHome(completed).subscribeOn(Schedulers.io()).map(response -> {
+    public Observable<Map<String, Object>> getHome() {
+        return viewApi.getHome().subscribeOn(Schedulers.io()).map(response -> {
             if (response.isSuccess() && response.getData() != null) return response.getData();
             throw new BusinessException(response.getCode(), response.getMessage());
         });

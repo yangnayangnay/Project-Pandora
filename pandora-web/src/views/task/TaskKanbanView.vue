@@ -5,15 +5,9 @@
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
             <h2 style="margin: 0;">潘多拉，任务展示及AI展示</h2>
-            <p style="margin: 4px 0 0 0; color: #6c757d; font-size: 13px;">任务总览与智能分析</p>
+            <p style="margin: 4px 0 0 0; color: #6c757d; font-size: 13px;">当前用户未完成任务</p>
           </div>
           <div>
-            <el-select v-model="filterStatus" placeholder="按状态筛选" clearable size="small" style="width: 140px; margin-right: 8px;" @change="loadTasks">
-              <el-option label="未完成" value="PENDING" />
-              <el-option label="进行中" value="IN_PROGRESS" />
-              <el-option label="已完成" value="COMPLETED" />
-              <el-option label="已确认" value="CONFIRMED" />
-            </el-select>
             <el-button type="primary" plain size="small" @click="loadTasks" :loading="loading">刷新</el-button>
           </div>
         </div>
@@ -45,11 +39,6 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="PROGRESS_NOTE" label="进度备注" min-width="200" sortable>
-          <template #default="{ row }">
-            {{ row.PROGRESS_NOTE || row.progress_note || '-' }}
-          </template>
-        </el-table-column>
         <el-table-column label="负责人" width="100" sortable>
           <template #default="{ row }">
             {{ row.ASSIGNEE_NAME || row.assignee_name || row.ASSIGNEE_ID || row.assignee_id || '-' }}
@@ -68,7 +57,6 @@ import request from '@/utils/request'
 
 const tasks = ref([])
 const loading = ref(false)
-const filterStatus = ref('')
 
 const toBool = (v) => v === true || v === 1
 
@@ -76,7 +64,7 @@ const isUrgent = (row) => toBool(row.IS_URGENT ?? row.is_urgent)
 
 const isCompleted = (row) => {
   const s = row.STATUS || row.status || ''
-  return s === 'COMPLETED' || s === 'CONFIRMED'
+  return s === 'COMPLETED'
 }
 
 const formatDate = (d) => {
@@ -95,10 +83,8 @@ const sortCompletion = (a, b) => {
 const loadTasks = async () => {
   loading.value = true
   try {
-    const params = {}
-    if (filterStatus.value) params.status = filterStatus.value
-    const res = await request.get('/task/list', { params })
-    tasks.value = res.data || []
+    const res = await request.get('/view/home')
+    tasks.value = res.data?.tasks || []
   } catch (e) { /* handled by interceptor */ }
   loading.value = false
 }

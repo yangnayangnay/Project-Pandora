@@ -71,6 +71,17 @@ class DailyItemServiceTest {
         assertEquals(second, id(service.list(1, "2026-11").get(0)));
         assertEquals(2, service.list(1, "2026-11").size());
     }
+    @Test void multiDayItemsAppearOnEveryCoveredDateAndCanMoveAsARange() {
+        Map<String, Object> item = service.create(1, Map.of("content", "跨月事项", "startDate", "2026-11-30", "endDate", "2026-12-02"));
+        assertEquals(1, service.list(1, "2026-11").size());
+        assertEquals(1, service.list(1, "2026-12").size());
+        assertEquals(1, service.listForDate(1, "2026-12-01").size());
+        assertTrue(service.listForDate(1, "2026-12-03").isEmpty());
+        Map<String, Object> moved = service.update(1, id(item), Map.of("startDate", "2026-12-10", "endDate", "2026-12-12"));
+        assertEquals("2026-12-10", moved.get("start_date")); assertEquals("2026-12-12", moved.get("end_date"));
+        assertTrue(service.listForDate(1, "2026-12-01").isEmpty());
+        assertEquals(1, service.listForDate(1, "2026-12-11").size());
+    }
     @Test void validatesContentDateStatusAndRejectsOwnershipInjection() {
         for (String bad : List.of("", "　", "x".repeat(501))) assertThrows(BusinessException.class, () -> create(1, "2026-11-03", bad));
         for (String bad : List.of("2026-02-29", "2026-13-01", "2026-1-01", "2026-11-03T00:00:00", "0000-01-01")) assertThrows(BusinessException.class, () -> create(1, bad, "事项"));
