@@ -57,12 +57,25 @@ public class WeekDateStrip extends PeriodSwipeLayout {
             caption.setSingleLine(true); caption.setEllipsize(android.text.TextUtils.TruncateAt.END);
             caption.setTextColor(color(active ? R.color.color_on_accent : labels.special.isEmpty() ? R.color.color_text_secondary : R.color.color_accent));
             cell.addView(weekday, new LayoutParams(LayoutParams.MATCH_PARENT, dp(20 * scale)));
-            badge.addView(number, new LayoutParams(LayoutParams.MATCH_PARENT, numberHeight));
+            android.widget.FrameLayout numberRow = new android.widget.FrameLayout(getContext());
+            numberRow.addView(number, new android.widget.FrameLayout.LayoutParams(-1, -1));
+            String workMarker = StatutoryHolidaySchedule.marker(value);
+            if (!workMarker.isEmpty()) {
+                TextView marker = label(workMarker, 9);
+                GradientDrawable markerBackground = new GradientDrawable(); markerBackground.setCornerRadius(dp(2));
+                markerBackground.setColor(color(R.color.color_surface)); marker.setBackground(markerBackground);
+                marker.setPadding(dp(1), 0, dp(1), 0);
+                marker.setTextColor(color("休".equals(workMarker) ? R.color.calendar_holiday_rest : R.color.calendar_holiday_work));
+                android.widget.FrameLayout.LayoutParams markerParams = new android.widget.FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
+                markerParams.rightMargin = dp(1); numberRow.addView(marker, markerParams);
+            }
+            badge.addView(numberRow, new LayoutParams(LayoutParams.MATCH_PARENT, numberHeight));
             badge.addView(caption, new LayoutParams(LayoutParams.MATCH_PARENT, captionHeight));
             cell.addView(badge, new LayoutParams(LayoutParams.MATCH_PARENT, Math.max(dp(44), numberHeight + captionHeight + dp(4))));
             cell.setSelected(active); cell.setFocusable(true);
             cell.setContentDescription(new SimpleDateFormat("yyyy年M月d日 EEEE", Locale.CHINA).format(value.getTime())
                     + "，" + labels.lunar + (labels.special.isEmpty() ? "" : "，" + labels.special)
+                    + (workMarker.isEmpty() ? "" : "，" + (workMarker.equals("休") ? "放假" : "调休上班"))
                     + (sameDay(value, today) ? "，今天" : "") + (active ? "，已选择" : ""));
             cell.setOnClickListener(v -> {
                 setDate(value);

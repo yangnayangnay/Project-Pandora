@@ -44,10 +44,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onActivated, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
 import OrganizationMembers from '@/components/OrganizationMembers.vue'
+import { normalizeOrganization, departmentMembers, teamMembers } from '@/utils/organization'
 
 const departments = ref([]), teams = ref([]), users = ref([])
 const loading = ref(false), saving = ref(false)
@@ -57,12 +58,13 @@ const departmentById = computed(() => new Map(departments.value.map(d => [String
 const departmentName = id => departmentById.value.get(String(id)) || '未分配部门'
 
 async function load() {
+  if (loading.value) return
   loading.value = true
   try {
     const [orgRes, userRes] = await Promise.all([request.get('/user/org-options'), request.get('/user/list')])
-    const org = orgRes.data || {}; users.value = userRes.data || []
-    departments.value = (org.departments || []).map(d => ({ ...d, members: users.value.filter(u => String(u.department_id) === String(d.id)) }))
-    teams.value = (org.teams || []).map(t => ({ ...t, members: users.value.filter(u => String(u.team_id) === String(t.id)) }))
+    const org = orgRes.data || {}; users.value = (userRes.data || []).map(normalizeOrganization)
+    departments.value = (org.departments || []).map(d => ({ ...d, members: departmentMembers(users.value, d.id) }))
+    teams.value = (org.teams || []).map(t => ({ ...t, members: teamMembers(users.value, t.id) }))
   } catch (error) { ElMessage.error('部门数据加载失败，请确认后端服务已启动') }
   finally { loading.value = false }
 }
@@ -114,6 +116,7 @@ async function removeTeam(row) {
   } catch (error) { if (error !== 'cancel' && error !== 'close') throw error }
 }
 onMounted(load)
+onActivated(load)
 </script>
 
 <style scoped>

@@ -13,6 +13,7 @@ public final class PeopleDirectory {
     private PeopleDirectory() {}
 
     public static long departmentId(Map<String, Object> person) {
+        if (isFounder(person)) return -1L;
         Long id = NumberCompat.toLong(value(person, "department_id"));
         return id == null ? -1L : id;
     }
@@ -28,7 +29,20 @@ public final class PeopleDirectory {
     }
 
     public static String text(Map<String, Object> person, String key) {
+        String field = key.replace("_", "").toLowerCase(Locale.ROOT);
+        if (field.startsWith("department") && isFounder(person)
+                || field.startsWith("team") && !hasTeam(person)) return "";
         return java.util.Objects.toString(value(person, key), "").trim();
+    }
+
+    public static boolean isFounder(Map<String, Object> person) { return "FOUNDER".equalsIgnoreCase(text(person, "role")); }
+    public static boolean hasTeam(Map<String, Object> person) {
+        return !isFounder(person) && !"DEPT_HEAD".equalsIgnoreCase(text(person, "role"));
+    }
+
+    public static boolean matches(Map<String, Object> person, String query) {
+        return (name(person) + " " + text(person, "username") + " " + text(person, "team_name"))
+                .toLowerCase(Locale.ROOT).contains(query.trim().toLowerCase(Locale.ROOT));
     }
 
     public static Object value(Map<String, Object> person, String key) {
@@ -58,7 +72,7 @@ public final class PeopleDirectory {
     public static List<Department> departments(List<Map<String, Object>> people) {
         Map<String, Department> grouped = new LinkedHashMap<>();
         for (Map<String, Object> person : people) {
-            if (!isMobilePerson(person)) continue;
+            if (!isMobilePerson(person) || isFounder(person)) continue;
             long id = departmentId(person);
             String name = text(person, "department_name");
             // Organization membership is required. Never invent an unassigned department.

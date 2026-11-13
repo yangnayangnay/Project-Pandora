@@ -46,6 +46,27 @@ public class PhoneMonthView extends View {
     private Calendar dragTarget;
     private long downTime;
     private float dragX, dragY;
+    private RectF dragBounds;
+    private float dragOffsetX, dragOffsetY, dragScale = 1f, gridOffset;
+    private int edgeDirection;
+    private android.animation.ValueAnimator liftAnimator, monthAnimator;
+    private final Runnable liftTask = this::beginDrag;
+    private final Runnable turnDragMonth = new Runnable() {
+        @Override public void run() {
+            if (draggingTask == null || edgeDirection == 0 || periodListener == null) return;
+            int direction = edgeDirection;
+            periodListener.accept(direction);
+            dragTarget = dayAt(dragX, dragY);
+            if (monthAnimator != null) monthAnimator.cancel();
+            gridOffset = direction * Math.min(getWidth() * .22f, dp(80));
+            monthAnimator = android.animation.ValueAnimator.ofFloat(gridOffset, 0);
+            monthAnimator.setDuration(200);
+            monthAnimator.addUpdateListener(a -> { gridOffset = (float) a.getAnimatedValue(); invalidate(); });
+            if (android.os.Build.VERSION.SDK_INT < 26 || android.animation.ValueAnimator.areAnimatorsEnabled()) monthAnimator.start();
+            else gridOffset = 0;
+            postDelayed(this, 900);
+        }
+    };
 
     public interface OnTaskMoveListener {
         void onTaskMove(Map<String, Object> task, Calendar targetStartDay);
@@ -117,6 +138,7 @@ public class PhoneMonthView extends View {
     }
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas); hits.clear();
+        int gridSave = canvas.save(); canvas.translate(gridOffset, 0);
         float width = getWidth() / 7f, top = weekdayHeight(), height = rowHeight();
         String[] weekdays = {"一", "二", "三", "四", "五", "六", "日"};
         paint.setTextAlign(Paint.Align.CENTER); paint.setTextSize(sp(12)); paint.setTypeface(android.graphics.Typeface.DEFAULT);
@@ -135,6 +157,11 @@ public class PhoneMonthView extends View {
             }
             int cellSave = canvas.save();
             canvas.clipRect(left, cellTop, left + width, cellTop + height);
+            if (draggingTask != null && dragTarget != null && sameDay(day, dragTarget)) {
+                paint.setColor(color(R.color.color_accent_soft)); paint.setAlpha(190);
+                canvas.drawRoundRect(left + dp(1), cellTop + dp(1), left + width - dp(1), cellTop + height - dp(1), dp(8), dp(8), paint);
+                paint.setAlpha(255);
+            }
             float numberCenter = cellTop + dp(4 + metrics().numberHeight() / 2);
             if (active) {
                 paint.setColor(color(R.color.color_month_selected));
@@ -151,6 +178,16 @@ public class PhoneMonthView extends View {
             paint.setColor(active ? color(R.color.color_on_accent) : color(currentMonth && column < 5 ? R.color.color_text_primary : R.color.color_text_secondary));
             paint.setAlpha(currentMonth || active ? 255 : 180);
             canvas.drawText(dayNumber, center, dateY, paint);
+            String workMarker = StatutoryHolidaySchedule.marker(day);
+            if (!workMarker.isEmpty()) {
+                paint.setTextSize(sp(9)); paint.setAlpha(255);
+                float markerX = Math.min(left + width - paint.measureText(workMarker) / 2 - dp(1), center + dateWidth / 2 + dp(6));
+                paint.setColor(color(R.color.color_surface));
+                canvas.drawRoundRect(markerX - paint.measureText(workMarker) / 2 - dp(1), cellTop + dp(2),
+                        markerX + paint.measureText(workMarker) / 2 + dp(1), cellTop + dp(5) + paint.descent() - paint.ascent(), dp(2), dp(2), paint);
+                paint.setColor(color("休".equals(workMarker) ? R.color.calendar_holiday_rest : R.color.calendar_holiday_work));
+                canvas.drawText(workMarker, markerX, cellTop + dp(4) - paint.ascent(), paint);
+            }
             paint.setTypeface(android.graphics.Typeface.DEFAULT); paint.setTextSize(sp(12));
             CalendarDayLabels labels = labels(day);
             paint.setColor(active ? color(R.color.color_on_accent) : color(labels.special.isEmpty() ? R.color.color_text_secondary : R.color.color_accent));
@@ -172,11 +209,8 @@ public class PhoneMonthView extends View {
             canvas.restoreToCount(cellSave);
         }
         if (details) drawTaskBars(canvas, width, top, height);
-        if (draggingTask != null) {
-            paint.setColor(color(R.color.color_accent));
-            paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(dp(2));
-            canvas.drawCircle(dragX, dragY, dp(18), paint); paint.setStyle(Paint.Style.FILL);
-        }
+        canvas.restoreToCount(gridSave);
+        drawDraggingBar(canvas);
     }
 
     private void drawTaskBars(Canvas canvas, float cellWidth, float gridTop, float rowHeight) {
@@ -215,6 +249,7 @@ public class PhoneMonthView extends View {
                 RectF rect = new RectF(span.startColumn * cellWidth + dp(2), taskTop + span.lane * dp(metrics().entryStep()),
                         (span.endColumn + 1) * cellWidth - dp(2), taskTop + span.lane * dp(metrics().entryStep()) + dp(metrics().entryHeight()));
                 paint.setColor(entryColor(task));
+                paint.setAlpha(task == draggingTask ? 65 : 255);
                 canvas.drawRoundRect(rect, dp(4), dp(4), paint);
                 paint.setColor(entryTextColor(task));
                 paint.setStrikeThruText(entryCompleted(task));
@@ -260,6 +295,60 @@ public class PhoneMonthView extends View {
         canvas.restore();
     }
 
+    private void beginDrag() {
+        if (dragCandidate == null || draggingTask != null) return;
+        draggingTask = dragCandidate; swiped = true; periodSwipe.cancel();
+        dragTarget = dayAt(dragX, dragY);
+        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+        if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
+        if (liftAnimator != null) liftAnimator.cancel();
+        liftAnimator = android.animation.ValueAnimator.ofFloat(.97f, 1.08f);
+        liftAnimator.setDuration(180);
+        liftAnimator.addUpdateListener(a -> { dragScale = (float) a.getAnimatedValue(); invalidate(); });
+        if (android.os.Build.VERSION.SDK_INT < 26 || android.animation.ValueAnimator.areAnimatorsEnabled()) liftAnimator.start();
+        else dragScale = 1.08f;
+        updateDragEdge(); invalidate();
+    }
+
+    private void drawDraggingBar(Canvas canvas) {
+        if (dragBounds == null || dragCandidate == null) return;
+        RectF rect = new RectF(dragBounds);
+        if (draggingTask != null) {
+            rect.offsetTo(dragX - dragOffsetX, dragY - dragOffsetY - dp(10));
+        }
+        int save = canvas.save();
+        canvas.scale(draggingTask == null ? .97f : dragScale, draggingTask == null ? .97f : dragScale, rect.centerX(), rect.centerY());
+        paint.setColor(entryColor(dragCandidate)); paint.setAlpha(255);
+        if (draggingTask != null) {
+            paint.setColor(0x22000000);
+            RectF shadow = new RectF(rect); shadow.offset(0, dp(4)); shadow.inset(-dp(2), -dp(2));
+            canvas.drawRoundRect(shadow, dp(7), dp(7), paint);
+            paint.setColor(entryColor(dragCandidate));
+        }
+        canvas.drawRoundRect(rect, dp(5), dp(5), paint);
+        paint.setColor(entryTextColor(dragCandidate)); paint.setTextSize(sp(11)); paint.setTextAlign(Paint.Align.LEFT);
+        paint.setStrikeThruText(entryCompleted(dragCandidate)); drawBarText(canvas, rect, entryName(dragCandidate));
+        paint.setStrikeThruText(false); canvas.restoreToCount(save);
+    }
+
+    private void updateDragEdge() {
+        int direction = dragX < dp(28) ? -1 : dragX > getWidth() - dp(28) ? 1 : 0;
+        if (dragY < weekdayHeight() || dragY > getHeight()) direction = 0;
+        if (direction == edgeDirection) return;
+        edgeDirection = direction; removeCallbacks(turnDragMonth);
+        if (direction != 0 && periodListener != null) postDelayed(turnDragMonth, 600);
+    }
+
+    private void endDrag() {
+        removeCallbacks(liftTask); removeCallbacks(turnDragMonth); edgeDirection = 0;
+        if (liftAnimator != null) liftAnimator.cancel();
+        if (monthAnimator != null) monthAnimator.cancel();
+        gridOffset = 0; dragBounds = null; dragCandidate = null; draggingTask = null; dragTarget = null;
+        invalidate();
+    }
+
+    @Override protected void onDetachedFromWindow() { endDrag(); super.onDetachedFromWindow(); }
+
     protected String entryName(Map<String, Object> item) { return java.util.Objects.toString(DayTaskSelection.value(item, "name"), "未命名任务"); }
     protected int entryColor(Map<String, Object> item) { return com.example.project_pandora.ui.task.TaskTagColors.task(getContext(), item); }
     protected int entryTextColor(Map<String, Object> item) {
@@ -280,7 +369,8 @@ public class PhoneMonthView extends View {
     }
     @Override public boolean onTouchEvent(MotionEvent event) {
         if (event.getPointerCount() > 1 || event.getActionMasked() == MotionEvent.ACTION_POINTER_DOWN) {
-            periodSwipe.cancel(); swiped = true;
+            endDrag(); periodSwipe.cancel(); swiped = true;
+            if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
             return true;
         }
         switch (event.getActionMasked()) {
@@ -288,6 +378,17 @@ public class PhoneMonthView extends View {
                 downX = event.getX(); downY = event.getY(); swiped = false;
                 downTime = event.getEventTime();
                 dragCandidate = taskMoveListener == null ? null : hitTask(downX, downY);
+                dragBounds = null;
+                if (dragCandidate != null) {
+                    for (Hit hit : hits) if (hit.task == dragCandidate && hit.rect.contains(downX, downY)) { dragBounds = new RectF(hit.rect); break; }
+                    if (!details || dragBounds == null) {
+                        float w = Math.min(getWidth() - dp(8), Math.max(dp(120), getWidth() / 7f));
+                        dragBounds = new RectF(Math.max(0, downX - w / 2), downY - dp(metrics().entryHeight()) / 2,
+                                Math.max(0, downX - w / 2) + w, downY + dp(metrics().entryHeight()) / 2);
+                    }
+                    dragOffsetX = downX - dragBounds.left; dragOffsetY = downY - dragBounds.top;
+                    postDelayed(liftTask, ViewConfiguration.getLongPressTimeout()); invalidate();
+                }
                 draggingTask = null; dragTarget = null;
                 dragX = downX; dragY = downY;
                 periodSwipe.start(downX, downY);
@@ -297,18 +398,17 @@ public class PhoneMonthView extends View {
                 if (draggingTask == null && dragCandidate != null
                         && event.getEventTime() - downTime < ViewConfiguration.getLongPressTimeout()
                         && Math.hypot(event.getX() - downX, event.getY() - downY) > slop) {
-                    dragCandidate = null;
+                    endDrag();
                     if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(!details && !parentScrolling);
                 }
                 if (dragCandidate != null && draggingTask == null
                         && event.getEventTime() - downTime >= ViewConfiguration.getLongPressTimeout()) {
-                    draggingTask = dragCandidate; swiped = true; periodSwipe.cancel();
-                    performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
-                    if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
+                    beginDrag();
                 }
                 if (draggingTask != null) {
                     dragX = event.getX(); dragY = event.getY();
                     dragTarget = dayAt(event.getX(), event.getY());
+                    updateDragEdge();
                     invalidate();
                     return true;
                 }
@@ -327,19 +427,20 @@ public class PhoneMonthView extends View {
                 }
                 return true;
             case MotionEvent.ACTION_UP:
+                removeCallbacks(liftTask);
                 if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
                 if (draggingTask == null && dragCandidate != null
                         && event.getEventTime() - downTime >= ViewConfiguration.getLongPressTimeout()) {
                     draggingTask = dragCandidate; dragTarget = dayAt(event.getX(), event.getY());
                 }
                 if (draggingTask != null) {
-                    Calendar target = dragTarget != null ? dragTarget : dayAt(event.getX(), event.getY());
+                    Calendar target = dayAt(event.getX(), event.getY());
                     Map<String, Object> moved = draggingTask;
-                    draggingTask = null; dragCandidate = null; dragTarget = null; periodSwipe.cancel();
-                    invalidate();
+                    endDrag(); periodSwipe.cancel();
                     if (target != null && taskMoveListener != null) taskMoveListener.onTaskMove(moved, target);
                     return true;
                 }
+                endDrag();
                 int direction = periodSwipe.finish(event.getX(), event.getY());
                 if (direction != 0 && periodListener != null) {
                     swiped = true;
@@ -380,6 +481,7 @@ public class PhoneMonthView extends View {
                 }
                 return true;
             case MotionEvent.ACTION_CANCEL:
+                endDrag();
                 swiped = true; periodSwipe.cancel(); dragCandidate = null; draggingTask = null; dragTarget = null;
                 if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
                 return true;

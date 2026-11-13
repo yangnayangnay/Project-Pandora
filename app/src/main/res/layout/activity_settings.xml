@@ -103,6 +103,14 @@
                             android:text="@string/background_style_company"
                             android:textSize="15sp"
                             android:textColor="@color/color_text_primary" />
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/radioBackgroundCute"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="48dp"
+                            android:text="@string/background_style_cute"
+                            android:textSize="15sp"
+                            android:textColor="@color/color_text_primary" />
                     </RadioGroup>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

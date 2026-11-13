@@ -7,7 +7,6 @@ export const roleMap = {
 }
 
 export const roleOptions = [
-  { label: '管理员', value: 'ADMIN' },
   { label: '创始人', value: 'FOUNDER' },
   { label: '部门负责人', value: 'DEPT_HEAD' },
   { label: '团队负责人', value: 'TEAM_LEADER' },

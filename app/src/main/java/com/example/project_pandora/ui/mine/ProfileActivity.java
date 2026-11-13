@@ -130,6 +130,12 @@ public class ProfileActivity extends PandoraActivity {
                                 binding.textDepartment.setText(deptName.isEmpty() ? "-" : deptName);
                                 String teamName = getStr(data, "teamName");
                                 binding.textTeam.setText(teamName.isEmpty() ? "-" : teamName);
+                                boolean founder = com.example.project_pandora.ui.people.PeopleDirectory.isFounder(data);
+                                boolean hasTeam = com.example.project_pandora.ui.people.PeopleDirectory.hasTeam(data);
+                                binding.labelDepartment.setVisibility(founder ? android.view.View.GONE : android.view.View.VISIBLE);
+                                binding.textDepartment.setVisibility(founder ? android.view.View.GONE : android.view.View.VISIBLE);
+                                binding.labelTeam.setVisibility(hasTeam ? android.view.View.VISIBLE : android.view.View.GONE);
+                                binding.textTeam.setVisibility(hasTeam ? android.view.View.VISIBLE : android.view.View.GONE);
 
                                 if (currentAvatar) loadAvatar(originalAvatar);
                             }

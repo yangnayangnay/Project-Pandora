@@ -2,7 +2,7 @@
   <div class="account-create-container">
     <el-card>
       <template #header><span class="card-title">创建账号</span></template>
-      <p class="form-description">使用工号创建人员账号，以下资料均为必填项。</p>
+      <p class="form-description">使用工号创建人员账号。创始人直属公司，不设置部门；部门负责人不设置团队。</p>
       <el-alert v-if="orgError" :title="orgError" type="error" :closable="false" show-icon class="org-error">
         <el-button link type="primary" :loading="orgLoading" @click="loadOrganizations">重新加载部门与团队</el-button>
       </el-alert>
@@ -26,13 +26,13 @@
         <el-form-item label="生日" prop="birthday">
           <el-date-picker v-model="form.birthday" type="date" value-format="YYYY-MM-DD" placeholder="请选择生日" :disabled-date="isFutureBirthday" />
         </el-form-item>
-        <el-form-item label="部门" prop="departmentId">
+        <el-form-item v-if="hasDepartment(form.role)" label="部门" prop="departmentId">
           <el-select v-model="form.departmentId" filterable clearable :loading="orgLoading" :disabled="orgLoading || !!orgError"
             placeholder="请选择部门" no-data-text="暂无可用部门" @change="onDepartmentChange">
             <el-option v-for="department in departments" :key="department.id" :label="department.name" :value="department.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="团队" prop="teamId">
+        <el-form-item v-if="hasTeam(form.role)" label="团队" prop="teamId">
           <el-select v-model="form.teamId" filterable clearable :disabled="form.departmentId == null || orgLoading || !!orgError"
             placeholder="请先选择部门，再选择团队" no-data-text="所选部门暂无可用团队">
             <el-option v-for="team in availableTeams" :key="team.id" :label="team.name" :value="team.id" />
@@ -46,7 +46,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { hasDepartment, hasTeam } from '@/utils/organization'
 import { ElMessage } from 'element-plus'
 import { createUser } from '@/api/user'
 import request from '@/utils/request'
@@ -65,10 +66,17 @@ const rules = {
   email: [required('请输入邮箱'), { type: 'email', message: '邮箱格式不正确', trigger: 'blur' }],
   phone: [required('请输入手机号'), { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' }],
   idCard: [required('请输入身份证号'), { pattern: /^\d{17}[\dXx]$/, message: '请输入18位身份证号，末位可为X', trigger: 'blur' }],
-  birthday: [required('请选择生日', 'change')], departmentId: [required('请选择部门', 'change')],
-  teamId: [required('请选择团队', 'change'), { validator: (_rule, value, done) => done(value != null && !availableTeams.value.some(team => String(team.id) === String(value)) ? new Error('团队必须属于所选部门') : undefined), trigger: 'change' }]
+  birthday: [required('请选择生日', 'change')],
+  departmentId: [{ validator: (_rule, value, done) => done(hasDepartment(form.role) && value == null ? new Error('请选择部门') : undefined), trigger: 'change' }],
+  teamId: [{ validator: (_rule, value, done) => done(!hasTeam(form.role) ? undefined : value == null ? new Error('请选择团队')
+    : !availableTeams.value.some(team => String(team.id) === String(value)) ? new Error('团队必须属于所选部门') : undefined), trigger: 'change' }]
 }
 const onDepartmentChange = () => { form.teamId = null; formRef.value?.clearValidate('teamId') }
+watch(() => form.role, role => {
+  if (!hasDepartment(role)) form.departmentId = null
+  if (!hasTeam(role)) form.teamId = null
+  formRef.value?.clearValidate(['departmentId', 'teamId'])
+})
 const loadOrganizations = async () => {
   orgLoading.value = true; orgError.value = ''
   try {

@@ -251,6 +251,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
+                            android:id="@+id/labelDepartment"
                             android:text="部门"
                             android:textColor="@color/color_text_secondary"
                             android:textSize="13sp" />
@@ -268,6 +269,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
+                            android:id="@+id/labelTeam"
                             android:text="团队"
                             android:textColor="@color/color_text_secondary"
                             android:textSize="13sp" />

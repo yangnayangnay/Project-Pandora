@@ -28,13 +28,13 @@ public class CompanyDirectoryController {
         List<Long> ids = visibleIds(actor());
         if (ids.isEmpty()) return ApiResponse.success(Collections.emptyList());
         String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
-        return ApiResponse.success(db.queryForList(
+        return ApiResponse.success(OrganizationRules.normalize(db.queryForList(
                 "SELECT u.id,u.username,u.real_name,u.role,u.phone,u.email,u.avatar,u.signature," +
                 "u.department_id,d.name AS department_name,u.team_id,t.name AS team_name " +
                 "FROM users u LEFT JOIN departments d ON d.id=u.department_id AND d.deleted=0 " +
                 "LEFT JOIN teams t ON t.id=u.team_id AND t.deleted=0 " +
                 "WHERE u.id IN (" + placeholders + ") AND u.deleted=0 AND u.approval_status='APPROVED' " +
-                "AND u.role<>'ADMIN' ORDER BY d.name,t.name,u.real_name,u.username", ids.toArray()));
+                "AND u.role<>'ADMIN' ORDER BY d.name,t.name,u.real_name,u.username", ids.toArray())));
     }
 
     @GetMapping("/{userId}")
@@ -78,7 +78,7 @@ public class CompanyDirectoryController {
         itemSql.append(" ORDER BY start_date,end_date,id");
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("person", people.get(0));
+        result.put("person", OrganizationRules.normalize(people.get(0)));
         result.put("tasks", tasks);
         result.put("logs", db.queryForList(logSql.toString(), logArgs.toArray()));
         result.put("calendar", db.queryForList(itemSql.toString(), itemArgs.toArray()));

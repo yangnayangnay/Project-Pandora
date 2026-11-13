@@ -1,3 +1,5 @@
+import { hasDepartment, hasTeam } from './organization.js'
+
 export const emptyAccountForm = () => ({
   employeeNo: '', password: '', role: '', realName: '', email: '', phone: '',
   idCard: '', birthday: '', departmentId: null, teamId: null
@@ -14,7 +16,7 @@ export function accountPayload(form) {
     employeeNo, username: employeeNo, password: form.password, role: form.role,
     realName: form.realName.trim(), email: form.email.trim(), phone: form.phone.trim(),
     idCard: form.idCard.trim().toUpperCase(), birthday: form.birthday,
-    departmentId: form.departmentId, teamId: form.teamId
+    departmentId: hasDepartment(form.role) ? form.departmentId : null, teamId: hasTeam(form.role) ? form.teamId : null
   }
 }
 

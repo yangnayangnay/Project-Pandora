@@ -117,8 +117,9 @@ public class SyncController {
         }
 
         if (!List.of("CREATE", "EDIT", "DELETE").contains(operation)) throw new IllegalArgumentException("不支持的日志操作");
-        if (!"DELETE".equals(operation) && (workItem == null || workItem.trim().isEmpty() || workItem.trim().length() > 512)) {
-            throw new IllegalArgumentException("日志标题不能为空且不能超过512字符");
+        if (!"DELETE".equals(operation)) {
+            workItem = com.pandora.backend.log.LogContentRules.title(logDate);
+            workContent = com.pandora.backend.log.LogContentRules.requireBody(content.get("workContent"));
         }
         List<Map<String, Object>> existing = jdbcTemplate.queryForList(
                 "SELECT id, deleted FROM work_logs WHERE user_id = ? AND log_date = ?", userId, logDate);

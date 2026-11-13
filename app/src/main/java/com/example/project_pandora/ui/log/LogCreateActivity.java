@@ -87,7 +87,7 @@ public class LogCreateActivity extends PandoraActivity {
         autoSaveManager = new AutoSaveManager(this, "LOG",
                 () -> {
                     Map<String, Object> content = new HashMap<>();
-                    content.put("workItem", binding.editWorkItem.getText().toString());
+                    content.put("workItem", com.example.project_pandora.core.util.LogEntryRules.title(selectedDate));
                     content.put("workContent", binding.editWorkContent.getText().toString());
                     content.put("logDate", selectedDate);
                     return content;
@@ -119,7 +119,6 @@ public class LogCreateActivity extends PandoraActivity {
                 if (!isRestoringDraft) onContentChanged();
             }
         };
-        binding.editWorkItem.addTextChangedListener(textWatcher);
         binding.editWorkContent.addTextChangedListener(textWatcher);
 
     }
@@ -163,9 +162,6 @@ public class LogCreateActivity extends PandoraActivity {
     @SuppressWarnings("unchecked")
     private void restoreDraft(Map<String, Object> content) {
         if (content == null) return;
-        Object workItem = content.get("workItem");
-        if (workItem != null) binding.editWorkItem.setText(workItem.toString());
-
         Object workContent = content.get("workContent");
         if (workContent != null) binding.editWorkContent.setText(workContent.toString());
 
@@ -189,9 +185,6 @@ public class LogCreateActivity extends PandoraActivity {
             binding.toolbar.setTitle("编辑日志");
             binding.btnSave.setText("更新");
 
-            String workItem = intent.getStringExtra("workItem");
-            if (workItem != null) binding.editWorkItem.setText(workItem);
-
             String workContent = intent.getStringExtra("workContent");
             if (workContent != null) binding.editWorkContent.setText(workContent);
 
@@ -214,6 +207,7 @@ public class LogCreateActivity extends PandoraActivity {
 
     private void updateDateControls() {
         syncingDateControls = true;
+        binding.textLogHeading.setText(com.example.project_pandora.core.util.LogEntryRules.title(selectedDate));
         binding.chipGroupDate.check(selectedDate.equals(LogDateWindow.daysAgo(2)) ? R.id.chipDayBeforeYesterday
                 : selectedDate.equals(LogDateWindow.daysAgo(1)) ? R.id.chipYesterday : R.id.chipToday);
         binding.chipToday.setEnabled(!isEditMode);
@@ -231,6 +225,10 @@ public class LogCreateActivity extends PandoraActivity {
     private void selectDate(String date) {
         if (!LogDateWindow.isWritable(date) || isEditMode) return;
         String previous = selectedDate;
+        if (!date.equals(previous) && dailyPrefill != null && dailyPrefill.equals(binding.editWorkContent.getText().toString())) {
+            binding.editWorkContent.setText("");
+            dailyPrefill = null;
+        }
         selectedDate = date;
         updateDateControls();
         onContentChanged();
@@ -251,9 +249,9 @@ public class LogCreateActivity extends PandoraActivity {
                                 intent.putExtra("workContent", java.util.Objects.toString(existing.get("work_content"), ""));
                                 intent.putExtra("logDate", date);
                                 startActivity(intent);
-                            }).setNegativeButton("取消", (dialog, which) -> { selectedDate = previous; updateDateControls(); })
-                            .setOnCancelListener(dialog -> { selectedDate = previous; updateDateControls(); }).show();
-                }, error -> { /* Offline saves still go through the queue; the server enforces date uniqueness. */ }));
+                            }).setNegativeButton("取消", (dialog, which) -> { selectedDate = previous; updateDateControls(); loadDailyItemsForDate(previous); })
+                            .setOnCancelListener(dialog -> { selectedDate = previous; updateDateControls(); loadDailyItemsForDate(previous); }).show();
+                }, error -> loadDailyItemsForDate(date)));
     }
 
     private void loadDailyItemsForDate(String date) {
@@ -305,12 +303,13 @@ public class LogCreateActivity extends PandoraActivity {
         if (!LogDateWindow.isWritable(selectedDate)) {
             Toast.makeText(this, "仅可填写或编辑前天、昨天、今天的日志", Toast.LENGTH_LONG).show(); return;
         }
-        String workItem = binding.editWorkItem.getText().toString().trim();
-        if (workItem.isEmpty()) {
-            Toast.makeText(this, "请输入日志标题", Toast.LENGTH_SHORT).show();
+        String workItem = com.example.project_pandora.core.util.LogEntryRules.title(selectedDate);
+        String workContent = binding.editWorkContent.getText().toString();
+        if (!com.example.project_pandora.core.util.LogEntryRules.hasBody(workContent)) {
+            binding.editWorkContent.setError("请填写日志正文");
+            binding.editWorkContent.requestFocus();
             return;
         }
-        String workContent = binding.editWorkContent.getText().toString();
 
         binding.btnSave.setEnabled(false);
         binding.btnSave.setText("保存中...");

@@ -30,6 +30,7 @@ public class PeopleDirectoryView extends LinearLayout {
     private final ViewPeopleDirectoryBinding binding;
     private final RowsAdapter adapter = new RowsAdapter();
     private List<PeopleDirectory.Department> departments = new ArrayList<>();
+    private final List<Map<String, Object>> companyPeople = new ArrayList<>();
     private String departmentKey, teamKey, rootQuery = "", departmentQuery = "", emptyMessage = "暂无可查看人员";
     private boolean loading, failed, ready;
     private Runnable retry;
@@ -76,6 +77,9 @@ public class PeopleDirectoryView extends LinearLayout {
     public void showError() { loading = false; failed = true; ready = false; render(); }
     public void setPeople(List<Map<String, Object>> people) {
         departments = PeopleDirectory.departments(people);
+        companyPeople.clear();
+        for (Map<String, Object> person : people) if (PeopleDirectory.isFounder(person)) companyPeople.add(person);
+        companyPeople.sort(java.util.Comparator.comparing(PeopleDirectory::name));
         if (departmentKey != null && currentDepartment() == null) {
             departmentKey = null; teamKey = null; binding.editSearch.setText(rootQuery);
         }
@@ -148,8 +152,8 @@ public class PeopleDirectoryView extends LinearLayout {
         boolean team = teamKey != null;
         PeopleDirectory.Department department = currentDepartment();
         binding.buttonDepartments.setVisibility(root ? GONE : VISIBLE);
-        binding.buttonDepartments.setText(team ? "返回团队列表" : "返回全部部门");
-        binding.textDirectoryTitle.setText(root ? "选择部门" : team ? teamKey : department == null ? "选择团队" : department.name + " · 选择团队");
+        binding.buttonDepartments.setText(team ? "返回部门人员" : "返回全部人员");
+        binding.textDirectoryTitle.setText(root ? "人员与部门" : team ? teamKey : department == null ? "选择人员" : department.name);
         binding.searchLayout.setHint(root ? "搜索部门、姓名、账号或团队" : team ? "搜索姓名或账号" : "搜索团队或人员");
         binding.editSearch.setEnabled(ready);
         binding.progressBar.setVisibility(loading ? VISIBLE : GONE);
@@ -160,13 +164,16 @@ public class PeopleDirectoryView extends LinearLayout {
                 : root ? "全部可查看人员" : "该部门全部可查看人员");
         String query = binding.editSearch.getText().toString().trim().toLowerCase(Locale.ROOT);
         List<Row> rows = new ArrayList<>();
+        if (ready && root) for (Map<String, Object> person : companyPeople) {
+            if (query.isEmpty() || PeopleDirectory.matches(person, query)) rows.add(personRow(person, ""));
+        }
         if (ready && !query.isEmpty()) {
             for (PeopleDirectory.Department group : departments) {
                 if (!root && group != department) continue;
                 List<Map<String, Object>> matches = group.name.toLowerCase(Locale.ROOT).contains(query)
                         ? group.people : PeopleDirectory.search(group, query);
                 for (Map<String, Object> person : matches) {
-                    if (team && !teamKey(person).equals(teamKey)) continue;
+                    if (team && (!PeopleDirectory.hasTeam(person) || !teamKey(person).equals(teamKey))) continue;
                     rows.add(personRow(person, group.name));
                 }
             }
@@ -177,8 +184,10 @@ public class PeopleDirectoryView extends LinearLayout {
             }
         } else if (ready && department != null && !team) {
             java.util.Map<String, java.util.List<Map<String, Object>>> teams = new java.util.LinkedHashMap<>();
-            for (Map<String, Object> person : department.people)
-                teams.computeIfAbsent(teamKey(person), key -> new ArrayList<>()).add(person);
+            for (Map<String, Object> person : department.people) {
+                if (!PeopleDirectory.hasTeam(person)) rows.add(personRow(person, department.name));
+                else teams.computeIfAbsent(teamKey(person), key -> new ArrayList<>()).add(person);
+            }
             java.util.List<String> names = new ArrayList<>(teams.keySet());
             names.sort(String::compareTo);
             for (String name : names) {
@@ -191,17 +200,17 @@ public class PeopleDirectoryView extends LinearLayout {
             }
         } else if (ready && department != null) {
             for (Map<String, Object> person : PeopleDirectory.search(department, query)) {
-                if (!teamKey(person).equals(teamKey)) continue;
+                if (!PeopleDirectory.hasTeam(person) || !teamKey(person).equals(teamKey)) continue;
                 rows.add(personRow(person, department.name));
             }
         }
         adapter.setRows(rows);
-        int count = 0;
+        int count = companyPeople.size();
         for (PeopleDirectory.Department group : departments) count += group.people.size();
         int levelCount = department == null ? 0 : department.people.size();
         if (team && department != null) {
             levelCount = 0;
-            for (Map<String, Object> person : department.people) if (teamKey(person).equals(teamKey)) levelCount++;
+            for (Map<String, Object> person : department.people) if (PeopleDirectory.hasTeam(person) && teamKey(person).equals(teamKey)) levelCount++;
         }
         binding.textCount.setText(!query.isEmpty() ? "找到 " + rows.size() + " 位人员" : root ? departments.size() + " 个部门 · " + count + " 位人员" : levelCount + " 位人员");
         binding.textCount.setVisibility(ready ? VISIBLE : GONE);

@@ -98,8 +98,8 @@ public class UserRelationActivity extends PandoraActivity {
         String relation = PeopleDirectory.text(person, "relation_kind");
         String detail = "账号：" + display(PeopleDirectory.text(person, "username"))
                 + "\n职务：" + RoleDisplayUtil.toChinese(PeopleDirectory.text(person, "role"))
-                + "\n部门：" + display(PeopleDirectory.text(person, "department_name"))
-                + "\n小组：" + display(PeopleDirectory.text(person, "team_name"))
+                + (PeopleDirectory.isFounder(person) ? "" : "\n部门：" + display(PeopleDirectory.text(person, "department_name")))
+                + (PeopleDirectory.hasTeam(person) ? "\n团队：" + display(PeopleDirectory.text(person, "team_name")) : "")
                 + "\n关系：" + (depth == 1 ? "直属" : depth > 1 ? "间接" : "") + relation
                 + (depth > 0 ? "（第" + depth + "层）" : "");
         new AlertDialog.Builder(this).setTitle(PeopleDirectory.name(person)).setMessage(detail).setPositiveButton("关闭", null).show();

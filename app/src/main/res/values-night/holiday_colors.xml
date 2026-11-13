@@ -1,0 +1,4 @@
+<resources>
+    <color name="calendar_holiday_rest">#FFB2A3</color>
+    <color name="calendar_holiday_work">#AED9FF</color>
+</resources>

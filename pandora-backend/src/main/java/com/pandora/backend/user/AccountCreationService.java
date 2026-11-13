@@ -14,7 +14,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /** Creates an approved personnel account and its required contact/organization data together. */
 @Service
@@ -42,7 +41,7 @@ public class AccountCreationService {
         if (password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72)
             throw new BusinessException(ErrorCode.BAD_REQUEST, "密码不能超过72个UTF-8字节");
         String role = required(request, "role", "角色");
-        if (!Set.of("ADMIN", "FOUNDER", "DEPT_HEAD", "TEAM_LEADER", "EMPLOYEE").contains(role))
+        if (!OrganizationRules.isBusinessRole(role))
             throw new BusinessException(ErrorCode.INVALID_ROLE);
         String realName = required(request, "realName", "真实姓名");
         if (realName.length() > 64) throw new BusinessException(ErrorCode.BAD_REQUEST, "真实姓名不能超过64字");
@@ -59,11 +58,11 @@ public class AccountCreationService {
         catch (DateTimeParseException error) { throw new BusinessException(ErrorCode.BAD_REQUEST, "生日须为有效的年月日"); }
         if (birthday.isAfter(LocalDate.now(ZoneId.of("Asia/Shanghai"))))
             throw new BusinessException(ErrorCode.BAD_REQUEST, "生日不能晚于今天");
-        long departmentId = requiredId(request, "departmentId", "部门");
-        long teamId = requiredId(request, "teamId", "团队");
-        if (db.queryForList("SELECT id FROM departments WHERE id=? AND deleted=0", Long.class, departmentId).isEmpty())
+        Long departmentId = OrganizationRules.hasDepartment(role) ? requiredId(request, "departmentId", "部门") : null;
+        Long teamId = OrganizationRules.hasTeam(role) ? requiredId(request, "teamId", "团队") : null;
+        if (departmentId != null && db.queryForList("SELECT id FROM departments WHERE id=? AND deleted=0", Long.class, departmentId).isEmpty())
             throw new BusinessException(ErrorCode.BAD_REQUEST, "所选部门不存在或已停用");
-        if (db.queryForList("SELECT id FROM teams WHERE id=? AND department_id=? AND deleted=0", Long.class, teamId, departmentId).isEmpty())
+        if (teamId != null && db.queryForList("SELECT id FROM teams WHERE id=? AND department_id=? AND deleted=0", Long.class, teamId, departmentId).isEmpty())
             throw new BusinessException(ErrorCode.BAD_REQUEST, "所选团队不存在、已停用或不属于所选部门");
         if (db.queryForObject("SELECT COUNT(*) FROM users WHERE username=?", Integer.class, employeeNo) > 0)
             throw new BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "工号已存在，请使用其他工号");
@@ -72,6 +71,8 @@ public class AccountCreationService {
         if (db.queryForObject("SELECT COUNT(*) FROM users WHERE UPPER(id_card)=? AND deleted=0", Integer.class, idCard) > 0)
             throw new BusinessException(ErrorCode.ID_CARD_ALREADY_EXISTS);
 
+        var relationships = new OrganizationHierarchy(db);
+        var before = relationships.snapshot();
         GeneratedKeyHolder key = new GeneratedKeyHolder();
         Object[] values = {employeeNo, encoder.encode(password), role, realName, email, phone, idCard,
                 birthday, departmentId, teamId};
@@ -86,7 +87,9 @@ public class AccountCreationService {
         } catch (DuplicateKeyException error) {
             throw new BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "工号已存在，请使用其他工号");
         }
-        return Map.of("id", key.getKey().longValue(), "employeeNo", employeeNo, "username", employeeNo);
+        long createdId = key.getKey().longValue();
+        if (OrganizationRules.isBusinessRole(role)) relationships.synchronize(before, createdId);
+        return Map.of("id", createdId, "employeeNo", employeeNo, "username", employeeNo);
     }
 
     private static String required(Map<String, Object> request, String key, String label) {

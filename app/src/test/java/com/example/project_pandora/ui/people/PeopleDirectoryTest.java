@@ -35,6 +35,17 @@ public class PeopleDirectoryTest {
     }
     @Test public void emptyScopeStaysEmpty() { assertTrue(PeopleDirectory.departments(Collections.emptyList()).isEmpty()); }
 
+    @Test public void foundersStayAtCompanyLevelAndDepartmentHeadsHaveNoTeam() {
+        var founder = person(1, 10L, "研发", "创始人", "founder", "旧团队"); founder.put("role", "FOUNDER");
+        assertTrue(PeopleDirectory.isFounder(founder)); assertEquals(-1L, PeopleDirectory.departmentId(founder));
+        assertEquals("", PeopleDirectory.text(founder, "department_name")); assertEquals("", PeopleDirectory.text(founder, "team_name"));
+        assertTrue(PeopleDirectory.departments(List.of(founder)).isEmpty());
+        var head = person(2, 10L, "研发", "负责人", "head", "旧团队"); head.put("role", "DEPT_HEAD");
+        assertFalse(PeopleDirectory.hasTeam(head)); assertEquals("", PeopleDirectory.text(head, "team_name"));
+        assertEquals(1, PeopleDirectory.departments(List.of(founder, head)).get(0).people.size());
+        assertTrue(PeopleDirectory.matches(founder, "founder"));
+    }
+
     @Test public void relationCamelCaseAndLogSnakeCaseUseTheSameGroupsAndSearch() {
         Map<String, Object> relation = new HashMap<>();
         relation.put("id", "2"); relation.put("departmentId", "10"); relation.put("departmentName", "研发");

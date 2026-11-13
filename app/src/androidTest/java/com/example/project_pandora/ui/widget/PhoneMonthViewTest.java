@@ -35,21 +35,62 @@ import static org.junit.Assert.*;
 /** Verifies actual Canvas output and hit targets for the expanded month calendar. */
 @RunWith(AndroidJUnit4.class)
 public class PhoneMonthViewTest {
+    @Test public void previousMonthDropDestinationPointsAtTheLastWeekInsteadOfTheFirst() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+            PhoneMonthView view = new PhoneMonthView(context);
+            view.setDetailed(true);
+            for (Calendar selected : new Calendar[]{calendar(2026, Calendar.NOVEMBER, 1), calendar(2026, Calendar.OCTOBER, 31)}) {
+                view.setDate(selected);
+                view.measure(View.MeasureSpec.makeMeasureSpec(dp(context, 390), View.MeasureSpec.EXACTLY),
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+                view.layout(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight());
+            }
+            CalendarCellMetrics metrics = new CalendarCellMetrics(context.getResources().getConfiguration().fontScale);
+            assertEquals(Math.round(dpf(context, metrics.weekdayHeight() + 4 * metrics.rowHeight())), view.selectedDateTop());
+            assertTrue(view.selectedDateTop() > view.getHeight() / 2);
+        });
+    }
     @Test public void holidayFollowsTasksWithoutPushingTheFirstTaskDown() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
-            Fixture fixture = new Fixture(2026, Calendar.DECEMBER, 25);
+            Fixture fixture = new Fixture(2026, Calendar.OCTOBER, 1);
             for (int count : new int[]{0, 1, 4, 6}) {
                 java.util.ArrayList<Map<String, Object>> entries = new java.util.ArrayList<>();
-                for (int i = 0; i < count; i++) entries.add(task("事项" + i, "2026-12-25", "2026-12-25"));
+                for (int i = 0; i < count; i++) entries.add(task("事项" + i, "2026-10-01", "2026-10-01"));
                 fixture.view.setTasks(entries);
                 Bitmap bitmap = fixture.draw();
-                if (count > 0) assertEquals(fixture.taskColor("事项0"), fixture.barPixel(bitmap, 25, 0));
+                if (count > 0) assertEquals(fixture.taskColor("事项0"), fixture.barPixel(bitmap, 1, 0));
                 int rows = count > 4 ? 5 : count;
-                int x = Math.round((fixture.columnOf(25) + 1) * fixture.cellWidth - fixture.dp(3));
-                int y = Math.round(fixture.cellTop(fixture.rowOf(25)) + fixture.dp(
+                int x = Math.round((fixture.columnOf(1) + 1) * fixture.cellWidth - fixture.dp(3));
+                int y = Math.round(fixture.cellTop(fixture.rowOf(1)) + fixture.dp(
                         fixture.metrics.specialTop(Math.min(4, count), count > 4) + (fixture.metrics.specialRowHeight() - 2) / 2));
                 assertEquals("Holiday must be below " + rows + " occupied rows",
                         ContextCompat.getColor(fixture.context, R.color.color_surface_soft), bitmap.getPixel(x, y));
+            }
+        });
+    }
+    @Test public void longPressDragDropsOnFingerDateWithoutOpeningADetailAndCancelDoesNotSave() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            Fixture fixture = new Fixture(2026, Calendar.OCTOBER, 28);
+            Map<String, Object> entry = task("拖动事项", "2026-10-28", "2026-10-29");
+            fixture.view.setTasks(Collections.singletonList(entry)); fixture.draw();
+            AtomicReference<Calendar> moved = new AtomicReference<>(); AtomicInteger opened = new AtomicInteger();
+            fixture.view.setOnTaskMoveListener((item, day) -> { assertSame(entry, item); moved.set(day); });
+            fixture.view.setOnTaskClick(item -> opened.incrementAndGet());
+            float x = (fixture.columnOf(28) + .5f) * fixture.cellWidth, y = fixture.taskY(fixture.rowOf(28), 0);
+            float targetX = (fixture.columnOf(30) + .5f) * fixture.cellWidth;
+            for (int action : new int[]{MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_UP}) {
+                long down = android.os.SystemClock.uptimeMillis();
+                long held = down + android.view.ViewConfiguration.getLongPressTimeout() + 20;
+                MotionEvent start = MotionEvent.obtain(down, down, MotionEvent.ACTION_DOWN, x, y, 0);
+                MotionEvent drag = MotionEvent.obtain(down, held, MotionEvent.ACTION_MOVE, targetX, y, 0);
+                MotionEvent stop = MotionEvent.obtain(down, held + 40, action, targetX, y, 0);
+                try {
+                    fixture.view.onTouchEvent(start); fixture.view.onTouchEvent(drag); fixture.draw(); fixture.view.onTouchEvent(stop);
+                } finally { start.recycle(); drag.recycle(); stop.recycle(); }
+                if (action == MotionEvent.ACTION_CANCEL) assertNull(moved.get());
+                else { assertNotNull(moved.get()); assertEquals(30, moved.get().get(Calendar.DAY_OF_MONTH)); }
+                assertEquals("2026-10-28", entry.get("start_time")); assertEquals(0, opened.get());
             }
         });
     }

@@ -71,9 +71,10 @@
                         android:padding="16dp">
 
                         <TextView
+                            android:id="@+id/textLogHeading"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="日志内容"
+                            tools:text="11月13日日志"
                             android:textColor="@color/color_text_primary"
                             android:textSize="16sp"
                             android:textStyle="bold" />
@@ -83,27 +84,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
-                            android:hint="日志标题">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/editWorkItem"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:gravity="start|top"
-                                android:inputType="textMultiLine"
-                                android:maxLines="5"
-                                android:minHeight="48dp"
-                                android:textColor="@color/color_text_edit_content"
-                                tools:text="完成登录模块联调" />
-
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.Pandora.TextInput"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:hint="日志内容">
+                            android:hint="日志正文（必填）">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editWorkContent"

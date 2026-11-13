@@ -55,7 +55,7 @@ class TaskChangeServiceTest {
         }
         @Bean TaskTagService tags(JdbcTemplate db) { return new TaskTagService(db); }
         @Bean TaskChangeService changes(JdbcTemplate db, HierarchyService h, TaskTagService tags) { return new TaskChangeService(db, new ObjectMapper(), h, new NotificationService() { @Override public void detectNewTask(Long taskId, Long assigneeId, Long dispatcherId) {} }, tags); }
-        @Bean PersonnelController personnel(JdbcTemplate db, HierarchyService h) { return new PersonnelController(db, h); }
+        @Bean PersonnelController personnel(JdbcTemplate db) { return new PersonnelController(db); }
     }
     @Autowired JdbcTemplate db;
     @Autowired TaskChangeService service;
@@ -185,8 +185,10 @@ class TaskChangeServiceTest {
         var directory = personnel.directory().getData();
         assertEquals(7, directory.size()); assertFalse(directory.get(0).containsKey("password_hash"));
         db.update("INSERT INTO departments (id,name) VALUES (100,'测试部门')");
+        db.update("INSERT INTO teams (id,name,department_id) VALUES (101,'测试团队',100)");
+        db.update("UPDATE users SET department_id=100 WHERE id=3");
         personnel.employment(SecurityContextHolder.getContext().getAuthentication(), 6,
-                Map.of("role", "TEAM_LEADER", "superiorId", 3, "departmentId", 100));
+                Map.of("role", "TEAM_LEADER", "superiorId", 2, "departmentId", 100, "teamId", 101));
         assertEquals("TEAM_LEADER", db.queryForObject("SELECT role FROM users WHERE id=6", String.class));
         assertEquals(100L, db.queryForObject("SELECT department_id FROM users WHERE id=6", Long.class));
         assertEquals(3L, service.approver(6));
@@ -260,8 +262,12 @@ class TaskChangeServiceTest {
         String today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString();
         var created = controller.createLog(Map.of("workItem", "今日事项", "workContent", "正文", "logDate", today, "completionStatus", "COMPLETED"), null).getBody().getData();
         long id = number(created, "id");
+        assertEquals(com.pandora.backend.log.LogContentRules.title(today), db.queryForObject("SELECT work_item FROM work_logs WHERE id=?", String.class, id));
+        assertThrows(BusinessException.class, () -> controller.editLog(id, Map.of("workContent", " \n　")));
+        assertEquals("正文", db.queryForObject("SELECT work_content FROM work_logs WHERE id=?", String.class, id));
         controller.editLog(id, Map.of("workItem", "更新事项", "workContent", "更新正文", "logDate", today));
         assertEquals("COMPLETED", db.queryForObject("SELECT completion_status FROM work_logs WHERE id=?", String.class, id));
+        assertEquals(com.pandora.backend.log.LogContentRules.title(today), db.queryForObject("SELECT work_item FROM work_logs WHERE id=?", String.class, id));
         assertThrows(BusinessException.class, () -> controller.editLog(id, Map.of("logDate", java.time.LocalDate.parse(today).minusDays(1).toString())));
         assertThrows(BusinessException.class, () -> controller.createLog(Map.of("workItem", "重复事项", "logDate", today), null));
         db.update("UPDATE work_logs SET log_date=? WHERE id=?", java.time.LocalDate.parse(today).minusDays(3), id);
@@ -288,6 +294,22 @@ class TaskChangeServiceTest {
     }
 
     private long countRequests() { return db.queryForObject("SELECT COUNT(*) FROM task_change_requests", Long.class); }
+
+    @SuppressWarnings("unchecked") @Test void logRelayAndCreateRequireBodyAndCanonicalizeTitle() {
+        login(5);
+        var logs = new com.pandora.backend.log.LogController(); ReflectionTestUtils.setField(logs, "jdbcTemplate", db);
+        String today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString();
+        assertThrows(BusinessException.class, () -> logs.createLog(Map.of("logDate", today, "workContent", "　"), null));
+        var relay = new com.pandora.backend.sync.SyncController(); ReflectionTestUtils.setField(relay, "jdbcTemplate", db);
+        var bad = Map.of("clientKey", "missing-body", "type", "log", "content", Map.of("logDate", today, "workItem", "绕过正文"));
+        var result = relay.sync(Map.of("items", List.of(bad))).getBody().getData();
+        assertEquals("NO_MAPPING", ((List<Map<String,Object>>) result.get("synced")).get(0).get("status"));
+        assertEquals(0, db.queryForObject("SELECT COUNT(*) FROM work_logs WHERE user_id=5", Integer.class));
+        var good = Map.of("clientKey", "with-body", "type", "log", "content", Map.of("logDate", today, "workItem", "任意旧标题", "workContent", "完成联调"));
+        result = relay.sync(Map.of("items", List.of(good))).getBody().getData();
+        assertEquals("SYNCED", ((List<Map<String,Object>>) result.get("synced")).get(0).get("status"));
+        assertEquals(com.pandora.backend.log.LogContentRules.title(today), db.queryForObject("SELECT work_item FROM work_logs WHERE user_id=5", String.class));
+    }
 
     @Test void assigneesExcludeAdminPendingAndDeletedUsers() {
         db.update("INSERT INTO users (id, username, password_hash, role, approval_status) VALUES (8, 'pending8', 'hash', 'EMPLOYEE', 'PENDING')");

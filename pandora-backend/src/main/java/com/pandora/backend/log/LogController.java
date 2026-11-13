@@ -56,19 +56,12 @@ public class LogController {
     @Auditable(operationType = "LOG_CREATE", targetType = "WORK_LOG")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createLog(@RequestBody Map<String, Object> request, HttpServletRequest servletRequest) {
         Long userId = getCurrentUserId();
-        String workItem = (String) request.get("workItem");
-        if (workItem == null || workItem.trim().isEmpty()) {
-            throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "工作事项不能为空");
-        }
-        if (workItem.trim().length() > 512) {
-            throw new BusinessException(ErrorCode.INVALID_PARAM_LENGTH, "工作事项长度不能超过512字符");
-        }
-
         String completionStatus = (String) request.getOrDefault("completionStatus", "PENDING");
         Object timeCostObj = request.get("timeCost");
-        String workContent = (String) request.get("workContent");
+        String workContent = LogContentRules.requireBody(request.get("workContent"));
         String logDate = (String) request.getOrDefault("logDate", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString());
         LogDatePolicy.requireWritable(logDate);
+        String workItem = LogContentRules.title(logDate);
 
         List<Map<String, Object>> existingLogs = jdbcTemplate.queryForList(
                 "SELECT id, deleted FROM work_logs WHERE user_id = ? AND log_date = ? ORDER BY deleted ASC",
@@ -337,30 +330,20 @@ public class LogController {
         Long userId = getCurrentUserId();
 
         List<Map<String, Object>> owned = jdbcTemplate.queryForList(
-                "SELECT log_date FROM work_logs WHERE id = ? AND user_id = ? AND deleted = 0 FOR UPDATE", logId, userId);
+                "SELECT log_date, work_content FROM work_logs WHERE id = ? AND user_id = ? AND deleted = 0 FOR UPDATE", logId, userId);
         if (owned.isEmpty()) throw new BusinessException(ErrorCode.NOT_FOUND, "日志不存在或无权编辑");
         String originalDate = owned.get(0).get("log_date").toString();
         LogDatePolicy.requireWritable(originalDate);
         if (request.containsKey("logDate") && !originalDate.equals(request.get("logDate"))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "编辑日志不能更改所属日期，请在目标日期新建日志");
         }
-        if (request.containsKey("workItem") && (request.get("workItem") == null
-                || request.get("workItem").toString().trim().isEmpty()
-                || request.get("workItem").toString().trim().length() > 512)) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "日志标题不能为空且不能超过512字符");
-        }
+        String workContent = LogContentRules.requireBody(request.containsKey("workContent")
+                ? request.get("workContent") : owned.get(0).get("work_content"));
 
-        StringBuilder sql = new StringBuilder("UPDATE work_logs SET updated_at = CURRENT_TIMESTAMP");
+        StringBuilder sql = new StringBuilder("UPDATE work_logs SET updated_at = CURRENT_TIMESTAMP, work_item = ?, work_content = ?");
         List<Object> params = new ArrayList<>();
-
-        if (request.containsKey("workItem")) {
-            sql.append(", work_item = ?");
-            params.add(request.get("workItem"));
-        }
-        if (request.containsKey("workContent")) {
-            sql.append(", work_content = ?");
-            params.add(request.get("workContent"));
-        }
+        params.add(LogContentRules.title(originalDate));
+        params.add(workContent);
         if (request.get("completionStatus") != null) {
             sql.append(", completion_status = ?");
             params.add(request.get("completionStatus"));
@@ -491,32 +474,27 @@ public class LogController {
     @Auditable(operationType = "LOG_AUTO_GENERATE", targetType = "WORK_LOG")
     public ResponseEntity<ApiResponse<Map<String, Object>>> autoGenerateLogs() {
         Long userId = getCurrentUserId();
-        String today = new java.sql.Date(System.currentTimeMillis()).toString();
+        String today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString();
 
         List<Map<String, Object>> todayTasks = jdbcTemplate.queryForList(
-                "SELECT id, name, status, progress_note FROM tasks " +
-                "WHERE assignee_id = ? AND deleted = 0 " +
-                "AND DATE(updated_at) = ? AND status IN ('IN_PROGRESS', 'COMPLETED')",
-                userId, today);
+                "SELECT DISTINCT tk.id, tk.name, tk.status, tk.progress_note FROM tasks tk " +
+                "LEFT JOIN task_assignees ta ON ta.task_id=tk.id WHERE " +
+                "(ta.user_id=? OR (ta.user_id IS NULL AND tk.assignee_id=?)) AND tk.deleted=0 " +
+                "AND DATE(tk.updated_at)=? AND tk.status IN ('IN_PROGRESS','COMPLETED')",
+                userId, userId, today);
 
         int generated = 0;
-        for (Map<String, Object> task : todayTasks) {
-            String taskName = (String) task.get("NAME");
-            String status = (String) task.get("STATUS");
-            Object taskId = task.get("ID");
-
-            Integer existing = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM work_logs WHERE user_id = ? AND log_date = ? AND work_item LIKE ? AND deleted = 0",
-                    Integer.class, userId, today, "[自动]" + taskName + "%");
-
-            if (existing == 0) {
-                String completionStatus = "COMPLETED".equals(status) ? "COMPLETED" : "PENDING";
-                String workItem = "[自动]" + taskName + " (" + status + ")";
-                jdbcTemplate.update(
-                        "INSERT INTO work_logs (user_id, work_item, completion_status, log_date) VALUES (?, ?, ?, ?)",
-                        userId, workItem, completionStatus, today);
-                generated++;
+        Integer existing = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM work_logs WHERE user_id=? AND log_date=?",
+                Integer.class, userId, today);
+        if (!todayTasks.isEmpty() && existing == 0) {
+            StringBuilder body = new StringBuilder("当日任务：");
+            for (Map<String, Object> task : todayTasks) {
+                body.append("\n- ").append(task.get("name")).append("（")
+                        .append("COMPLETED".equals(task.get("status")) ? "已完成" : "进行中").append("）");
             }
+            jdbcTemplate.update("INSERT INTO work_logs(user_id,work_item,work_content,completion_status,log_date) VALUES (?,?,?,'PENDING',?)",
+                    userId, LogContentRules.title(today), LogContentRules.requireBody(body.toString()), today);
+            generated = 1;
         }
 
         Map<String, Object> result = new HashMap<>();

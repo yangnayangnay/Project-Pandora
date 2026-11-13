@@ -22,9 +22,9 @@ public class CalendarDayLabelsTest {
         assertEquals("正月", labels(2026, 2, 17).lunar);
         assertEquals("中秋节", labels(2026, 9, 25).special);
     }
-    @Test public void decemberReferenceIncludesTermsAndMemorialDates() {
-        assertEquals("大雪", labels(2026, 12, 7).special);
-        assertEquals("国家公祭日", labels(2026, 12, 13).special);
-        assertEquals("冬至", labels(2026, 12, 22).special);
+    @Test public void decemberDoesNotDisplaySolarTermsOrMemorialDates() {
+        assertEquals("", labels(2026, 12, 7).special);
+        assertEquals("", labels(2026, 12, 13).special);
+        assertEquals("", labels(2026, 12, 22).special);
     }
 }

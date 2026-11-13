@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
-/** Offline calendar annotations. Festival dates do not imply statutory leave or makeup workdays. */
+/** Only nationwide statutory festivals appear in calendar captions. */
 public final class SpecialCalendarDates {
     private static final TimeZone CHINA = TimeZone.getTimeZone("Asia/Shanghai");
     private static final String[] TERMS = {"小寒", "大寒", "立春", "雨水", "惊蛰", "春分",
@@ -29,28 +29,16 @@ public final class SpecialCalendarDates {
             String festival = lunarFestival(lunarMonth, lunarDay);
             if (!festival.isEmpty()) names.add(festival);
         }
-        String term = solarTerm(date);
-        if (!term.isEmpty()) names.add(term);
+        // Qingming is also a statutory festival. Other solar terms are not displayed.
+        if ("清明".equals(solarTerm(date))) names.add("清明节");
         return String.join(" · ", names);
     }
 
     public static String fixedFestival(int month, int day) {
         switch (month * 100 + day) {
             case 101: return "元旦";
-            case 214: return "情人节";
-            case 308: return "妇女节";
-            case 312: return "植树节";
             case 501: return "劳动节";
-            case 504: return "青年节";
-            case 601: return "儿童节";
-            case 701: return "建党节";
-            case 801: return "建军节";
-            case 910: return "教师节";
             case 1001: return "国庆节";
-            case 1213: return "国家公祭日";
-            case 1220: return "澳门回归纪念日";
-            case 1224: return "平安夜";
-            case 1225: return "圣诞节";
             default: return "";
         }
     }
@@ -58,13 +46,8 @@ public final class SpecialCalendarDates {
     private static String lunarFestival(int month, int day) {
         switch (month * 100 + day) {
             case 101: return "春节";
-            case 115: return "元宵节";
-            case 202: return "龙抬头";
             case 505: return "端午节";
-            case 707: return "七夕";
             case 815: return "中秋节";
-            case 909: return "重阳节";
-            case 1208: return "腊八节";
             default: return "";
         }
     }

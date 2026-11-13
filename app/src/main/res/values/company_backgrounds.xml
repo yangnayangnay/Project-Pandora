@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="background_style_title">页面背景</string>
-    <string name="background_style_solid">纯色</string>
-    <string name="background_style_company">公司系列背景图</string>
-    <string name="background_style_description">首页大楼、公司室内、日志工位、AI 地图天空、我的休息区。低透明度显示，选择后立即生效。</string>
+    <string name="background_style_solid">纯色简约</string>
+    <string name="background_style_company">商务办公</string>
+    <string name="background_style_description">纯色简约、商务办公、元气可爱。各页面使用统一风格的不同场景，选择后立即生效。</string>
+    <string name="background_style_cute">元气可爱</string>
     <color name="color_company_photo_secondary">#514A42</color>
     <color name="color_company_content_surface">#D9FFFFFF</color>
     <color name="home_task_press">#183F7796</color>

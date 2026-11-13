@@ -49,6 +49,12 @@ public final class CompanyPersonActivity extends com.example.project_pandora.ui.
                     binding.textEmail.setText(shown(text(person, "email")));
                     binding.textDepartment.setText(shown(text(person, "department_name")));
                     binding.textTeam.setText(shown(text(person, "team_name")));
+                    boolean founder = com.example.project_pandora.ui.people.PeopleDirectory.isFounder(person);
+                    boolean hasTeam = com.example.project_pandora.ui.people.PeopleDirectory.hasTeam(person);
+                    binding.labelDepartment.setVisibility(founder ? android.view.View.GONE : android.view.View.VISIBLE);
+                    binding.textDepartment.setVisibility(founder ? android.view.View.GONE : android.view.View.VISIBLE);
+                    binding.labelTeam.setVisibility(hasTeam ? android.view.View.VISIBLE : android.view.View.GONE);
+                    binding.textTeam.setVisibility(hasTeam ? android.view.View.VISIBLE : android.view.View.GONE);
                     binding.textRole.setText(shown(com.example.project_pandora.core.util.RoleDisplayUtil.toChinese(text(person, "role"))));
                     binding.textSignature.setText(shown(text(person, "signature")));
                     binding.progress.setVisibility(android.view.View.GONE);

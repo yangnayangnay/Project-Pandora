@@ -36,7 +36,7 @@ public class EmployeeRecordController {
         }
         sql += " ORDER BY er.id";
         List<Map<String, Object>> records = jdbcTemplate.queryForList(sql);
-        return ResponseEntity.ok(ApiResponse.success(records));
+        return ResponseEntity.ok(ApiResponse.success(com.pandora.backend.user.OrganizationRules.normalize(records)));
     }
 
     @PostMapping
@@ -58,6 +58,10 @@ public class EmployeeRecordController {
         if (role == null || role.trim().isEmpty()) {
             role = "EMPLOYEE";
         }
+        if (!com.pandora.backend.user.OrganizationRules.isBusinessRole(role))
+            throw new BusinessException(ErrorCode.INVALID_ROLE);
+        if (!com.pandora.backend.user.OrganizationRules.hasDepartment(role)) deptId = null;
+        if (!com.pandora.backend.user.OrganizationRules.hasTeam(role)) teamId = null;
 
         try {
             jdbcTemplate.queryForMap("SELECT id FROM employee_records WHERE id_card = ? AND deleted = 0", idCard);
@@ -77,18 +81,25 @@ public class EmployeeRecordController {
 
         Map<String, Object> record = jdbcTemplate.queryForMap(
                 "SELECT * FROM employee_records WHERE id_card = ? AND deleted = 0", idCard);
-        return ResponseEntity.ok(ApiResponse.success(record));
+        return ResponseEntity.ok(ApiResponse.success(com.pandora.backend.user.OrganizationRules.normalize(record)));
     }
 
     @PutMapping("/{id}")
     @Auditable(operationType = "EMPLOYEE_RECORD_UPDATE", targetType = "EMPLOYEE_RECORD")
     public ResponseEntity<ApiResponse<Map<String, Object>>> update(
             @PathVariable Long id, @RequestBody Map<String, Object> request) {
+        String role;
         try {
-            jdbcTemplate.queryForMap("SELECT id FROM employee_records WHERE id = ? AND deleted = 0", id);
+            role = jdbcTemplate.queryForObject("SELECT role FROM employee_records WHERE id = ? AND deleted = 0", String.class, id);
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.EMPLOYEE_RECORD_NOT_FOUND);
         }
+        request = new java.util.HashMap<>(request);
+        if (request.containsKey("role")) role = java.util.Objects.toString(request.get("role"), "");
+        if (!com.pandora.backend.user.OrganizationRules.isBusinessRole(role))
+            throw new BusinessException(ErrorCode.INVALID_ROLE);
+        if (!com.pandora.backend.user.OrganizationRules.hasDepartment(role)) request.put("departmentId", null);
+        if (!com.pandora.backend.user.OrganizationRules.hasTeam(role)) request.put("teamId", null);
 
         StringBuilder sql = new StringBuilder("UPDATE employee_records SET updated_at = CURRENT_TIMESTAMP");
         java.util.List<Object> params = new java.util.ArrayList<>();
@@ -115,7 +126,7 @@ public class EmployeeRecordController {
         // 对该记录绑定的注册用户失效个人十大（未绑定注册用户则按日失效兜底）
         invalidateByRegisteredUser(record.get("registered_user_id"));
 
-        return ResponseEntity.ok(ApiResponse.success(record));
+        return ResponseEntity.ok(ApiResponse.success(com.pandora.backend.user.OrganizationRules.normalize(record)));
     }
 
     @DeleteMapping("/{id}")
@@ -149,7 +160,7 @@ public class EmployeeRecordController {
                             "LEFT JOIN departments d ON er.department_id = d.id " +
                             "LEFT JOIN teams t ON er.team_id = t.id " +
                             "WHERE er.id = ? AND er.deleted = 0", id);
-            return ResponseEntity.ok(ApiResponse.success(record));
+            return ResponseEntity.ok(ApiResponse.success(com.pandora.backend.user.OrganizationRules.normalize(record)));
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.EMPLOYEE_RECORD_NOT_FOUND);
         }

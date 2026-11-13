@@ -130,9 +130,97 @@ class AccountCreationTest {
     @Test void rejectsConflictingEmployeeNumberAndUsername() {
         var request = complete(); request.put("username", "other"); rejects(request, ErrorCode.BAD_REQUEST);
     }
+    @Test void newApprovedEmployeeReceivesTheMatchingTeamLeaderAutomatically() {
+        db.update("INSERT INTO users(id,username,password_hash,role,approval_status,department_id,team_id) VALUES(2,'leader','unchanged','TEAM_LEADER','APPROVED',10,11)");
+        db.update("INSERT INTO users(id,username,password_hash,role,approval_status,department_id,team_id) VALUES(3,'other-leader','unchanged','TEAM_LEADER','APPROVED',20,21)");
+        long id = ((Number) accounts.create(complete()).get("id")).longValue();
+        assertEquals(List.of(2L), db.queryForList("SELECT superior_id FROM user_hierarchy WHERE subordinate_id=?", Long.class, id));
+    }
+    @Test void registrationMatchedToAnEmployeeRecordAlsoCreatesItsReportingLine() {
+        db.update("INSERT INTO users(id,username,password_hash,role,approval_status,department_id,team_id) VALUES(2,'leader','unchanged','TEAM_LEADER','APPROVED',10,11)");
+        db.update("INSERT INTO employee_records(real_name,id_card,role,department_id,team_id,status) VALUES('注册人员','110101199001010010','EMPLOYEE',10,11,'PENDING')");
+        auth.register(Map.of("username", "registered-employee", "password", "test-password", "realName", "注册人员", "idCard", "110101199001010010"));
+        long id = db.queryForObject("SELECT id FROM users WHERE username='registered-employee'", Long.class);
+        assertEquals(List.of(2L), db.queryForList("SELECT superior_id FROM user_hierarchy WHERE subordinate_id=?", Long.class, id));
+        assertEquals("REGISTERED", db.queryForObject("SELECT status FROM employee_records WHERE registered_user_id=?", String.class, id));
+    }
+    @Test void founderCreationNeedsNoDepartmentOrTeamEvenWithStaleFormValues() {
+        var request = complete(); request.put("role", "FOUNDER"); request.remove("departmentId"); request.remove("teamId");
+        var result = accounts.create(request);
+        var row = db.queryForMap("SELECT * FROM users WHERE id=?", result.get("id"));
+        assertNull(row.get("department_id")); assertNull(row.get("team_id"));
+        assertEquals("FOUNDER", row.get("role"));
+        assertTrue(encoder.matches(" employee-password ", row.get("password_hash").toString()));
+    }
+    @Test void departmentHeadNeedsDepartmentButIgnoresObsoleteTeamMembership() {
+        var request = complete(); request.put("role", "DEPT_HEAD"); request.put("teamId", 999);
+        var result = accounts.create(request);
+        var row = db.queryForMap("SELECT * FROM users WHERE id=?", result.get("id"));
+        assertEquals(10L, row.get("department_id")); assertNull(row.get("team_id"));
+    }
     @Test void nonAdminCannotCreateAccountEvenWithCompletePayload() {
         db.update("UPDATE users SET role='FOUNDER' WHERE id=1");
         var response = users.createUser(complete()); assertEquals(403, response.getStatusCode().value());
         assertEquals(1, db.queryForObject("SELECT COUNT(*) FROM users", Integer.class));
+    }
+
+    @Test void personnelCreationCannotCreateAnotherAdministrator() {
+        var request = complete(); request.put("role", "ADMIN");
+        rejects(request, ErrorCode.INVALID_ROLE);
+        assertEquals(1, db.queryForObject("SELECT COUNT(*) FROM users WHERE role='ADMIN'", Integer.class));
+    }
+
+    @Test void selfRegistrationCannotRequestAdministratorOrInheritItFromALegacyRecord() {
+        assertEquals(ErrorCode.INVALID_ROLE, assertThrows(BusinessException.class, () -> auth.register(
+                Map.of("username", "new-admin", "password", "test-password", "role", "ADMIN"))).getErrorCode());
+        db.update("INSERT INTO employee_records(real_name,id_card,role,status) VALUES('旧档案','110101199001010010','ADMIN','PENDING')");
+        assertEquals(ErrorCode.INVALID_ROLE, assertThrows(BusinessException.class, () -> auth.register(
+                Map.of("username", "new-admin", "password", "test-password", "realName", "旧档案", "idCard", "110101199001010010"))).getErrorCode());
+        assertEquals(1, db.queryForObject("SELECT COUNT(*) FROM users", Integer.class));
+        assertEquals("PENDING", db.queryForObject("SELECT status FROM employee_records WHERE real_name='旧档案'", String.class));
+    }
+
+    @Test void approvalCannotGrantAdministratorFromRequestOrStoredPendingRole() {
+        var approvals = new com.pandora.backend.permission.ApprovalController();
+        ReflectionTestUtils.setField(approvals, "jdbcTemplate", db);
+        db.update("INSERT INTO users(id,username,password_hash,role,approval_status) VALUES(20,'pending','unchanged','EMPLOYEE','PENDING')");
+        assertEquals(ErrorCode.INVALID_ROLE, assertThrows(BusinessException.class,
+                () -> approvals.approve(20L, Map.of("role", "ADMIN"))).getErrorCode());
+        assertEquals("EMPLOYEE", db.queryForObject("SELECT role FROM users WHERE id=20", String.class));
+        db.update("UPDATE users SET role='ADMIN' WHERE id=20");
+        assertEquals(ErrorCode.INVALID_ROLE, assertThrows(BusinessException.class,
+                () -> approvals.approve(20L, null)).getErrorCode());
+        assertEquals("PENDING", db.queryForObject("SELECT approval_status FROM users WHERE id=20", String.class));
+    }
+
+    @Test void employeeRecordCreateAndUpdateCannotIntroduceAdministrator() {
+        var records = new com.pandora.backend.permission.EmployeeRecordController();
+        ReflectionTestUtils.setField(records, "jdbcTemplate", db);
+        assertEquals(ErrorCode.INVALID_ROLE, assertThrows(BusinessException.class,
+                () -> records.create(Map.of("realName", "档案人员", "idCard", "110101199001010010", "role", "ADMIN"))).getErrorCode());
+        assertEquals(0, db.queryForObject("SELECT COUNT(*) FROM employee_records", Integer.class));
+        db.update("INSERT INTO employee_records(id,real_name,id_card,role,status) VALUES(20,'档案人员','110101199001010010','EMPLOYEE','PENDING')");
+        assertEquals(ErrorCode.INVALID_ROLE, assertThrows(BusinessException.class,
+                () -> records.update(20L, Map.of("role", "ADMIN"))).getErrorCode());
+        assertEquals("EMPLOYEE", db.queryForObject("SELECT role FROM employee_records WHERE id=20", String.class));
+    }
+
+    @Test void correctedRoleOverridesAdministratorClaimInAnExistingSession() throws Exception {
+        var jwt = (JwtUtil) ReflectionTestUtils.getField(auth, "jwtUtil");
+        var sessions = (SessionStore) ReflectionTestUtils.getField(auth, "sessionStore");
+        String token = jwt.generateToken(1L, "admin-existing", "ADMIN", null, null);
+        sessions.put(1L, token);
+        db.update("UPDATE users SET role='FOUNDER' WHERE id=1");
+        var filter = new com.pandora.backend.auth.RoleAuthFilter();
+        ReflectionTestUtils.setField(filter, "jdbcTemplate", db);
+        ReflectionTestUtils.setField(filter, "jwtUtil", jwt);
+        ReflectionTestUtils.setField(filter, "sessionStore", sessions);
+        var request = new org.springframework.mock.web.MockHttpServletRequest("GET", "/user/me");
+        request.addHeader("Authorization", "Bearer " + token);
+        var response = new org.springframework.mock.web.MockHttpServletResponse();
+        filter.doFilter(request, response, new org.springframework.mock.web.MockFilterChain());
+        assertEquals("FOUNDER", response.getHeader("X-User-Role"));
+        assertEquals(List.of("ROLE_FOUNDER"), SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream().map(Object::toString).toList());
     }
 }

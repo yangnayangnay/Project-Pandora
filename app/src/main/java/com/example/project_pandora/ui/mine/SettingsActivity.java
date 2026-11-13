@@ -67,12 +67,13 @@ public class SettingsActivity extends PandoraActivity {
         setContentView(binding.getRoot());
         CompanyBackgrounds.bind(binding.getRoot(), CompanyBackgrounds.Scene.MINE);
         binding.toolbar.setBackgroundColor(android.graphics.Color.TRANSPARENT);
-        binding.radioBackgroundStyle.check(BackgroundPrefs.getStyle(this) == BackgroundPrefs.SOLID
-                ? R.id.radioBackgroundSolid : R.id.radioBackgroundCompany);
+        int backgroundStyle = BackgroundPrefs.getStyle(this);
+        binding.radioBackgroundStyle.check(backgroundStyle == BackgroundPrefs.SOLID ? R.id.radioBackgroundSolid
+                : backgroundStyle == BackgroundPrefs.CUTE ? R.id.radioBackgroundCute : R.id.radioBackgroundCompany);
         binding.radioBackgroundStyle.setOnCheckedChangeListener((group, checkedId) -> {
-            if (checkedId == R.id.radioBackgroundSolid || checkedId == R.id.radioBackgroundCompany) {
+            if (checkedId == R.id.radioBackgroundSolid || checkedId == R.id.radioBackgroundCompany || checkedId == R.id.radioBackgroundCute) {
                 BackgroundPrefs.saveStyle(this, checkedId == R.id.radioBackgroundSolid
-                        ? BackgroundPrefs.SOLID : BackgroundPrefs.COMPANY);
+                        ? BackgroundPrefs.SOLID : checkedId == R.id.radioBackgroundCute ? BackgroundPrefs.CUTE : BackgroundPrefs.COMPANY);
             }
         });
         float[] scales = {.9f, 1f, 1.1f, 1.2f};

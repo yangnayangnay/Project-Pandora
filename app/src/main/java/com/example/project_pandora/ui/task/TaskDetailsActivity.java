@@ -32,6 +32,7 @@ public final class TaskDetailsActivity extends PandoraActivity {
     private final TaskDetailsAdapter adapter = new TaskDetailsAdapter();
     private Long user;
     private TaskRepository repository;
+    private com.example.project_pandora.core.config.TaskPinPrefs pins;
     private TaskDisplaySettingsRepository taskDisplaySettings;
     private EditText keyword;
     private MaterialButton scope, status, assignee, tag, from, to, filterButton;
@@ -47,6 +48,7 @@ public final class TaskDetailsActivity extends PandoraActivity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state); restore(state);
         user = TokenManager.getInstance(this).getUserId(); repository = new TaskRepository(this);
+        pins = new com.example.project_pandora.core.config.TaskPinPrefs(this, user);
         taskDisplaySettings = new TaskDisplaySettingsRepository(this);
         LinearLayout root = vertical(); root.setFitsSystemWindows(true); root.setBackgroundColor(color(R.color.color_bg_page));
         MaterialToolbar toolbar = new MaterialToolbar(this); toolbar.setTitle("任务明细"); toolbar.setTitleTextColor(color(R.color.color_text_primary)); toolbar.setBackgroundColor(color(R.color.color_surface));
@@ -174,8 +176,15 @@ public final class TaskDetailsActivity extends PandoraActivity {
     }
     private void render() {
         if (table == null || loading || configuring || loadFailed) return;
-        List<Map<String, Object>> result = TaskDetailFilter.apply(tasks, user, query); adapter.submit(result);
-        count.setText("显示 " + result.size() + " / " + tasks.size() + " 项"
+        List<Map<String, Object>> result = TaskDetailFilter.apply(tasks, user, query);
+        java.util.Set<String> pinned = pins.ids();
+        TaskPinOrder.sort(result, pinned);
+        adapter.setPins(pinned, task -> {
+            Long id = NumberCompat.toLong(TaskTags.value(task, "id"));
+            if (id != null && user != null) { pins.toggle(id); render(); }
+        });
+        adapter.submit(result);
+        count.setText("显示 " + result.size() + " / " + tasks.size() + " 项 · 长按任务可置顶"
                 + (TaskDetailsAdapter.totalWidth(this) > getResources().getDisplayMetrics().widthPixels ? " · 左右滑动查看" : ""));
         message.setText(tasks.isEmpty() ? "暂无相关任务" : "没有符合筛选条件的任务"); message.setVisibility(result.isEmpty() ? View.VISIBLE : View.GONE); table.setVisibility(result.isEmpty() ? View.GONE : View.VISIBLE);
         int filters = (query.scope == 0 ? 0 : 1) + (query.status.isEmpty() ? 0 : 1) + (query.assignee == null ? 0 : 1) + (query.tag == null ? 0 : 1) + (query.from.isEmpty() ? 0 : 1) + (query.to.isEmpty() ? 0 : 1);

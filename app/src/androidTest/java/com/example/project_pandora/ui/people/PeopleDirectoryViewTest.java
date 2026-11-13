@@ -18,6 +18,26 @@ import static org.junit.Assert.*;
 /** Compile without packaging; execution is deferred until device testing is authorized. */
 @RunWith(AndroidJUnit4.class)
 public class PeopleDirectoryViewTest {
+    @Test public void founderIsACompanyPersonAndHeadIsDirectlyUnderDepartment() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            Context context = new ContextThemeWrapper(InstrumentationRegistry.getInstrumentation().getTargetContext(), R.style.Theme_Project_Pandora);
+            PeopleDirectoryView view = new PeopleDirectoryView(context, null);
+            java.util.concurrent.atomic.AtomicReference<Map<String,Object>> opened = new java.util.concurrent.atomic.AtomicReference<>();
+            view.configure("测试", "暂无人员", () -> {}, opened::set, null);
+            view.setPeople(List.of(Map.of("id", 1, "realName", "创始人甲", "role", "FOUNDER"),
+                    Map.of("id", 2, "realName", "部门负责人", "role", "DEPT_HEAD", "departmentId", 10, "departmentName", "研发", "teamName", "过期团队"),
+                    Map.of("id", 3, "realName", "员工", "role", "EMPLOYEE", "departmentId", 10, "departmentName", "研发", "teamName", "客户端")));
+            RecyclerView recycler = view.findViewById(R.id.recyclerPeople);
+            @SuppressWarnings("unchecked") RecyclerView.Adapter<RecyclerView.ViewHolder> adapter = (RecyclerView.Adapter<RecyclerView.ViewHolder>) recycler.getAdapter();
+            assertEquals(2, adapter.getItemCount());
+            RecyclerView.ViewHolder row = adapter.createViewHolder(recycler, 0);
+            adapter.bindViewHolder(row, 0); row.itemView.performClick(); assertEquals("FOUNDER", opened.get().get("role"));
+            adapter.bindViewHolder(row, 1); row.itemView.performClick(); assertEquals("研发", view.currentDepartment().name);
+            assertEquals(2, adapter.getItemCount());
+            adapter.bindViewHolder(row, 0); row.itemView.performClick(); assertEquals("DEPT_HEAD", opened.get().get("role"));
+            assertTrue(view.back()); assertFalse(view.back());
+        });
+    }
     @Test public void rootSearchOpensPersonDirectlyAndSelectionUsesCheckbox() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             Context context = new ContextThemeWrapper(InstrumentationRegistry.getInstrumentation().getTargetContext(), R.style.Theme_Project_Pandora);

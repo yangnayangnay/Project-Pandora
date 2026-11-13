@@ -20,22 +20,25 @@ public final class CompanyBackgrounds {
     public static CompanyBackdropDrawable bind(View root, Scene scene, Runnable onChange) {
         CompanyBackdropDrawable drawable = new CompanyBackdropDrawable(root.getContext(), scene.photo, onChange);
         root.setBackground(drawable);
+        Runnable refresh = () -> {
+            int style = BackgroundPrefs.getStyle(root.getContext());
+            drawable.setStyle(style);
+        };
         SharedPreferences prefs = BackgroundPrefs.preferences(root.getContext());
         SharedPreferences.OnSharedPreferenceChangeListener listener = (settings, key) -> {
-            if (BackgroundPrefs.KEY_STYLE.equals(key)) root.post(() -> drawable.setCompanyEnabled(
-                    BackgroundPrefs.getStyle(root.getContext()) == BackgroundPrefs.COMPANY));
+            if (BackgroundPrefs.KEY_STYLE.equals(key)) root.post(refresh);
         };
         root.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
             @Override public void onViewAttachedToWindow(View view) {
                 prefs.registerOnSharedPreferenceChangeListener(listener);
-                drawable.setCompanyEnabled(BackgroundPrefs.getStyle(root.getContext()) == BackgroundPrefs.COMPANY);
+                refresh.run();
             }
             @Override public void onViewDetachedFromWindow(View view) {
                 prefs.unregisterOnSharedPreferenceChangeListener(listener);
             }
         });
         if (root.isAttachedToWindow()) prefs.registerOnSharedPreferenceChangeListener(listener);
-        drawable.setCompanyEnabled(BackgroundPrefs.getStyle(root.getContext()) == BackgroundPrefs.COMPANY);
+        refresh.run();
         return drawable;
     }
 }

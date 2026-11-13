@@ -34,6 +34,13 @@ public class SpecialCalendarDatesTest {
     @Test public void ordinaryDatesStayEmptyAndUnsupportedTermYearsDoNotFail() {
         assertEquals("", SpecialCalendarDates.label(date(2026, 11, 9), 10, 1, false, false));
         assertEquals("", SpecialCalendarDates.solarTerm(date(2200, 12, 22)));
-        assertEquals("国家公祭日", SpecialCalendarDates.fixedFestival(12, 13));
+        assertEquals("", SpecialCalendarDates.fixedFestival(12, 13));
+    }
+
+    @Test public void captionsExcludeSolarTermsAndNonStatutoryFestivals() {
+        assertEquals("", SpecialCalendarDates.label(date(2026, 12, 22), 11, 14, false, false));
+        assertEquals("", SpecialCalendarDates.label(date(2026, 3, 8), 1, 20, false, false));
+        assertEquals("", SpecialCalendarDates.label(date(2026, 3, 3), 1, 15, false, false));
+        assertEquals("清明节", SpecialCalendarDates.label(date(2026, 4, 5), 2, 18, false, false));
     }
 }

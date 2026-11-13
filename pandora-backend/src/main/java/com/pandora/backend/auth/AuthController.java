@@ -35,6 +35,7 @@ public class AuthController {
 
 
     @PostMapping("/register")
+    @org.springframework.transaction.annotation.Transactional
     @Auditable(operationType = "USER_REGISTER", targetType = "USER")
     public ResponseEntity<ApiResponse<Map<String, Object>>> register(@RequestBody Map<String, Object> request) {
         String username = (String) request.get("username");
@@ -119,7 +120,13 @@ public class AuthController {
             }
         }
 
+        // A legacy personnel record must never turn self-registration into an admin account.
+        if (!isValidRole(matchedRole)) throw new BusinessException(ErrorCode.INVALID_ROLE);
         String passwordHash = passwordEncoder.encode(password);
+        if (!com.pandora.backend.user.OrganizationRules.hasDepartment(matchedRole)) matchedDeptId = null;
+        if (!com.pandora.backend.user.OrganizationRules.hasTeam(matchedRole)) matchedTeamId = null;
+        var relationships = new com.pandora.backend.user.OrganizationHierarchy(jdbcTemplate);
+        var before = relationships.snapshot();
         jdbcTemplate.update(
                 "INSERT INTO users (username, password_hash, role, email, real_name, id_card, phone, " +
                         "approval_status, department_id, team_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -128,7 +135,10 @@ public class AuthController {
         );
 
         Map<String, Object> user = findUserByUsername(username);
+        com.pandora.backend.user.OrganizationRules.normalize(user);
         Long userId = ((Number) user.get("id")).longValue();
+        if ("APPROVED".equals(approvalStatus) && com.pandora.backend.user.OrganizationRules.isBusinessRole(matchedRole))
+            relationships.synchronize(before, userId);
         Long departmentId = user.get("department_id") != null ? ((Number) user.get("department_id")).longValue() : null;
         Long teamId = user.get("team_id") != null ? ((Number) user.get("team_id")).longValue() : null;
 
@@ -213,6 +223,7 @@ public class AuthController {
             throw new BusinessException(ErrorCode.FORBIDDEN, "管理端仅允许管理员登录");
         }
 
+        com.pandora.backend.user.OrganizationRules.normalize(user);
         String approvalStatus = user.get("approval_status") != null ? (String) user.get("approval_status") : "APPROVED";
         if ("PENDING".equals(approvalStatus)) {
             throw new BusinessException(ErrorCode.ACCOUNT_PENDING_APPROVAL);
@@ -275,6 +286,7 @@ public class AuthController {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
 
+        com.pandora.backend.user.OrganizationRules.normalize(user);
         String role = (String) user.get("role");
         Long departmentId = user.get("department_id") != null ? ((Number) user.get("department_id")).longValue() : null;
         Long teamId = user.get("team_id") != null ? ((Number) user.get("team_id")).longValue() : null;
@@ -327,8 +339,7 @@ public class AuthController {
     }
 
     private boolean isValidRole(String role) {
-        return role.equals("ADMIN") || role.equals("FOUNDER") || role.equals("DEPT_HEAD")
-                || role.equals("TEAM_LEADER") || role.equals("EMPLOYEE");
+        return role != null && com.pandora.backend.user.OrganizationRules.isBusinessRole(role);
     }
 
     private boolean isValidEmail(String email) {

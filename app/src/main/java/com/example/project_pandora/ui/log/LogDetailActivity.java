@@ -156,7 +156,8 @@ public class LogDetailActivity extends PandoraActivity {
             commentAdapter.setComments(comments);
             binding.textCommentsState.setText("暂无评论");
             binding.textCommentsState.setVisibility(comments.isEmpty() ? View.VISIBLE : View.GONE);
-            binding.commentComposer.setVisibility(Boolean.TRUE.equals(data.get("cancomment")) ? View.VISIBLE : View.GONE);
+            binding.commentComposer.setVisibility(com.example.project_pandora.core.util.NumberCompat.toBool(
+                    data.containsKey("cancomment") ? data.get("cancomment") : data.get("canComment")) ? View.VISIBLE : View.GONE);
         }, error -> {
             commentsFailed = true; binding.progressComments.setVisibility(View.GONE);
             commentAdapter.setComments(Collections.emptyList());

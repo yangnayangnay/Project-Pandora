@@ -125,6 +125,17 @@ class LogCommentsAndDirectoryTest {
         db.update("UPDATE departments SET deleted=1 WHERE id=10");
         assertTrue(directory.list(1).isEmpty());
     }
+    @Test void founderWithoutDepartmentIsVisibleInGlobalDirectoryAndHeadsHaveNoTeam() {
+        db.update("UPDATE users SET department_id=NULL,team_id=NULL WHERE id=6");
+        db.update("UPDATE users SET team_id=11 WHERE id=1");
+        var people = directory.list(5);
+        var founder = people.stream().filter(row -> Objects.equals(6L, row.get("id"))).findFirst().orElseThrow();
+        assertNull(founder.get("department_name")); assertNull(founder.get("department_id"));
+        var head = people.stream().filter(row -> Objects.equals(1L, row.get("id"))).findFirst().orElseThrow();
+        assertEquals("研发", head.get("department_name")); assertNull(head.get("team_name"));
+        comments.add(100, 6, "公司层级创始人仍可评论");
+        assertEquals(1, rows(comments.list(100, 3)).size());
+    }
     @Test void logPeopleDirectoryNeverIncludesAdministratorsEvenThroughLegacyHierarchyLinks() {
         db.update("INSERT INTO user_hierarchy (superior_id,subordinate_id) VALUES (1,5)");
         assertEquals(Set.of(2L, 3L), ids(directory.list(1)));

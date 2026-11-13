@@ -10,8 +10,8 @@
             <el-descriptions-item label="真实姓名">{{ user.real_name || user.realName || '-' }}</el-descriptions-item>
             <el-descriptions-item label="手机号">{{ user.phone || '-' }}</el-descriptions-item>
             <el-descriptions-item label="个人签名"><span class="signature-display">{{ user.signature || '未设置' }}</span></el-descriptions-item>
-            <el-descriptions-item label="部门ID">{{ user.department_id || user.departmentId || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="团队ID">{{ user.team_id || user.teamId || '-' }}</el-descriptions-item>
+            <el-descriptions-item v-if="user.role !== 'FOUNDER'" label="部门">{{ user.department_name || user.departmentName || '-' }}</el-descriptions-item>
+            <el-descriptions-item v-if="!['FOUNDER', 'DEPT_HEAD'].includes(user.role)" label="团队">{{ user.team_name || user.teamName || '-' }}</el-descriptions-item>
           </el-descriptions>
           <el-divider />
           <el-form :model="editForm" label-width="80px" v-if="editing">

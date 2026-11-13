@@ -27,6 +27,9 @@ final class TaskDetailsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
         return values;
     }
     private final List<Map<String, Object>> rows = new ArrayList<>();
+    private Set<String> pinned = java.util.Collections.emptySet();
+    private java.util.function.Consumer<Map<String, Object>> pinClick;
+    void setPins(Set<String> ids, java.util.function.Consumer<Map<String, Object>> listener) { pinned = ids; pinClick = listener; }
     void submit(List<Map<String, Object>> data) { rows.clear(); rows.addAll(data); notifyDataSetChanged(); }
     static int totalWidth(Context context) { int width = 0; for (int value : widths(context)) width += dp(context, value); return width; }
     static LinearLayout row(Context context, boolean header) {
@@ -65,10 +68,19 @@ final class TaskDetailsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
         String[] values = {plain(task, "name"), time(task, "end_time"), "", NumberCompat.toBool(TaskTags.value(task, "is_urgent")) ? "紧急" : "不紧急",
                 "COMPLETED".equals(status) ? "已完成" : "进行中", TaskDetailFilter.assigneeNames(task)};
         for (int i = 0; i < values.length; i++) if (i != 2) textCell(row, i).setText(values[i].isEmpty() ? "—" : values[i]);
+        boolean isPinned = TaskPinOrder.isPinned(task, pinned);
+        if (isPinned) textCell(row, 0).setText("置顶 · " + values[0]);
+        textCell(row, 0).setTypeface(null, isPinned ? Typeface.BOLD : Typeface.NORMAL);
         bindTags((ViewGroup) row.getChildAt(2), task);
         bindBadge(textCell(row, 3), true);
         bindBadge(textCell(row, 4), false);
-        row.setContentDescription(values[0] + "，" + values[4] + "，负责人 " + values[5] + "，点击查看完整详情");
+        row.setContentDescription(values[0] + "，" + values[4] + "，负责人 " + values[5] + "，点击查看完整详情，长按" + (isPinned ? "取消置顶" : "置顶"));
+        row.setOnLongClickListener(v -> {
+            androidx.appcompat.widget.PopupMenu menu = new androidx.appcompat.widget.PopupMenu(v.getContext(), v);
+            menu.getMenu().add(isPinned ? "取消置顶" : "置顶任务");
+            menu.setOnMenuItemClickListener(item -> { if (pinClick != null) pinClick.accept(task); return true; });
+            menu.show(); return true;
+        });
         row.setOnClickListener(v -> {
             Long id = NumberCompat.toLong(TaskTags.value(task, "id")); if (id == null) return;
             v.getContext().startActivity(new Intent(v.getContext(), TaskDetailActivity.class).putExtra("taskId", id.longValue()));

@@ -60,7 +60,7 @@ public class UserController {
                     "LEFT JOIN departments d ON u.department_id = d.id AND d.deleted = 0 " +
                     "LEFT JOIN teams t ON u.team_id = t.id AND t.deleted = 0 " +
                     "WHERE u.id = ? AND u.deleted = 0", userId);
-            return ResponseEntity.ok(ApiResponse.success(user));
+            return ResponseEntity.ok(ApiResponse.success(OrganizationRules.normalize(user)));
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
@@ -80,17 +80,17 @@ public class UserController {
             params.add(role);
         }
         if (departmentId != null) {
-            sql.append(" AND department_id = ?");
+            sql.append(" AND role <> 'FOUNDER' AND department_id = ?");
             params.add(departmentId);
         }
         if (teamId != null) {
-            sql.append(" AND team_id = ?");
+            sql.append(" AND role NOT IN ('FOUNDER','DEPT_HEAD') AND team_id = ?");
             params.add(teamId);
         }
         sql.append(" ORDER BY username");
 
         List<Map<String, Object>> users = jdbcTemplate.queryForList(sql.toString(), params.toArray());
-        return ResponseEntity.ok(ApiResponse.success(users));
+        return ResponseEntity.ok(ApiResponse.success(OrganizationRules.normalize(users)));
     }
 
     @GetMapping("/{userId}/panel")
@@ -112,7 +112,7 @@ public class UserController {
                     "SELECT * FROM top10_works WHERE user_id = ? AND deleted = 0 ORDER BY rank_order", userId);
 
             Map<String, Object> panel = new HashMap<>();
-            panel.put("user", user);
+            panel.put("user", OrganizationRules.normalize(user));
             panel.put("tasks", tasks);
             panel.put("logs", logs);
             panel.put("top10Works", top10);
@@ -316,8 +316,8 @@ public class UserController {
     }
 
     private boolean isOrganizationPerson(Map<String, Object> person) {
-        return !"ADMIN".equals(person.get("role")) && person.get("departmentId") != null
-                && !Objects.toString(person.get("departmentName"), "").isBlank();
+        return !"ADMIN".equals(person.get("role")) && ("FOUNDER".equals(person.get("role"))
+                || person.get("departmentId") != null && !Objects.toString(person.get("departmentName"), "").isBlank());
     }
 
     private Map<String, Object> enrichRelationItem(Map<String, Object> hierarchyEntry) {
@@ -338,12 +338,13 @@ public class UserController {
         if (userId != null) {
             try {
                 Map<String, Object> user = jdbcTemplate.queryForMap(
-                        "SELECT d.id AS department_id, t.id AS team_id FROM users u " +
+                        "SELECT u.avatar, d.id AS department_id, t.id AS team_id FROM users u " +
                         "LEFT JOIN departments d ON d.id = u.department_id AND d.deleted = 0 " +
                         "LEFT JOIN teams t ON t.id = u.team_id AND t.deleted = 0 " +
                         "WHERE u.id = ? AND u.deleted = 0", userId);
                 Long dId = toLong(user.get("department_id"));
                 Long tId = toLong(user.get("team_id"));
+                item.put("avatar", user.get("avatar"));
                 item.put("departmentId", dId);
                 item.put("teamId", tId);
                 item.put("departmentName", dId != null ? getDeptName(dId) : "");
@@ -356,7 +357,7 @@ public class UserController {
             item.put("departmentName", "");
             item.put("teamName", "");
         }
-        return item;
+        return OrganizationRules.normalize(item);
     }
 
     private String getDeptName(Long deptId) {
@@ -424,6 +425,7 @@ public class UserController {
      * 直接更新 users 表 department_id/team_id（user_org_affiliation 为零引用历史设计，不启用）。
      */
     @PutMapping("/{userId}/org")
+    @Transactional
     @Auditable(operationType = "USER_ORG_TRANSFER", targetType = "USER")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateUserOrg(
             @PathVariable Long userId, @RequestBody Map<String, Object> request) {
@@ -431,23 +433,33 @@ public class UserController {
         if (!RoleChecker.isAdminOnly(role)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "无权操作"));
         }
-        Long departmentId = request.get("departmentId") != null
+        List<String> targetRoles = jdbcTemplate.queryForList("SELECT role FROM users WHERE id=? AND deleted=0", String.class, userId);
+        if (targetRoles.isEmpty()) throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        String targetRole = targetRoles.get(0);
+        if (!OrganizationRules.isBusinessRole(targetRole))
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "管理员账号不参与公司岗位调整");
+        Long departmentId = OrganizationRules.hasDepartment(targetRole) && request.get("departmentId") != null
                 ? Long.valueOf(request.get("departmentId").toString()) : null;
-        Long teamId = request.get("teamId") != null
+        Long teamId = OrganizationRules.hasTeam(targetRole) && request.get("teamId") != null
                 ? Long.valueOf(request.get("teamId").toString()) : null;
-        if (departmentId == null || departmentId <= 0 || jdbcTemplate.queryForList(
-                "SELECT id FROM departments WHERE id=? AND deleted=0", Long.class, departmentId).isEmpty()) {
+        if (OrganizationRules.hasDepartment(targetRole) && (departmentId == null || departmentId <= 0 || jdbcTemplate.queryForList(
+                "SELECT id FROM departments WHERE id=? AND deleted=0", Long.class, departmentId).isEmpty())) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "必须选择有效部门，不能清空人员部门归属");
         }
-        // 团队必须挂在部门下（传团队时校验其部门一致性；只传部门则清团队）
+        if (OrganizationRules.hasTeam(targetRole) && teamId == null)
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "请为团队负责人或员工选择团队");
+        // 团队负责人和员工需选择本部门团队；创始人和部门负责人不保留团队。
         if (teamId != null) {
             if (jdbcTemplate.queryForList("SELECT id FROM teams WHERE id=? AND department_id=? AND deleted=0",
                     Long.class, teamId, departmentId).isEmpty()) {
                 throw new BusinessException(ErrorCode.BAD_REQUEST, "团队与部门不匹配");
             }
         }
+        var relationships = new OrganizationHierarchy(jdbcTemplate);
+        var before = relationships.snapshot();
         jdbcTemplate.update("UPDATE users SET department_id = ?, team_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted = 0",
                 departmentId, teamId, userId);
+        relationships.synchronize(before, userId);
         Map<String, Object> result = new HashMap<>();
         result.put("userId", userId);
         result.put("departmentId", departmentId);

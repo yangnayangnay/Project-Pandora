@@ -17,6 +17,7 @@ import android.os.Looper;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import com.example.project_pandora.R;
+import com.example.project_pandora.core.config.BackgroundPrefs;
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,7 +33,7 @@ public final class CompanyBackdropDrawable extends Drawable {
     private final RectF photoBounds = new RectF();
     private LinearGradient fade;
     private Images images;
-    private boolean enabled, requested;
+    private int style = -1, loadedStyle = -1;
 
     CompanyBackdropDrawable(Context context, int resource, Runnable changed) {
         this.context = context.getApplicationContext(); this.resource = resource; this.changed = changed;
@@ -40,16 +41,18 @@ public final class CompanyBackdropDrawable extends Drawable {
         photoAlpha = context.getResources().getInteger(R.integer.home_photo_alpha);
     }
 
-    public void setCompanyEnabled(boolean enabled) {
-        this.enabled = enabled;
+    public void setStyle(int value) {
+        int next = BackgroundPrefs.normalizeStyle(value);
+        if (style == next) return;
+        this.style = next;
         invalidateSelf(); changed.run();
-        if (!enabled || requested) return;
-        requested = true;
+        if (next == BackgroundPrefs.SOLID) return;
         WeakReference<CompanyBackdropDrawable> target = new WeakReference<>(this);
-        load(context, resource).thenAccept(result -> new Handler(Looper.getMainLooper()).post(() -> {
+        load(context, resource, next == BackgroundPrefs.CUTE).thenAccept(result -> new Handler(Looper.getMainLooper()).post(() -> {
             CompanyBackdropDrawable drawable = target.get();
-            if (drawable == null) return;
-            drawable.images = result; drawable.invalidateSelf(); drawable.changed.run();
+            if (drawable == null || drawable.style != next) return;
+            drawable.images = result; drawable.loadedStyle = next;
+            drawable.invalidateSelf(); drawable.changed.run();
         }));
     }
 
@@ -66,23 +69,30 @@ public final class CompanyBackdropDrawable extends Drawable {
         Rect bounds = getBounds();
         paint.setShader(null); paint.setAlpha(255); paint.setColor(pageColor);
         canvas.drawRect(bounds, paint);
-        if (enabled && images != null && bounds.width() > 0 && bounds.height() > 0) {
+        if (style != BackgroundPrefs.SOLID && loadedStyle == style && images != null && bounds.width() > 0 && bounds.height() > 0) {
             Bitmap photo = frosted ? images.blurred : images.original;
-            float scale = Math.max(bounds.width() / (float) photo.getWidth(), bounds.height() / (float) photo.getHeight());
+            // Both themes fill the window; preserve aspect ratio and crop overflow like business photos.
+            float scale = style == BackgroundPrefs.CUTE
+                    ? CuteArtworkPlacement.scale(bounds.width(), bounds.height(), photo.getWidth(), photo.getHeight())
+                    : Math.max(bounds.width() / (float) photo.getWidth(), bounds.height() / (float) photo.getHeight());
             float width = photo.getWidth() * scale, height = photo.getHeight() * scale;
             photoBounds.set(bounds.exactCenterX() - width / 2, bounds.top,
                     bounds.exactCenterX() + width / 2, bounds.top + height);
-            paint.setAlpha(photoAlpha); canvas.drawBitmap(photo, null, photoBounds, paint);
-            paint.setAlpha(255); paint.setShader(fade); canvas.drawRect(bounds, paint); paint.setShader(null);
+            paint.setAlpha(style == BackgroundPrefs.CUTE ? Math.min(112, photoAlpha + 36) : photoAlpha);
+            canvas.drawBitmap(photo, null, photoBounds, paint);
+            if (style != BackgroundPrefs.CUTE) {
+                paint.setAlpha(255); paint.setShader(fade); canvas.drawRect(bounds, paint); paint.setShader(null);
+            }
         }
     }
 
-    private static synchronized CompletableFuture<Images> load(Context context, int resource) {
-        CompletableFuture<Images> existing = CACHE.get(resource);
+    private static synchronized CompletableFuture<Images> load(Context context, int resource, boolean cute) {
+        int key = cute ? -resource : resource;
+        CompletableFuture<Images> existing = CACHE.get(key);
         if (existing != null) return existing;
         CompletableFuture<Images> future = CompletableFuture.supplyAsync(() -> {
             BitmapFactory.Options options = new BitmapFactory.Options(); options.inScaled = false;
-            Bitmap original = BitmapFactory.decodeResource(context.getResources(), resource, options);
+            Bitmap original = cute ? CuteOfficeArtwork.render(resource) : BitmapFactory.decodeResource(context.getResources(), resource, options);
             if (original == null) return null;
             int width = 384, height = Math.max(1, Math.round(original.getHeight() * width / (float) original.getWidth()));
             Bitmap small = Bitmap.createScaledBitmap(original, width, height, true);
@@ -96,7 +106,7 @@ public final class CompanyBackdropDrawable extends Drawable {
             if (small != original) small.recycle();
             return new Images(original, blurred);
         }).exceptionally(error -> null);
-        CACHE.put(resource, future); return future;
+        CACHE.put(key, future); return future;
     }
 
     private static void blurPass(int[] input, int[] output, int width, int height, int radius, boolean horizontal) {

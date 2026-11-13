@@ -165,7 +165,19 @@ public final class CompanyPersonLogsActivity extends PandoraActivity {
         @Override public void onBindViewHolder(@NonNull Holder holder, int position) {
             Map<String, Object> row = rows.get(position);
             String title = text(row, "work_item"), content = text(row, "work_content");
-            holder.text.setText((title.isEmpty() ? "工作日志" : title) + (content.isEmpty() ? "" : "\n" + content));
+            String body = (title.isEmpty() ? "工作日志" : title) + (content.isEmpty() ? "" : "\n" + content);
+            android.text.SpannableString label = new android.text.SpannableString(body + "\n\n查看详情与评论");
+            label.setSpan(new android.text.style.ForegroundColorSpan(androidx.core.content.ContextCompat.getColor(
+                    holder.itemView.getContext(), R.color.color_accent)), body.length() + 2, label.length(), 0);
+            label.setSpan(new android.text.style.RelativeSizeSpan(.93f), body.length() + 2, label.length(), 0);
+            holder.text.setText(label);
+            holder.itemView.setClickable(true); holder.itemView.setFocusable(true);
+            holder.itemView.setContentDescription((title.isEmpty() ? "工作日志" : title) + "，查看详情与评论");
+            holder.itemView.setOnClickListener(v -> {
+                Long id = com.example.project_pandora.core.util.NumberCompat.toLong(PeopleDirectory.value(row, "id"));
+                if (id != null) v.getContext().startActivity(new android.content.Intent(v.getContext(),
+                        com.example.project_pandora.ui.log.LogDetailActivity.class).putExtra("logId", id.longValue()));
+            });
         }
         @Override public int getItemCount() { return rows.size(); }
         private static int dp(View view, int value) { return Math.round(value * view.getResources().getDisplayMetrics().density); }

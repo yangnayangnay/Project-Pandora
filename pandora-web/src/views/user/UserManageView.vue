@@ -5,7 +5,7 @@
         <div>
           <div class="eyebrow">ORGANIZATION DIRECTORY</div>
           <h2>人员管理</h2>
-          <p>查看全员资料与组织关系。管理员可编辑账号资料，并调整职级、部门、团队及直接上级。</p>
+          <p>查看全员资料与组织关系。管理员可调整公司岗位、部门与团队，直接上级按组织信息自动确定。</p>
         </div>
         <div class="header-actions">
           <el-tag :type="isAdmin ? 'warning' : 'info'" effect="plain">{{ isAdmin ? 'ADMIN 可编辑' : 'FOUNDER 只读' }}</el-tag>
@@ -30,8 +30,8 @@
           <el-table-column prop="real_name" label="姓名" min-width="110" fixed />
           <el-table-column prop="username" label="工号" min-width="140" />
           <el-table-column label="职级" min-width="120"><template #default="{ row }">{{ roleMap[row.role] || row.role }}</template></el-table-column>
-          <el-table-column prop="department_name" label="部门" min-width="120" />
-          <el-table-column prop="team_name" label="团队" min-width="120" />
+          <el-table-column label="部门" min-width="120"><template #default="{ row }">{{ hasDepartment(row.role) ? row.department_name || '—' : '不设部门' }}</template></el-table-column>
+          <el-table-column label="团队" min-width="120"><template #default="{ row }">{{ hasTeam(row.role) ? row.team_name || '—' : '不设团队' }}</template></el-table-column>
           <el-table-column label="直接上级" min-width="140"><template #default="{ row }">{{ relationNames(row.superiors, 'superior_name') }}</template></el-table-column>
           <el-table-column label="直接下属" min-width="180"><template #default="{ row }">{{ relationNames(row.subordinates, 'subordinate_name') }}</template></el-table-column>
           <el-table-column prop="phone" label="手机号" min-width="140" />
@@ -41,7 +41,7 @@
             <template #default="{ row }">
               <el-button link type="primary" @click="detail = row">全部资料</el-button>
               <el-button v-if="isAdmin" link type="primary" @click="startProfileEdit(row)">编辑资料</el-button>
-              <el-button v-if="isAdmin" link type="primary" @click="startEdit(row)">调整关系</el-button>
+              <el-button v-if="isAdmin && businessRoles.includes(row.role)" link type="primary" @click="startEdit(row)">调整关系</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -52,8 +52,14 @@
           <div><h3>部门与团队</h3><p>按组织结构浏览成员及上下级关系。</p></div>
           <span class="result-count">共 {{ users.length }} 人</span>
         </div>
-        <el-empty v-if="!organizationDepartments.length && !unassignedUsers.length" description="暂无组织资料" />
+        <el-empty v-if="!organizationDepartments.length && !unassignedUsers.length && !founders.length" description="暂无组织资料" />
         <div v-else class="organization-grid">
+          <article v-if="founders.length" class="department-card">
+            <div class="department-heading"><div><span class="card-kicker">COMPANY</span><h3>创始人</h3></div><el-tag effect="plain">直属公司</el-tag></div>
+            <div class="member-list"><div v-for="member in founders" :key="member.id" class="member-row">
+              <span class="member-avatar">{{ memberInitial(member) }}</span><div class="member-copy"><strong>{{ member.real_name || member.username }}</strong><span>{{ relationSummary(member) }}</span></div><el-button link type="primary" @click="detail = member">查看</el-button>
+            </div></div>
+          </article>
           <article v-for="department in organizationDepartments" :key="department.id" class="department-card">
             <div class="department-heading">
               <div><span class="card-kicker">DEPARTMENT</span><h3>{{ department.name }}</h3></div>
@@ -72,6 +78,12 @@
                 <span v-else class="empty-team">暂无成员</span>
               </section>
             </div>
+            <section v-if="department.heads.length" class="team-card">
+              <div class="team-heading"><strong>部门负责人</strong><span>{{ department.heads.length }} 人</span></div>
+              <div class="member-list"><div v-for="member in department.heads" :key="member.id" class="member-row">
+                <span class="member-avatar">{{ memberInitial(member) }}</span><div class="member-copy"><strong>{{ member.real_name || member.username }}</strong><span>{{ relationSummary(member) }}</span></div><el-button link type="primary" @click="detail = member">查看</el-button>
+              </div></div>
+            </section>
             <section v-if="department.members.length" class="team-card unassigned-card">
               <div class="team-heading"><strong>未分配团队</strong><span>{{ department.members.length }} 人</span></div>
               <div class="member-list">
@@ -133,12 +145,12 @@
     <el-dialog v-model="editVisible" title="调整职级与人员关系" width="min(540px, 94vw)" :close-on-click-modal="!saving" :show-close="!saving" :close-on-press-escape="!saving">
       <p>{{ selected?.real_name || selected?.username }} · 保存后在各端下一次请求时生效。</p>
       <el-form label-position="top" :model="form" :disabled="saving">
-        <el-form-item label="职级"><el-select v-model="form.role" @change="form.superiorId = null"><el-option v-for="(name, role) in roleMap" :key="role" :label="name" :value="role" /></el-select></el-form-item>
-        <el-form-item label="部门"><el-select v-model="form.departmentId" clearable @change="form.teamId = null"><el-option v-for="d in departments" :key="d.id" :label="d.name" :value="d.id" /></el-select></el-form-item>
-        <el-form-item label="团队"><el-select v-model="form.teamId" clearable :disabled="!form.departmentId"><el-option v-for="t in availableTeams" :key="t.id" :label="t.name" :value="t.id" /></el-select></el-form-item>
-        <el-form-item label="直接上级"><el-select v-model="form.superiorId" filterable clearable placeholder="未配置上级"><el-option v-for="u in availableSuperiors" :key="u.id" :label="`${u.real_name || u.username} · ${roleMap[u.role]}`" :value="u.id" /></el-select></el-form-item>
+        <el-form-item label="职级"><el-select v-model="form.role" @change="onRoleChange"><el-option v-for="role in businessRoles" :key="role" :label="roleMap[role]" :value="role" /></el-select></el-form-item>
+        <el-form-item v-if="hasDepartment(form.role)" label="部门" required><el-select v-model="form.departmentId" clearable @change="form.teamId = null"><el-option v-for="d in departments" :key="d.id" :label="d.name" :value="d.id" /></el-select></el-form-item>
+        <el-form-item v-if="hasTeam(form.role)" label="团队" required><el-select v-model="form.teamId" clearable :disabled="!form.departmentId"><el-option v-for="t in availableTeams" :key="t.id" :label="t.name" :value="t.id" /></el-select></el-form-item>
+        <el-form-item label="直接上级（自动确定）"><div class="automatic-superior" role="status" aria-live="polite">{{ superiorPreview }}</div></el-form-item>
       </el-form>
-      <el-alert title="普通职级需有对应团队长、部门负责人或创始人上级，才能提交任务申请。" type="info" :closable="false" />
+      <el-alert title="部门负责人对应公司创始人；团队长对应本部门负责人；员工对应本团队团队长。多个同级负责人将一并显示；岗位暂缺时请先配置负责人。" type="info" :closable="false" />
       <template #footer><el-button :disabled="saving" @click="editVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="saveEmployment">保存调整</el-button></template>
     </el-dialog>
   </el-card>
@@ -146,6 +158,7 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onActivated } from 'vue'
+import { businessRoles, hasDepartment, hasTeam, normalizeOrganization, organizationPayload, automaticSuperiors, organizationError } from '@/utils/organization'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/userStore'
 import request from '@/utils/request'
@@ -170,42 +183,46 @@ const profileRules = Object.fromEntries(Object.keys(profileForm.value).map(field
     done(error ? new Error(error) : undefined)
   }, trigger: field === 'birthday' ? 'change' : 'blur'
 }]]))
-const form = ref({ role: '', departmentId: null, teamId: null, superiorId: null })
+const form = ref({ role: '', departmentId: null, teamId: null })
 const statusNames = { APPROVED: '已批准', PENDING: '待审批', REJECTED: '已拒绝' }
-const ranks = ['ADMIN', 'FOUNDER', 'DEPT_HEAD', 'TEAM_LEADER', 'EMPLOYEE']
-const fieldLabels = { id: '人员 ID', username: '工号', real_name: '真实姓名', role: '职级', department_id: '部门 ID', department_name: '部门', team_id: '团队 ID', team_name: '团队', email: '邮箱', phone: '手机号', id_card: '身份证号', birthday: '生日', last_birthday_change: '上次生日变更', avatar: '头像地址', approval_status: '账号状态', theme_mode: '主题模式', manual_theme: '手动主题', show_completed_tasks: '显示已完成任务', show_yesterday_log: '显示昨日日志', created_at: '创建时间', updated_at: '更新时间' }
+const fieldLabels = { id: '人员 ID', username: '工号', real_name: '真实姓名', role: '职级', department_name: '部门', team_name: '团队', email: '邮箱', phone: '手机号', id_card: '身份证号', birthday: '生日', avatar: '头像地址', approval_status: '账号状态', created_at: '创建时间', updated_at: '更新时间' }
 const displayField = (key, value) => value == null || value === '' ? '—' : key === 'role' ? roleMap[value] || value : key === 'approval_status' ? statusNames[value] || value : value
 const relationNames = (rows, key) => rows?.map(r => r[key]).filter(Boolean).join('、') || '未配置'
 const relationSummary = user => user.superiors?.length ? `上级：${relationNames(user.superiors, 'superior_name')}` : '未配置上级'
 const memberInitial = user => (user.real_name || user.username || '?').slice(0, 1).toUpperCase()
 const filteredUsers = computed(() => users.value.filter(u => (!filterRole.value || u.role === filterRole.value) && [u.real_name, u.username, u.email, u.phone].some(v => String(v || '').toLowerCase().includes(keyword.value.trim().toLowerCase()))))
 const availableTeams = computed(() => teams.value.filter(t => String(t.department_id) === String(form.value.departmentId)))
-const availableSuperiors = computed(() => users.value.filter(u => u.id !== selected.value?.id && u.approval_status === 'APPROVED' && ranks.indexOf(u.role) < ranks.indexOf(form.value.role)))
+const availableSuperiors = computed(() => automaticSuperiors(form.value, users.value, selected.value?.id))
+const superiorPreview = computed(() => form.value.role === 'FOUNDER' ? '公司最高岗位，无直接上级'
+  : availableSuperiors.value.map(person => `${person.real_name || person.username} · ${roleMap[person.role]}`).join('、') || '暂未匹配到负责人，请检查部门、团队及负责人岗位配置')
 const organizationDepartments = computed(() => departments.value.map(department => ({
   ...department,
   teams: teams.value.filter(team => String(team.department_id) === String(department.id)).map(team => ({
     ...team,
     members: users.value.filter(user => String(user.department_id) === String(department.id) && String(user.team_id) === String(team.id))
   })),
-  members: users.value.filter(user => String(user.department_id) === String(department.id) && (user.team_id == null || user.team_id === ''))
+  heads: users.value.filter(user => user.role === 'DEPT_HEAD' && String(user.department_id) === String(department.id)),
+  members: users.value.filter(user => user.role !== 'DEPT_HEAD' && String(user.department_id) === String(department.id) && (user.team_id == null || user.team_id === ''))
 })).filter(department => department.teams.length || department.members.length || users.value.some(user => String(user.department_id) === String(department.id))))
-const unassignedUsers = computed(() => users.value.filter(user => user.department_id == null || user.department_id === ''))
-const departmentMemberCount = department => department.teams.reduce((total, team) => total + team.members.length, 0) + department.members.length
+const founders = computed(() => users.value.filter(user => user.role === 'FOUNDER'))
+const unassignedUsers = computed(() => users.value.filter(user => businessRoles.includes(user.role) && hasDepartment(user.role) && (user.department_id == null || user.department_id === '')))
+const departmentMemberCount = department => department.teams.reduce((total, team) => total + team.members.length, 0) + department.members.length + department.heads.length
+const onRoleChange = () => { form.value = organizationPayload(form.value) }
 
 const loadUsers = async () => {
   if (loading.value) return
   loading.value = true; loadError.value = ''
   try {
     const [directory, options] = await Promise.all([request.get('/user/directory'), request.get('/user/directory/options')])
-    users.value = directory.data || []; departments.value = options.data?.departments || []; teams.value = options.data?.teams || []
+    users.value = (directory.data || []).map(normalizeOrganization); departments.value = options.data?.departments || []; teams.value = options.data?.teams || []
     if (detail.value) detail.value = users.value.find(user => String(user.id) === String(detail.value.id)) || null
   } catch (e) { loadError.value = '人员资料加载失败，请点击刷新重试。' }
   finally { loading.value = false }
 }
 const startEdit = row => {
-  if (!isAdmin.value) return
+  if (!isAdmin.value || !businessRoles.includes(row.role)) return
   selected.value = row
-  form.value = { role: row.role, departmentId: row.department_id, teamId: row.team_id, superiorId: row.superiors?.[0]?.superior_id || null }
+  form.value = organizationPayload({ role: row.role, departmentId: row.department_id, teamId: row.team_id })
   editVisible.value = true
 }
 const startProfileEdit = row => {
@@ -244,9 +261,11 @@ const saveProfile = async () => {
 }
 const saveEmployment = async () => {
   if (!isAdmin.value || saving.value) return
+  const error = organizationError(form.value)
+  if (error) return ElMessage.warning(error)
   saving.value = true
   try {
-    await request.put(`/user/${selected.value.id}/employment`, { ...form.value })
+    await request.put(`/user/${selected.value.id}/employment`, organizationPayload(form.value))
     ElMessage.success('人员关系已更新'); editVisible.value = false; await loadUsers()
   } catch (e) { /* request interceptor displays the server validation message */ }
   finally { saving.value = false }
@@ -257,6 +276,7 @@ onActivated(loadUsers)
 </script>
 
 <style scoped>
+.automatic-superior { width: 100%; min-height: 40px; padding: 10px 12px; box-sizing: border-box; border-radius: 8px; background: var(--el-fill-color-light); color: var(--el-text-color-regular); line-height: 1.6; }
 .directory-card { border: 1px solid var(--el-border-color-lighter); border-radius: 14px; }
 .directory-header, .organization-intro, .department-heading, .team-heading, .header-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .directory-header { align-items: flex-start; }

@@ -35,6 +35,8 @@ public final class DailyAgendaController {
     private com.example.project_pandora.ui.widget.DayTasksPopup dayPopup;
     private boolean expanded, loading, failed, closed;
     private boolean restoringExpansion = true;
+    private String pendingRevealDate;
+    private int navigationVersion;
 
     public DailyAgendaController(Context context, FragmentMindmapBinding binding, Bundle state) {
         this.context = context; this.binding = binding; repository = new DailyItemRepository(context);
@@ -94,10 +96,12 @@ public final class DailyAgendaController {
     public void saveState(Bundle state) { state.putString("dailySelectedDate", dayFormat.format(selected.getTime())); state.putBoolean("dailyExpanded", expanded); }
     private String month() { return dayFormat.format(selected.getTime()).substring(0, 7); }
     private void setDateFields(String day) {
+        navigationVersion++; pendingRevealDate = null;
         String[] parts = day.split("-"); selected.set(Calendar.DAY_OF_MONTH, 1); selected.set(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]) - 1, Integer.parseInt(parts[2]));
     }
     private void select(int year, int month, int day) {
         if (!DailyItems.validDate(String.format(Locale.ROOT, "%04d-%02d-%02d", year, month + 1, day))) return;
+        navigationVersion++; pendingRevealDate = null;
         String previous = month(); selected.set(Calendar.DAY_OF_MONTH, 1); selected.set(year, month, day); renderDate();
         if (!previous.equals(month()) || failed) load(); else renderItems();
     }
@@ -151,6 +155,10 @@ public final class DailyAgendaController {
         binding.textDailyHeading.setText(new SimpleDateFormat("M月d日", Locale.CHINA).format(selected.getTime()) + " · 已完成 " + done + "/" + day.size());
         binding.dailyCalendar.setItems(items); adapter.submit(day);
         binding.textDailyMessage.setVisibility(day.isEmpty() ? View.VISIBLE : View.GONE); binding.textDailyMessage.setText("当天暂无事项，点击右侧＋记录");
+        if (pendingRevealDate != null) {
+            String date = pendingRevealDate; pendingRevealDate = null;
+            revealMovedDate(date);
+        }
     }
     private void renderMessage(String message) { binding.textDailyMessage.setText(message); binding.textDailyMessage.setVisibility(View.VISIBLE); }
     private void complete(Map<String, Object> item, boolean completed) {
@@ -170,10 +178,15 @@ public final class DailyAgendaController {
         int duration = durationDays(DailyItems.startDate(item), DailyItems.endDate(item));
         Calendar finish = (Calendar) target.clone(); finish.add(Calendar.DATE, duration);
         String targetEnd = dayFormat.format(finish.getTime());
+        int moveNavigation = ++navigationVersion;
+        pendingRevealDate = null;
         adapter.notifyDataSetChanged();
         actions.add(repository.move(id, targetStart, targetEnd).observeOn(AndroidSchedulers.mainThread()).subscribe(saved -> {
             busy.remove(id); if (closed) return;
-            setDateFields(targetStart); renderDate(); load();
+            if (moveNavigation == navigationVersion) {
+                setDateFields(targetStart); pendingRevealDate = targetStart;
+            }
+            renderDate(); load();
             Toast.makeText(context, "事项日期已更新", Toast.LENGTH_SHORT).show();
         }, error -> {
             busy.remove(id); if (closed) return;
@@ -214,6 +227,19 @@ public final class DailyAgendaController {
             binding.textDailyHeading.getDrawingRect(target);
             ((android.view.ViewGroup) binding.scrollDailyAgenda.getChildAt(0)).offsetDescendantRectToMyCoords(binding.textDailyHeading, target);
             binding.scrollDailyAgenda.smoothScrollTo(0, Math.max(0, target.top - Math.round(12 * context.getResources().getDisplayMetrics().density)));
+        });
+    }
+    /** Wait for the destination month's row count and loaded items before following the drop. */
+    private void revealMovedDate(String day) {
+        androidx.core.view.OneShotPreDrawListener.add(binding.scrollDailyAgenda, () -> {
+            if (closed || !day.equals(dayFormat.format(selected.getTime()))) return;
+            android.graphics.Rect target = new android.graphics.Rect(0, binding.dailyCalendar.selectedDateTop(),
+                    binding.dailyCalendar.getWidth(), binding.dailyCalendar.selectedDateTop() + 1);
+            ((android.view.ViewGroup) binding.scrollDailyAgenda.getChildAt(0))
+                    .offsetDescendantRectToMyCoords(binding.dailyCalendar, target);
+            binding.scrollDailyAgenda.smoothScrollTo(0,
+                    Math.max(0, target.top - Math.round(12 * context.getResources().getDisplayMetrics().density)));
+            binding.dailyCalendar.announceForAccessibility(day + "，事项已移动到此日期");
         });
     }
     public void close() {

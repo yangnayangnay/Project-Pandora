@@ -31,13 +31,14 @@ public class ApprovalController {
     }
 
     @PostMapping("/approve/{userId}")
+    @org.springframework.transaction.annotation.Transactional
     @Auditable(operationType = "USER_APPROVE", targetType = "USER")
     public ResponseEntity<ApiResponse<Map<String, Object>>> approve(
             @PathVariable Long userId, @RequestBody(required = false) Map<String, Object> request) {
         Map<String, Object> user;
         try {
             user = jdbcTemplate.queryForMap(
-                    "SELECT id, username, email, real_name, role, approval_status FROM users WHERE id = ? AND deleted = 0", userId);
+                    "SELECT id, username, email, real_name, role, approval_status, department_id, team_id FROM users WHERE id = ? AND deleted = 0", userId);
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
@@ -52,9 +53,14 @@ public class ApprovalController {
             role = (String) request.get("role");
         }
 
-        jdbcTemplate.update("UPDATE users SET approval_status = 'APPROVED', role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                role, userId);
-
+        if (role == null || !com.pandora.backend.user.OrganizationRules.isBusinessRole(role))
+            throw new BusinessException(ErrorCode.INVALID_ROLE);
+        var relationships = new com.pandora.backend.user.OrganizationHierarchy(jdbcTemplate);
+        var before = relationships.snapshot();
+        jdbcTemplate.update("UPDATE users SET approval_status = 'APPROVED', role = ?, department_id=?, team_id=?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                role, com.pandora.backend.user.OrganizationRules.hasDepartment(role) ? user.get("department_id") : null,
+                com.pandora.backend.user.OrganizationRules.hasTeam(role) ? user.get("team_id") : null, userId);
+        if (com.pandora.backend.user.OrganizationRules.isBusinessRole(role)) relationships.synchronize(before, userId);
 
         Map<String, Object> result = new HashMap<>();
         result.put("userId", userId);

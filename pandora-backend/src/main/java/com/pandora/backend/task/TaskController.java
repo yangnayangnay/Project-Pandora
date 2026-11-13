@@ -205,7 +205,7 @@ public class TaskController {
             if (da != db) return da - db;
             return ((Number) a.get("id")).intValue() - ((Number) b.get("id")).intValue();
         });
-        return ResponseEntity.ok(ApiResponse.success(users));
+        return ResponseEntity.ok(ApiResponse.success(com.pandora.backend.user.OrganizationRules.normalize(users)));
     }
 
 
@@ -242,12 +242,12 @@ public class TaskController {
         }
         if (visible.isEmpty()) return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
         String placeholders = String.join(",", Collections.nCopies(visible.size(), "?"));
-        return ResponseEntity.ok(ApiResponse.success(jdbcTemplate.queryForList(
+        return ResponseEntity.ok(ApiResponse.success(com.pandora.backend.user.OrganizationRules.normalize(jdbcTemplate.queryForList(
                 "SELECT u.id,u.username,u.real_name,u.role,u.department_id,d.name AS department_name,u.team_id,t.name AS team_name " +
                 "FROM users u LEFT JOIN departments d ON d.id=u.department_id AND d.deleted=0 " +
                 "LEFT JOIN teams t ON t.id=u.team_id AND t.deleted=0 " +
                 "WHERE u.id IN (" + placeholders + ") AND u.deleted=0 AND u.approval_status='APPROVED' " +
-                "AND u.role<>'ADMIN' ORDER BY d.name,t.name,u.real_name,u.username", visible.toArray())));
+                "AND u.role<>'ADMIN' ORDER BY d.name,t.name,u.real_name,u.username", visible.toArray()))));
     }
 
     private List<Map<String, Object>> attachAssignees(List<Map<String, Object>> tasks) {

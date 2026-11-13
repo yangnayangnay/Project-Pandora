@@ -22,11 +22,12 @@ public class LogDirectoryService {
         List<Long> ids = hierarchy.getSubordinateIds(viewerId);
         if (ids.isEmpty()) return Collections.emptyList();
         String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
-        return db.queryForList("SELECT u.id, u.username, u.real_name, u.role, d.id AS department_id, " +
+        return com.pandora.backend.user.OrganizationRules.normalize(db.queryForList("SELECT u.id, u.username, u.real_name, u.role, d.id AS department_id, " +
                 "d.name AS department_name, t.id AS team_id, t.name AS team_name FROM users u " +
-                "JOIN departments d ON d.id = u.department_id AND d.deleted = 0 " +
+                "LEFT JOIN departments d ON d.id = u.department_id AND d.deleted = 0 " +
                 "LEFT JOIN teams t ON t.id = u.team_id AND t.deleted = 0 " +
-                "WHERE u.deleted = 0 AND u.role <> 'ADMIN' AND u.approval_status = 'APPROVED' AND u.id IN (" + placeholders + ") " +
-                "ORDER BY d.name, t.name, u.real_name, u.username, u.id", ids.toArray());
+                "WHERE u.deleted = 0 AND u.role <> 'ADMIN' AND (u.role='FOUNDER' OR d.id IS NOT NULL) " +
+                "AND u.approval_status = 'APPROVED' AND u.id IN (" + placeholders + ") " +
+                "ORDER BY d.name, t.name, u.real_name, u.username, u.id", ids.toArray()));
     }
 }

@@ -2,7 +2,6 @@ package com.pandora.backend.user;
 
 import com.pandora.backend.audit.Auditable;
 import com.pandora.backend.common.*;
-import com.pandora.backend.hierarchy.HierarchyService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -15,8 +14,7 @@ import java.util.*;
 @PreAuthorize("hasAnyRole('ADMIN','FOUNDER')")
 public class PersonnelController {
     private final JdbcTemplate db;
-    private final HierarchyService hierarchy;
-    public PersonnelController(JdbcTemplate db, HierarchyService hierarchy) { this.db = db; this.hierarchy = hierarchy; }
+    public PersonnelController(JdbcTemplate db) { this.db = db; }
 
     @GetMapping("/directory/options")
     public ApiResponse<Map<String, Object>> options() {
@@ -71,7 +69,7 @@ public class PersonnelController {
         if (db.queryForList("SELECT id FROM departments WHERE id=? AND deleted=0", Long.class, id).isEmpty()) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "部门不存在");
         }
-        if (!db.queryForList("SELECT id FROM users WHERE department_id=? AND deleted=0", Long.class, id).isEmpty()
+        if (!db.queryForList("SELECT id FROM users WHERE department_id=? AND role NOT IN ('ADMIN','FOUNDER') AND deleted=0", Long.class, id).isEmpty()
                 || !db.queryForList("SELECT id FROM teams WHERE department_id=? AND deleted=0", Long.class, id).isEmpty()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "部门仍有人员或团队，无法删除");
         }
@@ -124,7 +122,7 @@ public class PersonnelController {
         Long originalDepartment = rows.get(0).get("department_id") instanceof Number value
                 ? value.longValue() : null;
         if (!Objects.equals(originalDepartment, departmentId)
-                && !db.queryForList("SELECT id FROM users WHERE team_id=? AND deleted=0", Long.class, id).isEmpty()) {
+                && !db.queryForList("SELECT id FROM users WHERE team_id=? AND role IN ('TEAM_LEADER','EMPLOYEE') AND deleted=0", Long.class, id).isEmpty()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "团队仍有成员，不能直接更换所属部门");
         }
         requireUniqueTeamName(name, departmentId, id);
@@ -141,7 +139,7 @@ public class PersonnelController {
         if (db.queryForList("SELECT id FROM teams WHERE id=? AND deleted=0", Long.class, id).isEmpty()) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "团队不存在");
         }
-        if (!db.queryForList("SELECT id FROM users WHERE team_id=? AND deleted=0", Long.class, id).isEmpty()) {
+        if (!db.queryForList("SELECT id FROM users WHERE team_id=? AND role IN ('TEAM_LEADER','EMPLOYEE') AND deleted=0", Long.class, id).isEmpty()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "团队仍有成员，无法删除");
         }
         db.update("UPDATE teams SET deleted=1,updated_at=CURRENT_TIMESTAMP WHERE id=?", id);
@@ -183,8 +181,7 @@ public class PersonnelController {
                 "SELECT id FROM users WHERE id=? AND role='ADMIN' AND deleted=0", Long.class,
                 authentication.getPrincipal()).isEmpty();
         List<Map<String, Object>> users = db.queryForList("SELECT u.id, u.username, u.real_name, u.role, u.email, u.phone, u.id_card, " +
-                "u.birthday, u.last_birthday_change, u.department_id, u.team_id, u.avatar, u.approval_status, u.theme_mode, u.manual_theme, " +
-                "u.show_completed_tasks, u.show_yesterday_log, u.created_at, u.updated_at, " +
+                "u.birthday, u.department_id, u.team_id, u.avatar, u.approval_status, u.created_at, u.updated_at, " +
                 "d.name AS department_name, t.name AS team_name FROM users u LEFT JOIN departments d ON d.id = u.department_id " +
                 "LEFT JOIN teams t ON t.id = u.team_id WHERE u.deleted = 0 ORDER BY u.id");
         List<Map<String, Object>> relations = db.queryForList("SELECT h.superior_id, h.subordinate_id, COALESCE(s.real_name,s.username) AS superior_name, " +
@@ -193,6 +190,7 @@ public class PersonnelController {
                         + (administrator ? "" : "AND s.role <> 'ADMIN' AND u.role <> 'ADMIN'"));
         if (!administrator) users.removeIf(user -> "ADMIN".equals(user.get("role")));
         for (Map<String, Object> user : users) {
+            OrganizationRules.normalize(user);
             Object id = user.get("id");
             user.put("superiors", relations.stream().filter(r -> Objects.equals(r.get("subordinate_id"), id)).toList());
             user.put("subordinates", relations.stream().filter(r -> Objects.equals(r.get("superior_id"), id)).toList());
@@ -206,7 +204,7 @@ public class PersonnelController {
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Void> employment(Authentication auth, @PathVariable long id, @RequestBody Map<String, Object> body) {
         String role = Objects.toString(body.get("role"), "");
-        if (!List.of("ADMIN", "FOUNDER", "DEPT_HEAD", "TEAM_LEADER", "EMPLOYEE").contains(role)) {
+        if (!OrganizationRules.isBusinessRole(role)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择有效职级");
         }
         if (!Set.of("role", "departmentId", "teamId", "superiorId").containsAll(body.keySet())) {
@@ -214,14 +212,17 @@ public class PersonnelController {
         }
         List<Map<String, Object>> target = db.queryForList("SELECT role FROM users WHERE id = ? AND deleted = 0 FOR UPDATE", id);
         if (target.isEmpty()) throw new BusinessException(ErrorCode.USER_NOT_FOUND);
-        if (Objects.equals(auth.getPrincipal(), id) && !"ADMIN".equals(role)) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "不能降低自己的管理员职级");
+        if ("ADMIN".equals(target.get(0).get("role"))) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "管理员账号不参与公司岗位调整");
         }
-        Long department = id(body.get("departmentId"));
-        Long team = id(body.get("teamId"));
-        Long superior = id(body.get("superiorId"));
-        if (!"ADMIN".equals(role) && department == null) {
+        Long department = OrganizationRules.hasDepartment(role) ? id(body.get("departmentId")) : null;
+        Long team = OrganizationRules.hasTeam(role) ? id(body.get("teamId")) : null;
+        // Older clients may still send superiorId; it cannot override the derived relationship.
+        if (OrganizationRules.hasDepartment(role) && department == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "必须为人员分配部门");
+        }
+        if (OrganizationRules.hasTeam(role) && team == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "请为团队负责人或员工选择团队");
         }
         if (department != null && db.queryForList("SELECT id FROM departments WHERE id = ? AND deleted = 0", Long.class, department).isEmpty()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "部门不存在");
@@ -229,22 +230,13 @@ public class PersonnelController {
         if (team != null && db.queryForList("SELECT id FROM teams WHERE id = ? AND department_id = ? AND deleted = 0", Long.class, team, department).isEmpty()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "团队与部门不匹配");
         }
-        if (superior != null) {
-            List<String> parentRoles = db.queryForList("SELECT role FROM users WHERE id = ? AND deleted = 0 AND approval_status = 'APPROVED'", String.class, superior);
-            if (parentRoles.isEmpty() || rank(parentRoles.get(0)) >= rank(role) || !hierarchy.checkNoCycle(superior, id)) {
-                throw new BusinessException(ErrorCode.BAD_REQUEST, "上级必须职级更高，且不能形成循环关系");
-            }
-        }
-        for (String child : db.queryForList("SELECT u.role FROM users u JOIN user_hierarchy h ON h.subordinate_id = u.id WHERE h.superior_id = ? AND u.deleted = 0", String.class, id)) {
-            if (rank(child) <= rank(role)) throw new BusinessException(ErrorCode.BAD_REQUEST, "请先调整下属关系，再修改为该职级");
-        }
+        var relationships = new OrganizationHierarchy(db);
+        var before = relationships.snapshot();
         db.update("UPDATE users SET role = ?, department_id = ?, team_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", role, department, team, id);
-        db.update("DELETE FROM user_hierarchy WHERE subordinate_id = ?", id);
-        if (superior != null) db.update("INSERT INTO user_hierarchy (superior_id, subordinate_id) VALUES (?, ?)", superior, id);
+        relationships.synchronize(before, id);
         return ApiResponse.success();
     }
 
-    private int rank(String role) { return List.of("ADMIN", "FOUNDER", "DEPT_HEAD", "TEAM_LEADER", "EMPLOYEE").indexOf(role); }
     private Long id(Object value) {
         if (value == null || value.toString().isBlank()) return null;
         try { return Long.valueOf(value.toString()); }

@@ -153,6 +153,93 @@ class UserAvatarAndRelationsTest {
         var rows = (List<Map<String, Object>>) controller.getUserRelations().getBody().getData().get("superiors");
         assertTrue(rows.isEmpty());
     }
+    @SuppressWarnings("unchecked") @Test void companyLevelFoundersRemainInRelationsAndLegacyHeadTeamsAreHidden() {
+        db.update("INSERT INTO users(id,username,password_hash,role,approval_status) VALUES(6,'founder','unchanged','FOUNDER','APPROVED')");
+        db.update("INSERT INTO user_hierarchy(superior_id,subordinate_id) VALUES(6,1)");
+        db.update("UPDATE users SET team_id=11 WHERE id=1");
+        var rows = (List<Map<String,Object>>) controller.getUserRelations().getBody().getData().get("superiors");
+        assertEquals(3, rows.size());
+        var founder = rows.stream().filter(row -> Objects.equals(6L, row.get("id"))).findFirst().orElseThrow();
+        assertNull(founder.get("departmentId")); assertNull(founder.get("teamId"));
+        var head = rows.stream().filter(row -> Objects.equals(1L, row.get("id"))).findFirst().orElseThrow();
+        assertEquals(10L, head.get("departmentId")); assertNull(head.get("teamId"));
+    }
+    @SuppressWarnings("unchecked") @Test void relationsIncludeRealAvatarUrlsForBothDirectionsAndPreserveMissingAvatars() {
+        db.update("UPDATE users SET avatar='/uploads/head.jpg' WHERE id=1");
+        db.update("UPDATE users SET avatar='/uploads/employee.jpg' WHERE id=3");
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(2L, null, List.of()));
+        var result = controller.getUserRelations().getBody().getData();
+        var superiors = (List<Map<String,Object>>) result.get("superiors");
+        var subordinates = (List<Map<String,Object>>) result.get("subordinates");
+        assertEquals("/uploads/head.jpg", superiors.get(0).get("avatar"));
+        assertEquals("/uploads/employee.jpg", subordinates.get(0).get("avatar"));
+        db.update("UPDATE users SET avatar=NULL WHERE id=1");
+        superiors = (List<Map<String,Object>>) controller.getUserRelations().getBody().getData().get("superiors");
+        assertTrue(superiors.get(0).containsKey("avatar")); assertNull(superiors.get(0).get("avatar"));
+    }
+    @Test void employmentAndTransfersKeepRoleStructureAndAccounts() {
+        db.update("UPDATE users SET role='ADMIN' WHERE id=4");
+        var auth = new UsernamePasswordAuthenticationToken(4L, null, List.of());
+        SecurityContextHolder.getContext().setAuthentication(auth);
+        var hierarchy = (HierarchyService) ReflectionTestUtils.getField(controller, "hierarchyService");
+        var personnel = new PersonnelController(db);
+        personnel.employment(auth, 1L, Map.of("role", "FOUNDER", "departmentId", 999, "teamId", 999));
+        assertNull(db.queryForObject("SELECT department_id FROM users WHERE id=1", Long.class));
+        controller.updateUserOrg(1L, Map.of("departmentId", 10, "teamId", 11));
+        assertNull(db.queryForObject("SELECT department_id FROM users WHERE id=1", Long.class));
+        personnel.employment(auth, 1L, Map.of("role", "DEPT_HEAD", "departmentId", 10, "teamId", 999));
+        assertEquals(10L, db.queryForObject("SELECT department_id FROM users WHERE id=1", Long.class));
+        assertNull(db.queryForObject("SELECT team_id FROM users WHERE id=1", Long.class));
+        assertEquals("hash", db.queryForObject("SELECT password_hash FROM users WHERE id=1", String.class));
+        assertEquals("account1", db.queryForObject("SELECT username FROM users WHERE id=1", String.class));
+        assertEquals(2, db.queryForObject("SELECT COUNT(*) FROM user_hierarchy", Integer.class));
+    }
+    @Test void legacyOrganizationTransferEndpointAlsoRebindsTheRealPermissionHierarchy() {
+        db.update("INSERT INTO users(id,username,password_hash,role,approval_status) VALUES(6,'admin','unchanged','ADMIN','APPROVED')");
+        db.update("INSERT INTO teams(id,name,department_id) VALUES(21,'设计',20)");
+        db.update("UPDATE users SET role='TEAM_LEADER',team_id=21 WHERE id=4");
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(6L, null, List.of()));
+        controller.updateUserOrg(3L, Map.of("departmentId", 20, "teamId", 21));
+        assertEquals(List.of(4L), db.queryForList("SELECT superior_id FROM user_hierarchy WHERE subordinate_id=3", Long.class));
+        var hierarchy = (HierarchyService) ReflectionTestUtils.getField(controller, "hierarchyService");
+        assertFalse(hierarchy.isSubordinate(2L, 3L)); assertTrue(hierarchy.isSubordinate(4L, 3L));
+        assertEquals("hash", db.queryForObject("SELECT password_hash FROM users WHERE id=3", String.class));
+    }
+    @Test void roleCleanupMigrationIsIdempotentAndOnlyClearsObsoleteAffiliations() {
+        db.update("UPDATE users SET role='FOUNDER',department_id=10,team_id=11 WHERE id=1");
+        db.update("UPDATE users SET role='DEPT_HEAD',team_id=11 WHERE id=2");
+        db.update("INSERT INTO employee_records(id,real_name,id_card,role,department_id,team_id) VALUES(100,'档案创始人','test-identity','FOUNDER',10,11)");
+        var source = db.getDataSource();
+        var migration = new ResourceDatabasePopulator(new ClassPathResource("db/migrations/20261113_role_organization.sql"));
+        migration.execute(source); migration.execute(source);
+        assertNull(db.queryForObject("SELECT department_id FROM users WHERE id=1", Long.class));
+        assertNull(db.queryForObject("SELECT team_id FROM users WHERE id=2", Long.class));
+        assertEquals(10L, db.queryForObject("SELECT department_id FROM users WHERE id=2", Long.class));
+        assertEquals(10L, db.queryForObject("SELECT department_id FROM users WHERE id=3", Long.class));
+        assertEquals("hash", db.queryForObject("SELECT password_hash FROM users WHERE id=1", String.class));
+        assertNull(db.queryForObject("SELECT department_id FROM employee_records WHERE id=100", Long.class));
+        assertEquals("test-identity", db.queryForObject("SELECT id_card FROM employee_records WHERE id=100", String.class));
+        assertEquals(2, db.queryForObject("SELECT COUNT(*) FROM user_hierarchy", Integer.class));
+    }
+    @Test void pendingApprovalUsesTheApprovedRolesAffiliationRules() {
+        db.update("UPDATE users SET approval_status='PENDING',team_id=11 WHERE id=1");
+        var approvals = new com.pandora.backend.permission.ApprovalController(); ReflectionTestUtils.setField(approvals, "jdbcTemplate", db);
+        approvals.approve(1L, Map.of("role", "FOUNDER"));
+        assertNull(db.queryForObject("SELECT department_id FROM users WHERE id=1", Long.class));
+        assertNull(db.queryForObject("SELECT team_id FROM users WHERE id=1", Long.class));
+        assertEquals("hash", db.queryForObject("SELECT password_hash FROM users WHERE id=1", String.class));
+    }
+    @Test void employeeRecordsFollowTheSameRoleRulesWhenCreatedAndEdited() {
+        var records = new com.pandora.backend.permission.EmployeeRecordController(); ReflectionTestUtils.setField(records, "jdbcTemplate", db);
+        var created = records.create(Map.of("realName", "创始人档案", "idCard", "test-founder", "role", "FOUNDER", "departmentId", 10, "teamId", 11)).getBody().getData();
+        long id = ((Number) created.get("id")).longValue();
+        assertNull(db.queryForObject("SELECT department_id FROM employee_records WHERE id=?", Long.class, id));
+        records.update(id, Map.of("role", "DEPT_HEAD", "departmentId", 10, "teamId", 11));
+        assertEquals(10L, db.queryForObject("SELECT department_id FROM employee_records WHERE id=?", Long.class, id));
+        assertNull(db.queryForObject("SELECT team_id FROM employee_records WHERE id=?", Long.class, id));
+        records.update(id, Map.of("role", "FOUNDER"));
+        assertNull(db.queryForObject("SELECT department_id FROM employee_records WHERE id=?", Long.class, id));
+    }
     @SuppressWarnings("unchecked") @Test void adminSuperiorsAndSubordinatesAreNotReturnedAsMobilePeople() {
         db.update("INSERT INTO users (id,username,password_hash,role,approval_status) VALUES (5,'hidden-admin','hash','ADMIN','APPROVED')");
         db.update("INSERT INTO user_hierarchy (superior_id,subordinate_id) VALUES (5,1),(3,5)");
@@ -192,13 +279,14 @@ class UserAvatarAndRelationsTest {
         assertThrows(BusinessException.class, () -> controller.updateUserOrg(3L, Map.of()));
         assertThrows(BusinessException.class, () -> controller.updateUserOrg(3L, Map.of("departmentId", 999)));
         assertEquals(10L, db.queryForObject("SELECT department_id FROM users WHERE id=3", Long.class));
-        controller.updateUserOrg(3L, Map.of("departmentId", 20));
+        db.update("INSERT INTO teams(id,name,department_id) VALUES(21,'产品团队',20)");
+        controller.updateUserOrg(3L, Map.of("departmentId", 20, "teamId", 21));
         assertEquals(20L, db.queryForObject("SELECT department_id FROM users WHERE id=3", Long.class));
     }
     @Test void employmentChangesRequireDepartmentAndNonAdminDirectoryDoesNotIncludeAdmins() {
         db.update("UPDATE users SET role='ADMIN' WHERE id=4");
         var hierarchy = (HierarchyService) ReflectionTestUtils.getField(controller, "hierarchyService");
-        var personnel = new PersonnelController(db, hierarchy);
+        var personnel = new PersonnelController(db);
         var auth = new UsernamePasswordAuthenticationToken(4L, null, List.of());
         assertThrows(BusinessException.class, () -> personnel.employment(auth, 3L, Map.of("role", "EMPLOYEE")));
         assertEquals(10L, db.queryForObject("SELECT department_id FROM users WHERE id=3", Long.class));
