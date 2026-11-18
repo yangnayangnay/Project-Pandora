@@ -14,8 +14,8 @@ DROP TABLE IF EXISTS tasks;
 DROP TABLE IF EXISTS teams;
 DROP TABLE IF EXISTS departments;
 DROP TABLE IF EXISTS daily_items;
-DROP TABLE IF EXISTS work_logs;
 DROP TABLE IF EXISTS log_comments;
+DROP TABLE IF EXISTS work_logs;
 DROP TABLE IF EXISTS ai_analysis_records;
 DROP TABLE IF EXISTS divination_records;
 DROP TABLE IF EXISTS mbti_reports;
@@ -36,6 +36,9 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(100),
     phone VARCHAR(20),
     signature VARCHAR(200),
+    id_card VARCHAR(18),
+    birthday DATE,
+    avatar VARCHAR(500),
     department_id BIGINT,
     team_id BIGINT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -66,6 +69,7 @@ CREATE TABLE IF NOT EXISTS teams (
     name VARCHAR(100) NOT NULL,
     department_id BIGINT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted TINYINT DEFAULT 0,
     FOREIGN KEY (department_id) REFERENCES departments(id)
 );
@@ -82,6 +86,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     start_time TIMESTAMP,
     end_time TIMESTAMP,
     progress_note VARCHAR(500),
+    revision INT NOT NULL DEFAULT 0,
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted TINYINT DEFAULT 0,
@@ -93,6 +99,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE TABLE IF NOT EXISTS task_assignees (
     task_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (task_id, user_id),
     FOREIGN KEY (task_id) REFERENCES tasks(id),
     FOREIGN KEY (user_id) REFERENCES users(id)
@@ -102,9 +109,12 @@ CREATE TABLE IF NOT EXISTS task_assignees (
 CREATE TABLE IF NOT EXISTS task_tags (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(50) NOT NULL UNIQUE,
+    name_key VARCHAR(50) NOT NULL UNIQUE,
+    color_index INT NOT NULL DEFAULT 0,
     color INT NOT NULL DEFAULT 0,
     created_by BIGINT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
@@ -112,6 +122,7 @@ CREATE TABLE IF NOT EXISTS task_tags (
 CREATE TABLE IF NOT EXISTS task_tag_links (
     task_id BIGINT NOT NULL,
     tag_id BIGINT NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
     PRIMARY KEY (task_id, tag_id),
     FOREIGN KEY (task_id) REFERENCES tasks(id),
     FOREIGN KEY (tag_id) REFERENCES task_tags(id)
@@ -122,14 +133,21 @@ CREATE TABLE IF NOT EXISTS task_change_requests (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     task_id BIGINT,
     actor_id BIGINT NOT NULL,
+    requester_id BIGINT NOT NULL,
+    approver_id BIGINT,
+    base_revision INT NOT NULL DEFAULT 0,
     operation VARCHAR(50) NOT NULL,
     payload TEXT,
     status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
     reviewer_id BIGINT,
     review_reason VARCHAR(500),
+    reason VARCHAR(500),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     reviewed_at TIMESTAMP,
     FOREIGN KEY (actor_id) REFERENCES users(id),
+    FOREIGN KEY (requester_id) REFERENCES users(id),
+    FOREIGN KEY (approver_id) REFERENCES users(id),
     FOREIGN KEY (reviewer_id) REFERENCES users(id)
 );
 
@@ -221,14 +239,15 @@ CREATE TABLE IF NOT EXISTS daily_items (
 );
 
 -- 初始化种子数据
+-- 密码: test-login-password (BCrypt哈希)
 INSERT INTO users (username, password_hash, role, approval_status, real_name) VALUES
-('admin0', '$2a$10$HASH', 'ADMIN', 'APPROVED', '管理员'),
-('founder1', '$2a$10$HASH', 'FOUNDER', 'APPROVED', '创始人'),
-('dept_head2', '$2a$10$HASH', 'DEPT_HEAD', 'APPROVED', '部门主管'),
-('team_leader3', '$2a$10$HASH', 'TEAM_LEADER', 'APPROVED', '团队负责人'),
-('team_leader4', '$2a$10$HASH', 'TEAM_LEADER', 'APPROVED', '团队负责人2'),
-('employee5', '$2a$10$HASH', 'EMPLOYEE', 'APPROVED', '员工1'),
-('employee6', '$2a$10$HASH', 'EMPLOYEE', 'APPROVED', '员工2');
+('admin0', '$2b$12$vT94hqd.aKcyZhoGcHZ3weNv0QdeoNy20kOjk0XfxeGs4sKjlqnja', 'ADMIN', 'APPROVED', '管理员'),
+('founder1', '$2b$12$vT94hqd.aKcyZhoGcHZ3weNv0QdeoNy20kOjk0XfxeGs4sKjlqnja', 'FOUNDER', 'APPROVED', '创始人'),
+('dept_head2', '$2b$12$vT94hqd.aKcyZhoGcHZ3weNv0QdeoNy20kOjk0XfxeGs4sKjlqnja', 'DEPT_HEAD', 'APPROVED', '部门主管'),
+('team_leader3', '$2b$12$vT94hqd.aKcyZhoGcHZ3weNv0QdeoNy20kOjk0XfxeGs4sKjlqnja', 'TEAM_LEADER', 'APPROVED', '团队负责人'),
+('team_leader4', '$2b$12$vT94hqd.aKcyZhoGcHZ3weNv0QdeoNy20kOjk0XfxeGs4sKjlqnja', 'TEAM_LEADER', 'APPROVED', '团队负责人2'),
+('employee5', '$2b$12$vT94hqd.aKcyZhoGcHZ3weNv0QdeoNy20kOjk0XfxeGs4sKjlqnja', 'EMPLOYEE', 'APPROVED', '员工1'),
+('employee6', '$2b$12$vT94hqd.aKcyZhoGcHZ3weNv0QdeoNy20kOjk0XfxeGs4sKjlqnja', 'EMPLOYEE', 'APPROVED', '员工2');
 
 INSERT INTO departments (name) VALUES ('技术部'), ('市场部'), ('产品部');
 
