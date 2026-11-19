@@ -1,0 +1,372 @@
+================================================================================
+Project Pandora 测试用例清单
+================================================================================
+共 17 个测试类，227 条用例
+生成日期：2026-11-19
+项目根目录：D:\AndroidStudio\Project_Pandora
+
+================================================================================
+后端测试（8 个类，150 条用例）
+================================================================================
+
+--------------------------------------------------------------------------------
+1. JwtUtilTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试 JWT 令牌的生成、验证、刷新、过期、签名校验等核心功能
+
+【测试范围】
+- 正常场景：令牌生成与校验的往返一致性、刷新令牌机制
+- 边界场景：用户ID最大值、过期时刻、多角色组合
+- 异常场景：无效token、签名篡改、垃圾输入、空角色、格式畸变
+
+【测试用例】12个 (TC-AUTH-01~10, JWT-006, JWT-RT)
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & "D:\apache-maven-3.9.11\apache-maven\src\bin\mvn.cmd" test -Dtest=JwtUtilTest -f pandora-backend/pom.xml
+
+--------------------------------------------------------------------------------
+2. AuthLoginPolicyTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试不同角色在不同客户端类型的登录策略
+
+【测试范围】
+- 正常场景：管理员Web登录、普通角色App登录、凭证规则
+- 边界场景：缺省客户端类型
+- 异常场景：管理员App登录被拒、未知客户端类型、普通角色Web越权
+
+【测试用例】8个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & "D:\apache-maven-3.9.11\apache-maven\src\bin\mvn.cmd" test -Dtest=AuthLoginPolicyTest -f pandora-backend/pom.xml
+
+--------------------------------------------------------------------------------
+3. TaskStateMachineTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试任务状态机的状态流转逻辑
+
+【测试范围】
+- 正常场景：合法状态流转、上级回退、枚举值正确性
+- 边界场景：同状态流转（边界情况）
+- 异常场景：非法状态串、null状态、未知状态、越权操作、禁止回流PENDING
+
+【测试用例】18个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & "D:\apache-maven-3.9.11\apache-maven\src\bin\mvn.cmd" test -Dtest=TaskStateMachineTest -f pandora-backend/pom.xml
+
+--------------------------------------------------------------------------------
+4. TaskChangeServiceValidateTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试任务变更请求的字段校验逻辑
+
+【测试范围】
+- 正常场景：完整合法数据、各种日期格式转换、部分更新
+- 边界场景：最小合法数据、名称/内容长度边界、结束晚1分钟
+- 异常场景：空字段、纯空白、起止相等、时间倒置、null值、类型非法
+
+【测试用例】31个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & "D:\apache-maven-3.9.11\apache-maven\src\bin\mvn.cmd" test -Dtest=TaskChangeServiceValidateTest -f pandora-backend/pom.xml
+
+--------------------------------------------------------------------------------
+5. TaskChangeServiceTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试任务变更审批链路的完整流程
+
+【测试范围】
+- 正常场景：特权角色免审、审批链流转、多指派人、上级回退
+- 边界场景：签名长度上界、旧日期拒绝、候选过滤
+- 异常场景：越权操作、保护字段拒绝、旧版本覆盖、时间相等/倒置
+
+【测试用例】25个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & "D:\apache-maven-3.9.11\apache-maven\src\bin\mvn.cmd" test -Dtest=TaskChangeServiceTest -f pandora-backend/pom.xml
+
+--------------------------------------------------------------------------------
+6. TaskTagServiceTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试任务标签的增删改查功能
+
+【测试范围】
+- 正常场景：标签顺序保留、列表/详情/审核响应
+- 异常场景：角色越权、停用账号、HTTP权限、名称色板无效、引用失效
+
+【测试用例】9个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & "D:\apache-maven-3.9.11\apache-maven\src\bin\mvn.cmd" test -Dtest=TaskTagServiceTest -f pandora-backend/pom.xml
+
+--------------------------------------------------------------------------------
+7. LogDatePolicyTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试日志日期窗口策略
+
+【测试范围】
+- 正常场景：前两天至今的窗口定义
+- 边界场景：月界、年界、午夜切换、午夜前
+- 异常场景：非法日期格式
+
+【测试用例】6个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & "D:\apache-maven-3.9.11\apache-maven\src\bin\mvn.cmd" test -Dtest=LogDatePolicyTest -f pandora-backend/pom.xml
+
+--------------------------------------------------------------------------------
+8. LogContentRulesTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试日志内容规则校验
+
+【测试范围】
+- 正常场景：标题规范、正文保留格式
+- 边界场景：1月1日/12月31日/2月28日/2月29日日期边界、单字符正文
+- 异常场景：null日期、非法日期、全角空格等空白字符
+
+【测试用例】11个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & "D:\apache-maven-3.9.11\apache-maven\src\bin\mvn.cmd" test -Dtest=LogContentRulesTest -f pandora-backend/pom.xml
+
+================================================================================
+Android 测试（9 个类，77 条用例）
+================================================================================
+
+--------------------------------------------------------------------------------
+9. DivinationEngineTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试占卜引擎的核心逻辑
+
+【测试范围】
+- 正常场景：按日期起卦、合法数字起卦、全卦名/卦辞/爻辞枚举、变卦翻转
+- 边界场景：纪元起始日、动爻边界、边界卦、随机分布覆盖
+- 异常场景：null日期、非法数字、未知名字、爻线格式非法
+
+【测试用例】26个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & gradlew :app:testDebugUnitTest --tests "com.example.project_pandora.core.divination.DivinationEngineTest" --console=plain
+
+--------------------------------------------------------------------------------
+10. NumberCompatTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试数字类型兼容性转换
+
+【测试范围】
+- 正常场景：纯数字串、负数、小数、各种实例类型转换
+- 边界场景：科学计数法、超范围溢出、0/非0判定
+- 异常场景：null回退、空串、非数字、其他类型
+
+【测试用例】18个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & gradlew :app:testDebugUnitTest --tests "com.example.project_pandora.core.util.NumberCompatTest" --console=plain
+
+--------------------------------------------------------------------------------
+11. TaskDateTimesTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试任务日期时间处理
+
+【测试范围】
+- 正常场景：跨天区间、时区固定、格式化
+- 边界场景：相等拒绝/下一分钟接受、仅日期→当日始末、24点非法
+- 异常场景：起止倒置、null回退、非法日历日期、尾随字符、过短串
+
+【测试用例】11个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & gradlew :app:testDebugUnitTest --tests "com.example.project_pandora.core.util.TaskDateTimesTest" --console=plain
+
+--------------------------------------------------------------------------------
+12. LogDateWindowTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试日志日期窗口（与后端 LogDatePolicy 镜像）
+
+【测试范围】
+- 正常场景：前两天至今的窗口定义
+- 边界场景：月界、年界、平年2月、闰日、午夜切换
+- 异常场景：非法日期
+
+【测试用例】8个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & gradlew :app:testDebugUnitTest --tests "com.example.project_pandora.core.util.LogDateWindowTest" --console=plain
+
+--------------------------------------------------------------------------------
+13. AvatarUploadPolicyTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试头像上传策略
+
+【测试范围】
+- 正常场景：URL解析、鉴权范围
+- 边界场景：5MB上界、小图不放大
+- 异常场景：空文件、超限
+
+【测试用例】4个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & gradlew :app:testDebugUnitTest --tests "com.example.project_pandora.core.util.AvatarUploadPolicyTest" --console=plain
+
+--------------------------------------------------------------------------------
+14. TaskAssigneesTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试任务指派人处理
+
+【测试范围】
+- 正常场景：去重不丢人
+- 边界场景：大写列名恢复、旧格式兼容
+
+【测试用例】3个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & gradlew :app:testDebugUnitTest --tests "com.example.project_pandora.core.util.TaskAssigneesTest" --console=plain
+
+--------------------------------------------------------------------------------
+15. AiEndpointTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试AI端点配置
+
+【测试范围】
+- 正常场景：网关保留、路径规范化
+- 异常场景：凭据片段/非http拒绝
+
+【测试用例】3个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & gradlew :app:testDebugUnitTest --tests "com.example.project_pandora.core.network.AiEndpointTest" --console=plain
+
+--------------------------------------------------------------------------------
+16. LogEntryRulesTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试日志条目规则
+
+【测试范围】
+- 正常/边界场景：无前导零
+- 异常场景：拒空白保换行
+
+【测试用例】2个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & gradlew :app:testDebugUnitTest --tests "com.example.project_pandora.core.util.LogEntryRulesTest" --console=plain
+
+--------------------------------------------------------------------------------
+17. SignatureRulesTest
+--------------------------------------------------------------------------------
+【功能说明】
+测试签名规则
+
+【测试范围】
+- 正常场景：换行符一致性
+- 边界场景：空行与尾行计数
+
+【测试用例】2个
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & gradlew :app:testDebugUnitTest --tests "com.example.project_pandora.core.util.SignatureRulesTest" --console=plain
+
+================================================================================
+一键运行全部测试
+================================================================================
+
+【运行命令】
+cd /d D:\AndroidStudio\Project_Pandora & run_all_tests.bat
+（或手动执行：先运行 "D:\apache-maven-3.9.11\apache-maven\src\bin\mvn.cmd" test 运行后端测试，再运行 gradlew :app:testDebugUnitTest 运行 Android 测试）
+
+================================================================================
+测试报告位置
+================================================================================
+
+- 后端测试报告：pandora-backend\target\surefire-reports\
+- 后端覆盖率报告：pandora-backend\target\site\jacoco\index.html
+- Android 测试报告：app\build\reports\tests\testDebugUnitTest\index.html
+- 测试文档报告：ofTests\测试报告_终版_表格版.docx
+
+================================================================================如何查看测试结果
+================================================================================
+
+【Android 测试结果判断】
+- 看到 "BUILD SUCCESSFUL" 表示测试全部通过
+- 看到 "BUILD FAILED" 表示有测试失败
+- 看到 "UP-TO-DATE" 表示测试已通过且未修改代码
+- 详细报告位置：app\build\reports\tests\testDebugUnitTest\index.html
+
+【后端测试结果判断】
+- 看到 "BUILD SUCCESS" 表示测试全部通过
+- 看到 "BUILD FAILURE" 表示有测试失败
+- 详细报告位置：pandora-backend\target\surefire-reports\
+- 覆盖率报告：pandora-backend\target\site\jacoco\index.html
+
+【Maven 命令正确格式】
+cd /d D:\AndroidStudio\Project_Pandora
+"D:\apache-maven-3.9.11\apache-maven\src\bin\mvn.cmd" test -Dtest=JwtUtilTest -f pandora-backend/pom.xml
+
+注意：必须使用完整路径，因为 mvn 不在 PATH 中
+
+================================================================================常见问题与解决方法
+================================================================================
+
+【问题1：mvn 命令找不到】
+原因：Maven 不在系统 PATH 中
+解决：使用完整路径运行
+    "D:\apache-maven-3.9.11\apache-maven\src\bin\mvn.cmd"
+
+【问题2：测试运行后显示 UP-TO-DATE】
+说明：测试已通过且代码未修改，无需重新运行
+解决：如需强制重新运行，添加 --rerun-tasks 参数
+    gradlew :app:testDebugUnitTest --rerun-tasks
+
+【问题3：测试失败，想看详细信息】
+解决：查看测试报告文件
+- 后端：用浏览器打开 pandora-backend\target\surefire-reports\ 下的 .txt 文件
+- Android：用浏览器打开 app\build\reports\tests\testDebugUnitTest\index.html
+
+【问题4：运行单个测试用例（而非整个测试类）】
+后端 Maven 格式：
+    mvn test -Dtest=TestClassName#testMethodName
+    示例：mvn test -Dtest=JwtUtilTest#tc01_generateThenValidate
+
+Android Gradle 格式：
+    gradlew :app:testDebugUnitTest --tests "全限定类名.方法名"
+    示例：gradlew :app:testDebugUnitTest --tests "com.example.project_pandora.core.util.NumberCompatTest.toLong_plainDigitString_returnsValue"
+
+【问题5：运行所有后端测试（不指定具体类）】
+命令：
+    "D:\apache-maven-3.9.11\apache-maven\src\bin\mvn.cmd" test -f pandora-backend/pom.xml
+
+【问题6：运行所有 Android 测试】
+命令：
+    gradlew :app:testDebugUnitTest
+
+================================================================================
+演示建议
+================================================================================
+
+【给老师演示时的推荐顺序】
+1. 先运行 run_all_tests.bat（一键运行全部 17 个测试类，展示 227 条用例全部通过）
+2. 展示测试报告文档：ofTests\测试报告_终版_表格版.docx（有表格、图片、详细用例明细）
+3. 展示覆盖率报告：pandora-backend\target\site\jacoco\index.html
+4. 如有需要，运行单个测试类展示具体测试过程
+
+【演示前准备】
+1. 确保已安装 JDK 19（或兼容版本）
+2. 确保已安装 Maven 和 Gradle
+3. 确保数据库 schema 文件存在：pandora-backend\src\test\resources\db\h2_schema.sql
+4. 先运行一次测试确保环境正常
+
+================================================================================
