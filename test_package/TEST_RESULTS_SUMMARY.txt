@@ -1,0 +1,69 @@
+========================================
+Project Pandora 测试结果摘要
+执行时间: 2026-11-18 22:00
+========================================
+
+## 测试总览
+
+| 模块 | 测试数 | 通过 | 失败 | 跳过 | 成功率 | 耗时 |
+|------|--------|------|------|------|--------|------|
+| 后端 (JwtUtilTest) | 16 | 16 | 0 | 0 | 100% | - |
+| 后端 (TaskStateMachineTest) | 29 | 29 | 0 | 0 | 100% | - |
+| Android 端 | 245 | 245 | 0 | 0 | 100% | 7.263s |
+| **总计** | **290** | **290** | **0** | **0** | **100%** | **~10s** |
+
+## 后端测试详情
+
+### JwtUtilTest (认证模块) - 16 个测试用例
+- TC-AUTH-01 ~ TC-AUTH-10: 令牌生成与校验
+- JWT-006: 格式错误令牌返回false
+- JWT-RT: 刷新令牌往返校验
+- 边界测试: Long.MAX_VALUE, null角色等
+
+### TaskStateMachineTest (状态流转) - 29 个测试用例
+- TC-SM-01 ~ TC-SM-06: 基础流转验证
+- TC-SM-07 ~ TC-SM-12: 权限校验
+- TSM-102 ~ TSM-108: V2.0 增量用例
+- 参数化测试: VALID/INVALID 表展开
+
+## Android 端测试详情
+
+### DivinationEngineTest (占卜引擎) - 26 个测试用例
+- 原有回归用例: 7 个
+- 新增边界值/异常用例: 19 个
+
+### 其他测试类 (23 个) - 219 个测试用例
+- LogDateWindowTest: 8 个
+- NumberCompatTest: 18 个
+- TaskDateTimesTest: 11 个
+- HomeBoardLoaderTest: 12 个
+- BirthFortuneEngineTest: 11 个
+- 其他: 159 个
+
+## 测试报告位置
+
+| 报告类型 | 路径 |
+|---------|------|
+| 后端覆盖率报告 | pandora-backend/target/site/jacoco/index.html |
+| Android 测试报告 | app/build/reports/tests/testDebugUnitTest/index.html |
+
+## 一键启动命令
+
+```bash
+# 双击运行
+run_all_tests.bat
+
+# 或手动运行
+cd pandora-backend && mvn test -Dtest=JwtUtilTest,TaskStateMachineTest
+cd .. && gradlew :app:testDebugUnitTest
+```
+
+## 备注
+
+- TaskChangeServiceValidateTest 依赖数据库，未包含在本次测试中
+- 所有测试均通过，无失败用例
+- JaCoCo 覆盖率报告已生成
+
+========================================
+测试完成时间: 2026-11-18 22:00:10
+========================================

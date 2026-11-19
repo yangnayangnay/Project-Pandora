@@ -49,8 +49,8 @@ public class TaskTagService {
                 GeneratedKeyHolder holder = new GeneratedKeyHolder();
                 String finalName = name;
                 db.update(connection -> {
-                    var statement = connection.prepareStatement("INSERT INTO task_tags (name, name_key, color_index) VALUES (?, ?, ?)", new String[]{"id"});
-                    statement.setString(1, finalName); statement.setString(2, key); statement.setLong(3, color);
+                    var statement = connection.prepareStatement("INSERT INTO task_tags (name, name_key, color_index, created_by) VALUES (?, ?, ?, ?)", new String[]{"id"});
+                    statement.setString(1, finalName); statement.setString(2, key); statement.setLong(3, color); statement.setLong(4, actor);
                     return statement;
                 }, holder);
                 id = Objects.requireNonNull(holder.getKey()).longValue();
@@ -66,7 +66,7 @@ public class TaskTagService {
     @Transactional
     public void delete(long actor, long id) {
         requireFounder(actor);
-        if (db.update("UPDATE task_tags SET deleted = 1, name_key = NULL WHERE id = ? AND deleted = 0", id) != 1) {
+        if (db.update("UPDATE task_tags SET deleted = 1, name = CONCAT('deleted_', ?), name_key = CONCAT('deleted_', ?) WHERE id = ? AND deleted = 0", id, id, id) != 1) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "标签已不存在，请刷新");
         }
         db.update("DELETE FROM task_tag_links WHERE tag_id = ?", id);

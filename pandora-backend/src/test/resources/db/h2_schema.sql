@@ -238,6 +238,16 @@ CREATE TABLE IF NOT EXISTS daily_items (
     UNIQUE KEY uk_user_item_date (user_id, content, item_date)
 );
 
+-- 同步中继键表（幂等去重）
+CREATE TABLE IF NOT EXISTS sync_relay_keys (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    client_key VARCHAR(200) NOT NULL UNIQUE,
+    entity_type VARCHAR(50) NOT NULL,
+    source_id BIGINT,
+    cloud_id BIGINT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 初始化种子数据
 -- 密码: test-login-password (BCrypt哈希)
 INSERT INTO users (username, password_hash, role, approval_status, real_name) VALUES

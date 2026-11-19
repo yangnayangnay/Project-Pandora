@@ -21,13 +21,13 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         maven { url = uri("https://maven.aliyun.com/repository/google") }
-        maven { url = uri("https://maven.aliyun.com/repository/central") }
         maven { url = uri("https://maven.aliyun.com/repository/public") }
-        google()
-        mavenCentral()
+        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
+        // 新增这一行！给MPAndroidChart用
         maven { url = uri("https://jitpack.io") }
     }
 }
+
 
 rootProject.name = "Project_Pandora"
 include(":app")

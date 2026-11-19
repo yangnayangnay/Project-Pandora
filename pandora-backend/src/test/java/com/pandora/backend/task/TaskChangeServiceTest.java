@@ -280,7 +280,7 @@ class TaskChangeServiceTest {
         ReflectionTestUtils.setField(controller, "jdbcTemplate", db);
         ReflectionTestUtils.setField(controller, "taskChanges", service);
         String today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString();
-        db.update("INSERT INTO work_logs (user_id,work_item,log_date,completion_status) VALUES (5,'原始事项',?,'COMPLETED')", today);
+        db.update("INSERT INTO work_logs (user_id,work_item,work_content,log_date,completion_status) VALUES (5,'原始事项','原始内容',?,'COMPLETED')", today);
         Map<String, Object> content = Map.of("operation", "CREATE", "workItem", "新标题", "workContent", "新内容", "logDate", today);
         Map<String, Object> item = Map.of("clientKey", "test-create", "type", "log", "content", content);
         var result = controller.sync(Map.of("items", List.of(item))).getBody().getData();

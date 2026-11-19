@@ -39,6 +39,22 @@ class AuthLoginPolicyTest {
                 "sa", "");
         new ResourceDatabasePopulator(new ClassPathResource("db/h2_schema.sql")).execute(dataSource);
         db = new JdbcTemplate(dataSource);
+        // 按依赖倒序删除：先删子表，再删父表
+        db.update("DELETE FROM user_hierarchy");
+        db.update("DELETE FROM task_tag_links");
+        db.update("DELETE FROM task_tags");
+        db.update("DELETE FROM task_assignees");
+        db.update("DELETE FROM task_change_requests");
+        db.update("DELETE FROM tasks");
+        db.update("DELETE FROM log_comments");
+        db.update("DELETE FROM work_logs");
+        db.update("DELETE FROM daily_items");
+        db.update("DELETE FROM ai_analysis_records");
+        db.update("DELETE FROM divination_records");
+        db.update("DELETE FROM mbti_reports");
+        db.update("DELETE FROM calendar_events");
+        db.update("DELETE FROM teams");
+        db.update("DELETE FROM departments");
         db.update("DELETE FROM users");
 
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();

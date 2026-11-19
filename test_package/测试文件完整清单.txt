@@ -1,0 +1,758 @@
+================================================================================
+Project Pandora 测试文件完整清单
+整理时间: 2026-11-18
+================================================================================
+
+================================================================================
+一、后端测试文件 (24个) - pandora-backend/src/test/java/
+================================================================================
+
+--------------------------------------------------------------------------------
+1. 认证模块 (auth) - 3个文件
+--------------------------------------------------------------------------------
+
+[1] JwtUtilTest.java
+    路径: com/pandora/backend/auth/JwtUtilTest.java
+    作用: JWT令牌生成与校验测试
+    测试用例: 12个
+    核心内容:
+    - TC-AUTH-01~10: 令牌生成、校验、解析
+    - JWT-006: 格式错误令牌处理
+    - JWT-RT: 刷新令牌往返校验
+    状态: ✅ 已通过
+
+[2] AuthLoginPolicyTest.java
+    路径: com/pandora/backend/auth/AuthLoginPolicyTest.java
+    作用: 登录策略测试（角色权限、登录限制）
+    测试用例: 约14个
+    核心内容:
+    - ADMIN仅WEB登录
+    - 普通角色仅APP登录
+    - 密码错误处理
+    状态: ⚠️ 依赖数据库
+
+--------------------------------------------------------------------------------
+2. 任务模块 (task) - 4个文件
+--------------------------------------------------------------------------------
+
+[3] TaskStateMachineTest.java
+    路径: com/pandora/backend/task/TaskStateMachineTest.java
+    作用: 任务状态流转规则测试
+    测试用例: 18个
+    核心内容:
+    - TC-SM-01~06: 基础流转验证
+    - TC-SM-07~12: 权限校验
+    - TSM-103/106/107/108: V2.0增量
+    状态: ✅ 已通过
+
+[4] TaskChangeServiceValidateTest.java
+    路径: com/pandora/backend/task/TaskChangeServiceValidateTest.java
+    作用: 任务数据校验（边界值测试）
+    测试用例: 31个
+    核心内容:
+    - TC-VAL-01~17: 名称、正文、时间边界值
+    - TC-DT-01~07: 时间解析辅助方法
+    状态: ⚠️ 依赖数据库
+
+[5] TaskChangeServiceTest.java
+    路径: com/pandora/backend/task/TaskChangeServiceTest.java
+    作用: 任务变更业务链测试（审批流、权限）
+    测试用例: 约31个
+    核心内容:
+    - 创建/更新/删除审批流程
+    - 多负责人处理
+    - ADMIN指派拦截
+    状态: ⚠️ 依赖数据库
+
+[6] TaskTagServiceTest.java
+    路径: com/pandora/backend/task/TaskTagServiceTest.java
+    作用: 任务标签功能测试
+    测试用例: 12个
+    核心内容:
+    - 标签创建/更新/删除
+    - 标签颜色校验
+    - 标签关联任务
+    状态: ⚠️ 依赖数据库
+
+--------------------------------------------------------------------------------
+3. 日志模块 (log) - 3个文件
+--------------------------------------------------------------------------------
+
+[7] LogContentRulesTest.java
+    路径: com/pandora/backend/log/LogContentRulesTest.java
+    作用: 日志内容规则测试
+    测试用例: 约8个
+    核心内容:
+    - 标题规范化
+    - 正文必填验证
+    状态: 待确认
+
+[8] LogDatePolicyTest.java
+    路径: com/pandora/backend/log/LogDatePolicyTest.java
+    作用: 日志日期策略测试
+    测试用例: 约8个
+    核心内容:
+    - 日志日期窗口
+    - 可写日期范围
+    状态: 待确认
+
+[9] LogCommentsAndDirectoryTest.java
+    路径: com/pandora/backend/log/LogCommentsAndDirectoryTest.java
+    作用: 日志评论和目录测试
+    测试用例: 约10个
+    核心内容:
+    - 评论功能
+    - 目录访问权限
+    状态: 待确认
+
+--------------------------------------------------------------------------------
+4. 用户模块 (user) - 7个文件
+--------------------------------------------------------------------------------
+
+[10] UserAvatarAndRelationsTest.java
+     路径: com/pandora/backend/user/UserAvatarAndRelationsTest.java
+     作用: 用户头像和关系测试
+     测试用例: 约10个
+     核心内容:
+     - 头像上传
+     - 用户层级关系
+     状态: ⚠️ 依赖数据库
+
+[11] OrganizationHierarchyTest.java
+     路径: com/pandora/backend/user/OrganizationHierarchyTest.java
+     作用: 组织层级测试
+     测试用例: 约10个
+     核心内容:
+     - 上级/下属关系
+     - 部门/团队结构
+     状态: 待确认
+
+[12] AccountCreationTest.java
+     路径: com/pandora/backend/user/AccountCreationTest.java
+     作用: 账号创建测试
+     测试用例: 约8个
+     核心内容:
+     - 注册流程
+     - 审批状态
+     状态: 待确认
+
+[13] AccountProfileTest.java
+     路径: com/pandora/backend/user/AccountProfileTest.java
+     作用: 账号档案测试
+     测试用例: 约8个
+     核心内容:
+     - 档案编辑
+     - 权限控制
+     状态: 待确认
+
+[14] CompanyDirectoryControllerTest.java
+     路径: com/pandora/backend/user/CompanyDirectoryControllerTest.java
+     作用: 公司目录控制器测试
+     测试用例: 约8个
+     核心内容:
+     - 目录查询
+     - 员工搜索
+     状态: 待确认
+
+[15] PasswordResetControllerTest.java
+     路径: com/pandora/backend/user/PasswordResetControllerTest.java
+     作用: 密码重置控制器测试
+     测试用例: 约8个
+     核心内容:
+     - 密码重置流程
+     - 安全验证
+     状态: 待确认
+
+[16] UserSelfServicePolicyTest.java
+     路径: com/pandora/backend/user/UserSelfServicePolicyTest.java
+     作用: 用户自助服务策略测试
+     测试用例: 约10个
+     核心内容:
+     - 自助修改限制
+     - 权限校验
+     状态: ⚠️ 依赖数据库
+
+--------------------------------------------------------------------------------
+5. AI模块 (ai) - 3个文件
+--------------------------------------------------------------------------------
+
+[17] AiEndpointTest.java
+      路径: com/pandora/backend/ai/AiEndpointTest.java
+      作用: AI端点测试
+      测试用例: 约10个
+      核心内容:
+      - URL规范化
+      - 凭证验证
+      - 协议校验
+      状态: 待确认
+
+[18] ExternalAIClientTest.java
+      路径: com/pandora/backend/ai/ExternalAIClientTest.java
+      作用: 外部AI客户端测试
+      测试用例: 约8个
+      核心内容:
+      - 外部API调用
+      - 响应处理
+      状态: 待确认
+
+[19] DivinationRecordTest.java
+      路径: com/pandora/backend/ai/DivinationRecordTest.java
+      作用: 占卜记录测试
+      测试用例: 约8个
+      核心内容:
+      - 占卜记录存储
+      - 查询功能
+      状态: 待确认
+
+--------------------------------------------------------------------------------
+6. 其他模块 (daily/view/top10) - 4个文件
+--------------------------------------------------------------------------------
+
+[20] DailyItemServiceTest.java
+      路径: com/pandora/backend/daily/DailyItemServiceTest.java
+      作用: 每日项服务测试
+      测试用例: 约8个
+      核心内容:
+      - 每日项CRUD
+      状态: 待确认
+
+[21] HomeServiceTest.java
+      路径: com/pandora/backend/view/HomeServiceTest.java
+      作用: 首页服务测试
+      测试用例: 约8个
+      核心内容:
+      - 首页数据加载
+      状态: ⚠️ 依赖数据库
+
+[22] PersonalImportantWorkTest.java
+      路径: com/pandora/backend/view/PersonalImportantWorkTest.java
+      作用: 个人重要工作测试
+      测试用例: 约8个
+      核心内容:
+      - 重要工作标记
+      状态: ⚠️ 依赖数据库
+
+[23] CompanyDispatchAssigneeTest.java
+      路径: com/pandora/backend/top10/CompanyDispatchAssigneeTest.java
+      作用: 公司派发负责人测试
+      测试用例: 约8个
+      核心内容:
+      - Top10派发逻辑
+      状态: 待确认
+
+[24] DatabaseSeedScriptTest.java
+      路径: com/pandora/backend/DatabaseSeedScriptTest.java
+      作用: 数据库种子脚本测试
+      测试用例: 约5个
+      核心内容:
+      - 种子数据验证
+      状态: 待确认
+
+================================================================================
+二、Android单元测试文件 (36个) - app/src/test/java/
+================================================================================
+
+--------------------------------------------------------------------------------
+1. 核心工具类 (core) - 10个文件
+--------------------------------------------------------------------------------
+
+[25] DivinationEngineTest.java
+      路径: com/example/project_pandora/core/divination/DivinationEngineTest.java
+      作用: 占卜引擎核心逻辑测试
+      测试用例: 26个
+      核心内容:
+      - tc01~18: 日期/数字起卦、动爻边界
+      - 原有回归用例: 7个
+      状态: ✅ 已通过
+
+[26] LogDateWindowTest.java
+      路径: com/example/project_pandora/core/util/LogDateWindowTest.java
+      作用: 日志日期窗口测试
+      测试用例: 8个
+      核心内容:
+      - 固定时钟、上海午夜
+      - 跨月/跨年边界
+      - 闰日处理
+      状态: ✅ 已通过
+
+[27] NumberCompatTest.java
+      路径: com/example/project_pandora/core/util/NumberCompatTest.java
+      作用: 数字兼容性测试
+      测试用例: 18个
+      核心内容:
+      - 数字解析
+      - 格式兼容
+      状态: ✅ 已通过
+
+[28] TaskDateTimesTest.java
+      路径: com/example/project_pandora/core/util/TaskDateTimesTest.java
+      作用: 任务日期时间测试
+      测试用例: 11个
+      核心内容:
+      - 时间解析
+      - 时区处理
+      状态: ✅ 已通过
+
+[29] LogEntryRulesTest.java
+      路径: com/example/project_pandora/core/util/LogEntryRulesTest.java
+      作用: 日志条目规则测试
+      测试用例: 2个
+      核心内容:
+      - 标题生成
+      - 正文必填
+      状态: ✅ 已通过
+
+[30] SignatureRulesTest.java
+      路径: com/example/project_pandora/core/util/SignatureRulesTest.java
+      作用: 签名规则测试
+      测试用例: 2个
+      核心内容:
+      - 签名行数边界（4/5行）
+      状态: ✅ 已通过
+
+[31] AvatarUploadPolicyTest.java
+      路径: com/example/project_pandora/core/util/AvatarUploadPolicyTest.java
+      作用: 头像上传策略测试
+      测试用例: 4个
+      核心内容:
+      - 5MB边界测试
+      状态: ✅ 已通过
+
+[32] ReadableTextColorsTest.java
+      路径: com/example/project_pandora/core/util/ReadableTextColorsTest.java
+      作用: 可读文本颜色测试
+      测试用例: 4个
+      核心内容:
+      - 颜色对比度
+      状态: ✅ 已通过
+
+[33] TaskAssigneesTest.java
+      路径: com/example/project_pandora/core/util/TaskAssigneesTest.java
+      作用: 任务负责人测试
+      测试用例: 3个
+      核心内容:
+      - 负责人分配
+      状态: ✅ 已通过
+
+[34] BackgroundPrefsTest.java
+      路径: com/example/project_pandora/core/config/BackgroundPrefsTest.java
+      作用: 背景偏好测试
+      测试用例: 1个
+      核心内容:
+      - 背景设置
+      状态: ✅ 已通过
+
+[35] AiEndpointTest.java
+      路径: com/example/project_pandora/core/network/AiEndpointTest.java
+      作用: AI端点测试
+      测试用例: 3个
+      核心内容:
+      - URL规范化
+      - 凭证验证
+      状态: ✅ 已通过
+
+--------------------------------------------------------------------------------
+2. UI组件 (ui) - 17个文件
+--------------------------------------------------------------------------------
+
+[36] HomeBoardLoaderTest.java
+      路径: com/example/project_pandora/ui/home/HomeBoardLoaderTest.java
+      作用: 首页看板加载测试
+      测试用例: 12个
+      核心内容:
+      - 看板数据加载
+      状态: ✅ 已通过
+
+[37] DailyItemsTest.java
+      路径: com/example/project_pandora/ui/home/DailyItemsTest.java
+      作用: 每日项测试
+      测试用例: 6个
+      核心内容:
+      - 每日项管理
+      状态: ✅ 已通过
+
+[38] BirthFortuneEngineTest.java
+      路径: com/example/project_pandora/ui/aimap/BirthFortuneEngineTest.java
+      作用: 生日运势引擎测试
+      测试用例: 11个
+      核心内容:
+      - 生日运势计算
+      状态: ✅ 已通过
+
+[39] PersonalWorkSlotsTest.java
+      路径: com/example/project_pandora/ui/log/PersonalWorkSlotsTest.java
+      作用: 个人工作槽位测试
+      测试用例: 7个
+      核心内容:
+      - 工作槽位管理
+      状态: ✅ 已通过
+
+[40] AvatarInitialsTest.java
+      路径: com/example/project_pandora/ui/mine/AvatarInitialsTest.java
+      作用: 头像首字母测试
+      测试用例: 2个
+      核心内容:
+      - 首字母生成
+      状态: ✅ 已通过
+
+[41] PeopleDirectoryTest.java
+      路径: com/example/project_pandora/ui/people/PeopleDirectoryTest.java
+      作用: 人员目录测试
+      测试用例: 9个
+      核心内容:
+      - 目录搜索
+      状态: ✅ 已通过
+
+[42] TaskDetailFilterTest.java
+      路径: com/example/project_pandora/ui/task/TaskDetailFilterTest.java
+      作用: 任务详情过滤器测试
+      测试用例: 10个
+      核心内容:
+      - 过滤逻辑
+      状态: ✅ 已通过
+
+[43] TaskFormStateTest.java
+      路径: com/example/project_pandora/ui/task/TaskFormStateTest.java
+      作用: 任务表单状态测试
+      测试用例: 4个
+      核心内容:
+      - 表单状态管理
+      状态: ✅ 已通过
+
+[44] TaskPinOrderTest.java
+      路径: com/example/project_pandora/ui/task/TaskPinOrderTest.java
+      作用: 任务置顶排序测试
+      测试用例: 1个
+      核心内容:
+      - 置顶排序逻辑
+      状态: ✅ 已通过
+
+[45] CalendarCellMetricsTest.java
+      路径: com/example/project_pandora/ui/widget/CalendarCellMetricsTest.java
+      作用: 日历单元格度量测试
+      测试用例: 4个
+      核心内容:
+      - 单元格尺寸
+      状态: ✅ 已通过
+
+[46] CalendarDatesTest.java
+      路径: com/example/project_pandora/ui/widget/CalendarDatesTest.java
+      作用: 日历日期测试
+      测试用例: 9个
+      核心内容:
+      - 日期计算
+      状态: ✅ 已通过
+
+[47] CuteArtworkPlacementTest.java
+      路径: com/example/project_pandora/ui/widget/CuteArtworkPlacementTest.java
+      作用: 可爱插画放置测试
+      测试用例: 2个
+      核心内容:
+      - 插画位置
+      状态: ✅ 已通过
+
+[48] DayTaskSelectionTest.java
+      路径: com/example/project_pandora/ui/widget/DayTaskSelectionTest.java
+      作用: 日任务选择测试
+      测试用例: 10个
+      核心内容:
+      - 任务选择逻辑
+      状态: ✅ 已通过
+
+[49] MonthTaskDatesTest.java
+      路径: com/example/project_pandora/ui/widget/MonthTaskDatesTest.java
+      作用: 月任务日期测试
+      测试用例: 8个
+      核心内容:
+      - 月视图日期
+      状态: ✅ 已通过
+
+[50] MonthTaskLayoutTest.java
+      路径: com/example/project_pandora/ui/widget/MonthTaskLayoutTest.java
+      作用: 月任务布局测试
+      测试用例: 14个
+      核心内容:
+      - 布局计算
+      状态: ✅ 已通过
+
+[51] PeriodSwipeGestureTest.java
+      路径: com/example/project_pandora/ui/widget/PeriodSwipeGestureTest.java
+      作用: 周期滑动手势测试
+      测试用例: 8个
+      核心内容:
+      - 手势识别
+      状态: ✅ 已通过
+
+[52] ScheduleDaySwitchTest.java
+      路径: com/example/project_pandora/ui/widget/ScheduleDaySwitchTest.java
+      作用: 日程日切换测试
+      测试用例: 5个
+      核心内容:
+      - 日切换逻辑
+      状态: ✅ 已通过
+
+[53] ScheduleLayoutTest.java
+      路径: com/example/project_pandora/ui/widget/ScheduleLayoutTest.java
+      作用: 日程布局测试
+      测试用例: 4个
+      核心内容:
+      - 布局计算
+      状态: ✅ 已通过
+
+[54] SchedulePeriodTest.java
+      路径: com/example/project_pandora/ui/widget/SchedulePeriodTest.java
+      作用: 日程周期测试
+      测试用例: 6个
+      核心内容:
+      - 周期计算
+      状态: ✅ 已通过
+
+[55] SpecialCalendarDatesTest.java
+      路径: com/example/project_pandora/ui/widget/SpecialCalendarDatesTest.java
+      作用: 特殊日历日期测试
+      测试用例: 5个
+      核心内容:
+      - 特殊日期处理
+      状态: ✅ 已通过
+
+[56] StatutoryHolidayScheduleTest.java
+      路径: com/example/project_pandora/ui/widget/StatutoryHolidayScheduleTest.java
+      作用: 法定节假日日程测试
+      测试用例: 4个
+      核心内容:
+      - 节假日处理
+      状态: ✅ 已通过
+
+--------------------------------------------------------------------------------
+3. 仓库层 (repository) - 4个文件
+--------------------------------------------------------------------------------
+
+[57] TaskDisplaySettingsRepositoryTest.java
+      路径: com/example/project_pandora/repository/TaskDisplaySettingsRepositoryTest.java
+      作用: 任务显示设置仓库测试
+      测试用例: 10个
+      核心内容:
+      - 显示设置存储
+      状态: ✅ 已通过
+
+[58] TaskVisibilityTest.java
+      路径: com/example/project_pandora/repository/TaskVisibilityTest.java
+      作用: 任务可见性测试
+      测试用例: 3个
+      核心内容:
+      - 可见性规则
+      状态: ✅ 已通过
+
+[59] ViewRepositoryTest.java
+      路径: com/example/project_pandora/repository/ViewRepositoryTest.java
+      作用: 视图仓库测试
+      测试用例: 8个
+      核心内容:
+      - 视图数据管理
+      状态: ✅ 已通过
+
+[60] ExampleUnitTest.java
+      路径: com/example/project_pandora/ExampleUnitTest.java
+      作用: 示例单元测试（模板）
+      测试用例: 1个
+      核心内容:
+      - 基础测试示例
+      状态: ✅ 已通过
+
+================================================================================
+三、Android设备测试文件 (16个) - app/src/androidTest/java/
+================================================================================
+
+--------------------------------------------------------------------------------
+1. UI组件测试 (ui) - 12个文件
+--------------------------------------------------------------------------------
+
+[61] ExampleInstrumentedTest.java
+      路径: com/example/project_pandora/ExampleInstrumentedTest.java
+      作用: 示例设备测试（模板）
+      测试用例: 1个
+      核心内容:
+      - 基础设备测试示例
+      状态: 待确认
+
+[62] HomeAgendaTest.java
+      路径: com/example/project_pandora/ui/home/HomeAgendaTest.java
+      作用: 首页议程测试
+      测试用例: 约5个
+      核心内容:
+      - 议程显示
+      状态: 待确认
+
+[63] AvatarHelperTest.java
+      路径: com/example/project_pandora/ui/mine/AvatarHelperTest.java
+      作用: 头像助手测试
+      测试用例: 约5个
+      核心内容:
+      - 头像处理
+      状态: 待确认
+
+[64] NameAvatarRenderingTest.java
+      路径: com/example/project_pandora/ui/mine/NameAvatarRenderingTest.java
+      作用: 名字头像渲染测试
+      测试用例: 约5个
+      核心内容:
+      - 头像渲染
+      状态: 待确认
+
+[65] ProfileReadOnlyTest.java
+      路径: com/example/project_pandora/ui/mine/ProfileReadOnlyTest.java
+      作用: 档案只读测试
+      测试用例: 约5个
+      核心内容:
+      - 只读权限验证
+      状态: 待确认
+
+[66] SignatureLineFilterTest.java
+      路径: com/example/project_pandora/ui/mine/SignatureLineFilterTest.java
+      作用: 签名行过滤器测试
+      测试用例: 约5个
+      核心内容:
+      - 签名过滤
+      状态: 待确认
+
+[67] PeopleDirectoryViewTest.java
+      路径: com/example/project_pandora/ui/people/PeopleDirectoryViewTest.java
+      作用: 人员目录视图测试
+      测试用例: 约5个
+      核心内容:
+      - 目录视图交互
+      状态: 待确认
+
+[68] CalendarTaskPanelTest.java
+      路径: com/example/project_pandora/ui/view/CalendarTaskPanelTest.java
+      作用: 日历任务面板测试
+      测试用例: 约5个
+      核心内容:
+      - 面板交互
+      状态: 待确认
+
+[69] CalendarDatePickerTest.java
+      路径: com/example/project_pandora/ui/widget/CalendarDatePickerTest.java
+      作用: 日历日期选择器测试
+      测试用例: 约5个
+      核心内容:
+      - 日期选择
+      状态: 待确认
+
+[70] CalendarDayLabelsTest.java
+      路径: com/example/project_pandora/ui/widget/CalendarDayLabelsTest.java
+      作用: 日历日期标签测试
+      测试用例: 约5个
+      核心内容:
+      - 标签显示
+      状态: 待确认
+
+[71] CompanyCalendarInteractionTest.java
+      路径: com/example/project_pandora/ui/widget/CompanyCalendarInteractionTest.java
+      作用: 公司日历交互测试
+      测试用例: 约5个
+      核心内容:
+      - 日历交互
+      状态: 待确认
+
+[72] CuteOfficeArtworkTest.java
+      路径: com/example/project_pandora/ui/widget/CuteOfficeArtworkTest.java
+      作用: 可爱办公室插画测试
+      测试用例: 约5个
+      核心内容:
+      - 插画显示
+      状态: 待确认
+
+[73] LunarDateWheelModelTest.java
+      路径: com/example/project_pandora/ui/widget/LunarDateWheelModelTest.java
+      作用: 农历日期滚轮模型测试
+      测试用例: 约5个
+      核心内容:
+      - 农历计算
+      状态: 待确认
+
+[74] PhoneMonthViewTest.java
+      路径: com/example/project_pandora/ui/widget/PhoneMonthViewTest.java
+      作用: 手机月视图测试
+      测试用例: 约5个
+      核心内容:
+      - 月视图显示
+      状态: 待确认
+
+[75] TaskScheduleTimelineTest.java
+      路径: com/example/project_pandora/ui/widget/TaskScheduleTimelineTest.java
+      作用: 任务日程时间线测试
+      测试用例: 约5个
+      核心内容:
+      - 时间线显示
+      状态: 待确认
+
+[76] WheelTimePickerDialogTest.java
+      路径: com/example/project_pandora/ui/widget/WheelTimePickerDialogTest.java
+      作用: 滚轮时间选择器对话框测试
+      测试用例: 约5个
+      核心内容:
+      - 时间选择
+      状态: 待确认
+
+================================================================================
+四、其他测试文件 (1个)
+================================================================================
+
+[77] AvatarJpegCompressorTest.java
+      路径: tools/verification/avatar-compression/AvatarJpegCompressorTest.java
+      作用: 头像JPEG压缩测试
+      测试用例: 约5个
+      核心内容:
+      - 图片压缩算法
+      状态: 待确认
+
+================================================================================
+五、测试状态汇总
+================================================================================
+
+| 状态 | 数量 | 说明 |
+|------|------|------|
+| ✅ 已通过 | 29 | 核心测试，无数据库依赖 |
+| ⚠️ 依赖数据库 | 15 | 需要h2_schema.sql支持 |
+| 待确认 | 33 | 需要进一步验证 |
+
+================================================================================
+六、核心测试文件（推荐优先使用）
+================================================================================
+
+以下测试文件已通过验证，无数据库依赖，建议优先使用：
+
+1. JwtUtilTest.java - 认证模块 (12个用例)
+2. TaskStateMachineTest.java - 状态流转 (18个用例)
+3. DivinationEngineTest.java - 占卜引擎 (26个用例)
+4. LogDateWindowTest.java - 日志日期窗口 (8个用例)
+5. NumberCompatTest.java - 数字兼容性 (18个用例)
+6. TaskDateTimesTest.java - 任务日期时间 (11个用例)
+7. HomeBoardLoaderTest.java - 首页看板加载 (12个用例)
+8. BirthFortuneEngineTest.java - 生日运势引擎 (11个用例)
+9. LogEntryRulesTest.java - 日志条目规则 (2个用例)
+10. SignatureRulesTest.java - 签名规则 (2个用例)
+11. AvatarUploadPolicyTest.java - 头像上传策略 (4个用例)
+12. ReadableTextColorsTest.java - 可读文本颜色 (4个用例)
+13. TaskAssigneesTest.java - 任务负责人 (3个用例)
+14. BackgroundPrefsTest.java - 背景偏好 (1个用例)
+15. AiEndpointTest.java - AI端点 (3个用例)
+16. TaskDetailFilterTest.java - 任务详情过滤器 (10个用例)
+17. TaskFormStateTest.java - 任务表单状态 (4个用例)
+18. TaskPinOrderTest.java - 任务置顶排序 (1个用例)
+19. CalendarCellMetricsTest.java - 日历单元格度量 (4个用例)
+20. CalendarDatesTest.java - 日历日期 (9个用例)
+21. MonthTaskLayoutTest.java - 月任务布局 (14个用例)
+22. PeriodSwipeGestureTest.java - 周期滑动手势 (8个用例)
+23. ScheduleDaySwitchTest.java - 日程日切换 (5个用例)
+24. ScheduleLayoutTest.java - 日程布局 (4个用例)
+25. SchedulePeriodTest.java - 日程周期 (6个用例)
+26. SpecialCalendarDatesTest.java - 特殊日历日期 (5个用例)
+27. StatutoryHolidayScheduleTest.java - 法定节假日日程 (4个用例)
+28. TaskVisibilityTest.java - 任务可见性 (3个用例)
+29. ExampleUnitTest.java - 示例测试 (1个用例)
+
+================================================================================
+文档结束
+================================================================================

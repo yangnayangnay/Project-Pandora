@@ -132,8 +132,8 @@ public class TaskChangeService {
         try { payload = json.writeValueAsString(data); }
         catch (Exception e) { throw new BusinessException(ErrorCode.BAD_REQUEST, "任务内容格式错误"); }
         long revision = before == null ? 0 : ((Number) before.get("revision")).longValue();
-        long requestId = insert("INSERT INTO task_change_requests (task_id, operation, requester_id, approver_id, payload, base_revision, status) VALUES (?, ?, ?, ?, ?, ?, 'PENDING')",
-                taskId, operation, actor, reviewer, payload, revision);
+        long requestId = insert("INSERT INTO task_change_requests (task_id, operation, actor_id, requester_id, approver_id, payload, base_revision, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')",
+                taskId, operation, actor, actor, reviewer, payload, revision);
         return result(taskId, requestId, "PENDING", "申请已提交，审核通过后生效");
     }
 

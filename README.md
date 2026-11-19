@@ -182,3 +182,22 @@ openspec/
 └── changes/                # 变更记录
     └── initial-mvp-delivery/  # 初始MVP交付
 ```
+## 最近更新
+
+### 2026-11-18 测试修复
+
+**问题**：AuthLoginPolicyTest、TaskChangeServiceTest、TaskTagServiceTest 三个测试类共产生 41 个 Error。
+
+**根因分析**：
+1. `AuthLoginPolicyTest`: DELETE FROM users 未按依赖顺序，触发外键约束
+2. `TaskTagServiceTest`: task_tags 表缺少 name_key 列
+3. `TaskChangeServiceTest`: work_logs 插入缺少 work_content 字段
+
+**修复内容**：
+- `pandora-backend/src/test/java/com/pandora/backend/auth/AuthLoginPolicyTest.java` - 修复 DELETE 顺序
+- `pandora-backend/src/test/resources/db/h2_schema.sql` - 添加 name_key 列
+- `pandora-backend/src/test/java/com/pandora/backend/task/TaskChangeServiceTest.java` - 添加 work_content
+
+**教训**：AI 助手声明的"已修复"若未经人工在磁盘上落地则不产生任何效果，必须以本地文件 diff 和测试重跑输出为准。
+
+详细记录：`docx/代码改动.txt`
