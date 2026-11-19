@@ -56,3 +56,10 @@ pandora-backend/data/
 /test_screenshots/
 /docx/
 /loading.html
+
+rerun.txt
+TEST_RESULTS_SUMMARY.txt
+test_summary_*.txt
+test_package/
+skills-lock.json
+GenHash.java
