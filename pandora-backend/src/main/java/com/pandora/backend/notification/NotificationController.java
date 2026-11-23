@@ -28,7 +28,7 @@ public class NotificationController {
      * TASK-R18-006: 5 类通知类型枚举（与 NotificationService 保持一致）
      */
     private static final List<String> NOTIFICATION_TYPES = Arrays.asList(
-            "NEW_TASK", "STATUS_CHANGE", "LOG_COMPLETED",
+            "NEW_TASK", "STATUS_CHANGE", "LOG_COMPLETED", "LOG_COMMENTED",
             "TOP10_DISPATCH_CHANGED", "TOP10_IMPORTANT_CHANGED");
 
     @GetMapping("/list")

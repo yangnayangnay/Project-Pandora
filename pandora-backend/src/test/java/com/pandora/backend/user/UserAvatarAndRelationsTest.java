@@ -68,14 +68,14 @@ class UserAvatarAndRelationsTest {
     private FileStorageService files;
     @BeforeEach void setup() {
         var source = new DriverManagerDataSource("jdbc:h2:mem:avatar-relations-" + UUID.randomUUID() + ";MODE=MySQL;DB_CLOSE_DELAY=-1", "sa", "");
-        new ResourceDatabasePopulator(new ClassPathResource("db/h2_schema.sql")).execute(source);
+        new ResourceDatabasePopulator(new org.springframework.core.io.FileSystemResource("src/main/resources/db/h2_schema.sql")).execute(source);
         db = new JdbcTemplate(source);
         db.update("DELETE FROM users");
         db.update("INSERT INTO departments (id,name) VALUES (10,'研发'),(20,'产品')");
         db.update("INSERT INTO teams (id,name,department_id) VALUES (11,'客户端',10)");
         for (int id = 1; id <= 4; id++) db.update("INSERT INTO users (id,username,password_hash,real_name,role,approval_status,department_id,team_id) " +
                 "VALUES (?,?,'hash',?,?,'APPROVED',?,?)", id, "account" + id, "姓名" + id,
-                id == 1 ? "DEPT_HEAD" : id == 2 ? "TEAM_LEADER" : "EMPLOYEE", id == 4 ? 20 : 10, id == 2 ? 11 : null);
+                id == 1 ? "DEPT_HEAD" : id == 2 ? "TEAM_LEADER" : "EMPLOYEE", id == 4 ? 20 : 10, id == 2 || id == 3 ? 11 : null);
         db.update("INSERT INTO user_hierarchy (superior_id,subordinate_id) VALUES (1,2),(2,3)");
         var hierarchy = new HierarchyService();
         ReflectionTestUtils.setField(hierarchy, "jdbcTemplate", db);

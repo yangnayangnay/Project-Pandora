@@ -9,7 +9,7 @@ public final class OrganizationHierarchy {
     public OrganizationHierarchy(JdbcTemplate db) { this.db = db; }
 
     public List<Map<String, Object>> snapshot() {
-        return db.queryForList("SELECT id,role,department_id,team_id FROM users WHERE deleted=0 "
+        return db.queryForList("SELECT id,username,real_name,role,department_id,team_id FROM users WHERE deleted=0 "
                 + "AND approval_status='APPROVED' AND role IN ('FOUNDER','DEPT_HEAD','TEAM_LEADER','EMPLOYEE') ORDER BY id");
     }
 
@@ -31,24 +31,59 @@ public final class OrganizationHierarchy {
         return a.get(key) != null && Objects.equals(a.get(key), b.get(key));
     }
 
-    /** Call in the same transaction as the personnel write, using its pre-write snapshot.
-     * Rebind the edited user, former children and scopes whose responsible post changed.
-     * Unrelated reporting lines and all account/profile data remain untouched. */
+    /** All directory clients project the same approved posts, even with legacy stored links. */
+    public List<Map<String, Object>> relations() {
+        var people = snapshot();
+        Map<Long, Map<String, Object>> byId = new HashMap<>();
+        people.forEach(person -> byId.put(((Number) person.get("id")).longValue(), person));
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (var person : people) for (long parentId : superiors(person, people)) {
+            var parent = byId.get(parentId);
+            result.add(Map.of("superior_id", parentId, "subordinate_id", person.get("id"),
+                    "superior_name", Objects.toString(parent.get("real_name"), parent.get("username").toString()),
+                    "subordinate_name", Objects.toString(person.get("real_name"), person.get("username").toString())));
+        }
+        return result;
+    }
+
+    public List<Map<String, Object>> relatives(long id, boolean upward) {
+        var people = snapshot();
+        Map<Long, Map<String, Object>> byId = new HashMap<>();
+        people.forEach(person -> byId.put(((Number) person.get("id")).longValue(), person));
+        if (!byId.containsKey(id)) return List.of();
+        Map<Long, List<Long>> edges = new HashMap<>();
+        for (var person : people) for (long parent : superiors(person, people)) {
+            long child = ((Number) person.get("id")).longValue();
+            edges.computeIfAbsent(upward ? child : parent, key -> new ArrayList<>()).add(upward ? parent : child);
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        Set<Long> visited = new HashSet<>(Set.of(id));
+        Queue<long[]> queue = new ArrayDeque<>();
+        queue.add(new long[]{id, 0});
+        while (!queue.isEmpty()) {
+            var current = queue.remove();
+            for (long next : edges.getOrDefault(current[0], List.of())) if (visited.add(next)) {
+                var source = byId.get(next);
+                Map<String, Object> entry = new LinkedHashMap<>();
+                for (String key : List.of("id", "username", "real_name", "role")) entry.put(key, source.get(key));
+                entry.put("depth", (int) current[1] + 1);
+                result.add(entry);
+                queue.add(new long[]{next, current[1] + 1});
+            }
+        }
+        return result;
+    }
+
+    /** Call in the personnel write transaction. Reconcile legacy links too, including
+     * administrator, peer-founder and no-longer-approved endpoints. */
     public void synchronize(List<Map<String, Object>> before, long changedId) {
         List<Map<String, Object>> after = snapshot();
-        Map<Long, Map<String, Object>> old = new HashMap<>();
-        before.forEach(person -> old.put(((Number) person.get("id")).longValue(), person));
-        Set<Long> affected = new HashSet<>(db.queryForList(
-                "SELECT subordinate_id FROM user_hierarchy WHERE superior_id=?", Long.class, changedId));
-        affected.add(changedId);
+        db.update("DELETE FROM user_hierarchy WHERE superior_id NOT IN (SELECT id FROM users WHERE deleted=0 "
+                + "AND approval_status='APPROVED' AND role IN ('FOUNDER','DEPT_HEAD','TEAM_LEADER','EMPLOYEE')) "
+                + "OR subordinate_id NOT IN (SELECT id FROM users WHERE deleted=0 "
+                + "AND approval_status='APPROVED' AND role IN ('FOUNDER','DEPT_HEAD','TEAM_LEADER','EMPLOYEE'))");
         for (Map<String, Object> person : after) {
             long id = ((Number) person.get("id")).longValue();
-            Map<String, Object> previous = old.get(id);
-            if (previous == null || !superiors(previous, before).equals(superiors(person, after))) affected.add(id);
-        }
-        for (Map<String, Object> person : after) {
-            long id = ((Number) person.get("id")).longValue();
-            if (!affected.contains(id)) continue;
             List<Long> expected = superiors(person, after);
             List<Long> current = db.queryForList("SELECT superior_id FROM user_hierarchy WHERE subordinate_id=? ORDER BY superior_id", Long.class, id);
             if (current.equals(expected)) continue;

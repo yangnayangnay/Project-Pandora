@@ -36,7 +36,7 @@ public final class DailyItemAdapter extends RecyclerView.Adapter<DailyItemAdapte
         holder.check.setContentDescription((completed ? "恢复未完成：" : "标记完成：") + DailyItems.content(item));
         holder.content.setText(DailyItems.content(item)); holder.content.setPaintFlags(completed ? holder.content.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG : holder.content.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
         holder.content.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), completed ? R.color.color_text_secondary : R.color.color_text_primary));
-        holder.status.setText(writing ? "保存中…" : completed ? "已完成" : "待办"); holder.edit.setEnabled(!writing);
+        holder.status.setText(writing ? "保存中…" : DailyItems.timeLabel(item) + " · " + (completed ? "已完成" : "待办")); holder.edit.setEnabled(!writing);
         holder.edit.setContentDescription("编辑事项：" + DailyItems.content(item));
         holder.check.setOnCheckedChangeListener((button, checked) -> onComplete.accept(item, checked)); holder.edit.setOnClickListener(v -> onEdit.accept(item));
     }

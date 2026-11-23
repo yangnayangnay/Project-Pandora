@@ -20,7 +20,7 @@ class CompanyDirectoryControllerTest {
 
     @BeforeEach void setup() {
         var source = new DriverManagerDataSource("jdbc:h2:mem:company-directory-" + UUID.randomUUID() + ";MODE=MySQL;DB_CLOSE_DELAY=-1", "sa", "");
-        new ResourceDatabasePopulator(new ClassPathResource("db/h2_schema.sql")).execute(source);
+        new ResourceDatabasePopulator(new org.springframework.core.io.FileSystemResource("src/main/resources/db/h2_schema.sql")).execute(source);
         db = new JdbcTemplate(source); db.update("DELETE FROM user_hierarchy"); db.update("DELETE FROM users");
         db.update("INSERT INTO users(id,username,password_hash,role,approval_status,real_name) VALUES " +
                 "(1,'founder','hash','FOUNDER','APPROVED','创始人')," +
@@ -51,6 +51,10 @@ class CompanyDirectoryControllerTest {
         @SuppressWarnings("unchecked")
         List<Map<String,Object>> tasks = (List<Map<String,Object>>) directory.detail(3, null, null, null).getData().get("tasks");
         assertEquals(1, tasks.size());
+        assertEquals("通讯录任务", tasks.get(0).get("name"));
+        assertEquals("IN_PROGRESS", tasks.get(0).get("status"));
+        assertEquals(91L, tasks.get(0).get("id"));
+        assertFalse(tasks.get(0).containsKey("NAME"));
         Object assignee = tasks.get(0).get("assignee_real_name");
         if (assignee == null) assignee = tasks.get(0).get("ASSIGNEE_REAL_NAME");
         assertEquals("员工", assignee);

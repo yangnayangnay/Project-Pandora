@@ -3,6 +3,8 @@ package com.example.project_pandora.ui.mine;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import com.example.project_pandora.ui.PandoraActivity;
@@ -31,6 +33,14 @@ public class UserRelationActivity extends PandoraActivity {
     private final List<Map<String, Object>> people = new ArrayList<>();
     private int relationTab;
     private boolean loaded;
+    private boolean loading;
+    private final Handler refreshHandler = new Handler(Looper.getMainLooper());
+    private final Runnable refresh = new Runnable() {
+        @Override public void run() {
+            loadRelations(true);
+            refreshHandler.postDelayed(this, 15000);
+        }
+    };
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -56,13 +66,19 @@ public class UserRelationActivity extends PandoraActivity {
             @Override public void onTabUnselected(TabLayout.Tab tab) {}
             @Override public void onTabReselected(TabLayout.Tab tab) {}
         });
-        loadRelations();
     }
-    private void loadRelations() {
-        loaded = false;
-        binding.peopleDirectory.showLoading();
+    @Override protected void onResume() {
+        super.onResume(); loadRelations(); refreshHandler.postDelayed(refresh, 15000);
+    }
+    @Override protected void onPause() { refreshHandler.removeCallbacks(refresh); super.onPause(); }
+    private void loadRelations() { loadRelations(false); }
+    private void loadRelations(boolean background) {
+        if (loading) return;
+        loading = true;
+        if (!background) { loaded = false; binding.peopleDirectory.showLoading(); }
         request.set(NetworkClient.getInstance(this).createService(UserApi.class).getUserRelations()
                 .subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(response -> {
+                    loading = false;
                     if (!response.isSuccess() || response.getData() == null) { binding.peopleDirectory.showError(); return; }
                     people.clear();
                     append(response.getData().get("superiors"), "上级");
@@ -70,6 +86,7 @@ public class UserRelationActivity extends PandoraActivity {
                     loaded = true;
                     renderPeople();
                 }, error -> {
+                    loading = false;
                     if (error instanceof HttpException && ((HttpException) error).code() == 401) {
                         TokenManager.getInstance(this).clear();
                         startActivity(new Intent(this, LoginActivity.class)); finish();

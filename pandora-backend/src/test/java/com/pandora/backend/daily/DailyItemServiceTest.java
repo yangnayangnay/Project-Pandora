@@ -23,7 +23,7 @@ class DailyItemServiceTest {
     private long id(Map<String, Object> row) { return ((Number) row.get("id")).longValue(); }
     @BeforeEach void setup() {
         var source = new DriverManagerDataSource("jdbc:h2:mem:daily-" + UUID.randomUUID() + ";MODE=MySQL;DB_CLOSE_DELAY=-1", "sa", "");
-        new ResourceDatabasePopulator(new ClassPathResource("db/h2_schema.sql")).execute(source);
+        new ResourceDatabasePopulator(new org.springframework.core.io.FileSystemResource("src/main/resources/db/h2_schema.sql")).execute(source);
         db = new JdbcTemplate(source); service = new DailyItemService(db);
         db.update("DELETE FROM users");
         for (int i = 1; i <= 4; i++) db.update("INSERT INTO users(id,username,password_hash,role,approval_status) VALUES (?,?,'hash',?,'APPROVED')", i, "daily-user" + i, i == 1 ? "EMPLOYEE" : i == 2 ? "FOUNDER" : i == 3 ? "ADMIN" : "EMPLOYEE");
@@ -112,4 +112,66 @@ class DailyItemServiceTest {
         assertTrue(service.list(1, "2026-11").isEmpty());
     }
     private void login(long id) { SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(id, "", List.of())); }
+
+    @Test void timedItemRoundTripsAndKeepsClocksWhenMovedAcrossMonths() {
+        var first = service.create(1, Map.of("content", "晚间工作", "startDate", "2026-11-30", "endDate", "2026-12-01", "startTime", "23:30", "endTime", "01:15"));
+        assertEquals("23:30", first.get("start_time")); assertEquals("01:15", first.get("end_time"));
+        assertEquals(1, service.listForDate(1, "2026-12-01").size());
+        var moved = service.update(1, id(first), Map.of("startDate", "2026-12-31", "endDate", "2027-01-01"));
+        assertEquals("23:30", moved.get("start_time")); assertEquals("01:15", moved.get("end_time"));
+        assertTrue(service.listForDate(1, "2026-11-30").isEmpty());
+        assertEquals(1, service.listForDate(1, "2027-01-01").size());
+        var patch = new HashMap<String, Object>(); patch.put("startTime", null); patch.put("endTime", null);
+        assertNull(service.update(1, id(first), patch).get("start_time"));
+    }
+    @Test void invalidTimesAndReversedSameDayRangeNeverCreateOrPartiallyUpdate() {
+        for (String time : List.of("24:00", "9:30", "12:60", "12:30:00", "")) {
+            assertThrows(BusinessException.class, () -> service.create(1, Map.of("content", "错误", "itemDate", "2026-11-23", "startTime", time, "endTime", "23:59")));
+        }
+        assertTrue(service.list(1, "2026-11").isEmpty());
+        var item = service.create(1, Map.of("content", "保留", "itemDate", "2026-11-23", "startTime", "09:00", "endTime", "10:00"));
+        assertThrows(BusinessException.class, () -> service.update(1, id(item), Map.of("content", "不应保存", "endTime", "08:00")));
+        assertEquals("保留", service.listForDate(1, "2026-11-23").get(0).get("content"));
+        assertThrows(BusinessException.class, () -> service.update(4, id(item), Map.of("startTime", "08:00")));
+    }
+    @Test void allDayCompatibilityAndPairedClockValidation() {
+        var item = create(1, "2026-11-23", "全天"); assertNull(item.get("start_time"));
+        assertThrows(BusinessException.class, () -> service.update(1, id(item), Map.of("startTime", "09:00")));
+        assertNotNull(service.update(1, id(item), Map.of("startTime", "09:00", "endTime", "09:00")));
+    }
+
+    @Test void upgradingLegacySchemaRestoresHomeLoadingAndPreservesExistingItems() throws Exception {
+        create(1, "2026-11-23", "升级前的全天事项");
+        db.execute("ALTER TABLE daily_items DROP COLUMN start_clock");
+        db.execute("ALTER TABLE daily_items DROP COLUMN end_clock");
+        assertThrows(org.springframework.jdbc.BadSqlGrammarException.class, () -> service.list(1, "2026-11"));
+        // Use the real startup script, twice, to prove existing installations upgrade safely.
+        var migration = new ResourceDatabasePopulator(new org.springframework.core.io.FileSystemResource("src/main/resources/db/h2_schema.sql"));
+        migration.execute(Objects.requireNonNull(db.getDataSource()));
+        migration.execute(db.getDataSource());
+        login(1);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new DailyItemController(service))
+                .setControllerAdvice(new GlobalExceptionHandler()).build();
+        mvc.perform(get("/daily-items").param("month", "2026-11"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.data[0].content").value("升级前的全天事项"));
+        assertNull(service.list(1, "2026-11").get(0).get("start_time"));
+        service.create(1, Map.of("content", "升级后的定时事项", "itemDate", "2026-11-23", "startTime", "09:00", "endTime", "10:00"));
+        assertEquals(2, service.listForDate(1, "2026-11-23").size());
+    }
+
+    @Test void startupUpgradeWorksWithSqlInitializationDisabledAndIsIdempotent() {
+        create(1, "2026-11-23", "云端旧事项");
+        db.execute("DROP INDEX idx_daily_items_owner_range");
+        for (String column : List.of("start_date", "end_date", "start_clock", "end_clock"))
+            db.execute("ALTER TABLE daily_items DROP COLUMN " + column);
+        var upgrade = new DailyItemSchemaUpgrade(db);
+        upgrade.run(null); upgrade.run(null);
+        var old = service.list(1, "2026-11").get(0);
+        assertEquals("云端旧事项", old.get("content"));
+        assertEquals("2026-11-23", old.get("start_date"));
+        var timed = service.create(1, Map.of("content", "可创建的事项", "itemDate", "2026-11-23", "startTime", "09:00", "endTime", "10:00"));
+        assertEquals("09:00", timed.get("start_time"));
+        assertEquals(2, service.listForDate(1, "2026-11-23").size());
+    }
 }

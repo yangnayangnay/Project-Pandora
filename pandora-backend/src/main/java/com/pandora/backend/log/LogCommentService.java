@@ -19,9 +19,11 @@ import java.util.Set;
 public class LogCommentService {
     private final JdbcTemplate db;
     private final HierarchyService hierarchy;
+    private final com.pandora.backend.notification.NotificationService notifications;
 
-    public LogCommentService(JdbcTemplate db, HierarchyService hierarchy) {
-        this.db = db; this.hierarchy = hierarchy;
+    public LogCommentService(JdbcTemplate db, HierarchyService hierarchy,
+            com.pandora.backend.notification.NotificationService notifications) {
+        this.db = db; this.hierarchy = hierarchy; this.notifications = notifications;
     }
 
     public Map<String, Object> list(long logId, long viewerId) {
@@ -57,6 +59,7 @@ public class LogCommentService {
             statement.setLong(1, logId); statement.setLong(2, authorId); statement.setString(3, content);
             return statement;
         }, key);
+        notifications.detectLogComment(logId, authorId, content);
         return Map.of("id", key.getKey(), "content", content);
     }
 

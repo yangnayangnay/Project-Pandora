@@ -40,10 +40,8 @@ public class DebugAuthControllerTest {
         db.execute("DELETE FROM log_comments");
         db.execute("DELETE FROM work_logs");
         db.execute("DELETE FROM daily_items");
-        db.execute("DELETE FROM ai_analysis_records");
         db.execute("DELETE FROM divination_records");
         db.execute("DELETE FROM mbti_reports");
-        db.execute("DELETE FROM calendar_events");
         db.execute("DELETE FROM teams");
         db.execute("DELETE FROM departments");
         db.execute("DELETE FROM users");

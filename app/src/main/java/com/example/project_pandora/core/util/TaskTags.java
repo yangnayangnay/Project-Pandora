@@ -9,6 +9,10 @@ public final class TaskTags {
         if (row == null) return null;
         Object value = row.get(key); return value != null ? value : row.get(key.toUpperCase(Locale.ROOT));
     }
+    public static String title(Map<String, Object> task) {
+        String name = Objects.toString(value(task, "name"), "").trim();
+        return name.isEmpty() ? "未命名任务" : name;
+    }
     @SuppressWarnings("unchecked")
     public static List<Map<String, Object>> of(Map<String, Object> task) {
         List<Map<String, Object>> result = new ArrayList<>();

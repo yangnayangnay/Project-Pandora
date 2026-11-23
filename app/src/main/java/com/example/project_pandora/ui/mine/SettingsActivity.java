@@ -45,6 +45,7 @@ public class SettingsActivity extends PandoraActivity {
     private ActivitySettingsBinding binding;
     private TaskDisplaySettingsRepository taskDisplaySettings;
     private boolean applyingTaskDisplaySetting;
+    private boolean applyingNotificationPreference;
     private NotificationApi notificationApi;
     private LogDisplayLimitConfig logDisplayLimitConfig;
     private SyncManager syncManager;
@@ -56,6 +57,7 @@ public class SettingsActivity extends PandoraActivity {
             {"NEW_TASK", "switchNotifNewTask"},
             {"STATUS_CHANGE", "switchNotifStatusChange"},
             {"LOG_COMPLETED", "switchNotifLogCompleted"},
+            {"LOG_COMMENTED", "switchNotifLogCommented"},
             {"TOP10_DISPATCH_CHANGED", "switchNotifTop10Dispatch"},
             {"TOP10_IMPORTANT_CHANGED", "switchNotifTop10Important"}
     };
@@ -129,6 +131,10 @@ public class SettingsActivity extends PandoraActivity {
         binding.switchNotifLogCompleted.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!buttonView.isPressed()) return;
             updateNotificationPreference("LOG_COMPLETED", isChecked, binding.switchNotifLogCompleted);
+        });
+        binding.switchNotifLogCommented.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (applyingNotificationPreference) return;
+            updateNotificationPreference("LOG_COMMENTED", isChecked, binding.switchNotifLogCommented);
         });
         binding.switchNotifTop10Dispatch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!buttonView.isPressed()) return;
@@ -433,6 +439,7 @@ public class SettingsActivity extends PandoraActivity {
                                 binding.switchNotifNewTask.setChecked(getPrefBool(data, "NEW_TASK", true));
                                 binding.switchNotifStatusChange.setChecked(getPrefBool(data, "STATUS_CHANGE", true));
                                 binding.switchNotifLogCompleted.setChecked(getPrefBool(data, "LOG_COMPLETED", true));
+                                setNotificationSwitch(binding.switchNotifLogCommented, getPrefBool(data, "LOG_COMMENTED", true));
                                 binding.switchNotifTop10Dispatch.setChecked(getPrefBool(data, "TOP10_DISPATCH_CHANGED", true));
                                 binding.switchNotifTop10Important.setChecked(getPrefBool(data, "TOP10_IMPORTANT_CHANGED", true));
                             } else {
@@ -456,6 +463,7 @@ public class SettingsActivity extends PandoraActivity {
         binding.switchNotifNewTask.setChecked(enabled);
         binding.switchNotifStatusChange.setChecked(enabled);
         binding.switchNotifLogCompleted.setChecked(enabled);
+        setNotificationSwitch(binding.switchNotifLogCommented, enabled);
         binding.switchNotifTop10Dispatch.setChecked(enabled);
         binding.switchNotifTop10Important.setChecked(enabled);
     }
@@ -466,6 +474,7 @@ public class SettingsActivity extends PandoraActivity {
      */
     private void updateNotificationPreference(String type, boolean enabled,
                                               com.google.android.material.materialswitch.MaterialSwitch switchView) {
+        switchView.setEnabled(false);
         Map<String, Object> request = new HashMap<>();
         request.put(type, enabled);
 
@@ -474,6 +483,12 @@ public class SettingsActivity extends PandoraActivity {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         response -> {
+                            switchView.setEnabled(true);
+                            if (!response.isSuccess()) {
+                                setNotificationSwitch(switchView, !enabled);
+                                Toast.makeText(this, "保存失败，请重试", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
                             // 更新本地 SharedPreferences 偏好缓存（轮询 Worker 读取该缓存）
                             android.content.SharedPreferences prefs = getSharedPreferences("notification_prefs", Context.MODE_PRIVATE);
                             prefs.edit().putBoolean("pref_type_" + type, enabled)
@@ -482,9 +497,16 @@ public class SettingsActivity extends PandoraActivity {
                         },
                         error -> {
                             // 失败回弹至保存前状态
-                            switchView.setChecked(!enabled);
+                            switchView.setEnabled(true);
+                            setNotificationSwitch(switchView, !enabled);
                             Toast.makeText(this, "\u4FDD\u5B58\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5", Toast.LENGTH_SHORT).show();
                         }
                 ));
+    }
+    private void setNotificationSwitch(com.google.android.material.materialswitch.MaterialSwitch switchView, boolean checked) {
+        boolean previous = applyingNotificationPreference;
+        applyingNotificationPreference = true;
+        switchView.setChecked(checked);
+        applyingNotificationPreference = previous;
     }
 }

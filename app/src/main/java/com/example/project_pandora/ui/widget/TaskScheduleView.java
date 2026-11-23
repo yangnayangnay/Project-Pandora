@@ -111,7 +111,7 @@ public class TaskScheduleView extends PeriodSwipeLayout {
         month.setOnClickListener(v -> { if (datePickerListener != null) datePickerListener.run(); });
         nav.addView(month, new LayoutParams(0, dp(56), 1));
         TextView previous = action("‹", "上一" + (dayMode ? "天" : "周"));
-        TextView today = action("今天", "回到今天"); today.setTextSize(14);
+        TextView today = action("今天", "回到今天"); today.setTextSize(14); today.setBackgroundResource(R.drawable.bg_interactive_action);
         TextView next = action("›", "下一" + (dayMode ? "天" : "周"));
         previous.setOnClickListener(v -> shift(dayMode ? -1 : -7));
         next.setOnClickListener(v -> shift(dayMode ? 1 : 7));

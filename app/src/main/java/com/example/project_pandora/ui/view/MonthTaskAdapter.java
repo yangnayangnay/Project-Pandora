@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.project_pandora.R;
 import com.example.project_pandora.core.util.DateCompat;
 import com.example.project_pandora.core.util.NumberCompat;
+import com.example.project_pandora.core.util.TaskTags;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,7 +52,7 @@ public class MonthTaskAdapter extends RecyclerView.Adapter<MonthTaskAdapter.Mont
         for (int i = 0; i < tasks.size(); i++) {
             Map<String, Object> task = tasks.get(i);
             if (task == null) continue;
-            Long taskId = NumberCompat.toLong(task.get("id"));
+            Long taskId = NumberCompat.toLong(TaskTags.value(task, "id"));
             if (taskId != null && taskId.longValue() == id) {
                 task.put("status", status);
                 notifyItemChanged(i);
@@ -200,27 +201,26 @@ public class MonthTaskAdapter extends RecyclerView.Adapter<MonthTaskAdapter.Mont
                   Consumer<Map<String, Object>> statusClick) {
             Context context = itemView.getContext();
 
-            String name = string(task != null ? task.get("name") : null);
-            if (name.isEmpty()) name = "未命名任务";
+            String name = TaskTags.title(task);
             nameView.setText(name);
 
             String timeText = formatTimeRange(task);
             timeView.setText(timeText);
 
-            String deadline = task != null ? DateCompat.toLocalDate(task.get("end_time")) : null;
+            String deadline = DateCompat.toLocalDate(TaskTags.value(task, "end_time"));
             String deadlineText = deadline != null && !deadline.isEmpty()
                     ? deadline.replace('-', '/') : "-";
             String assignee = "";
             if (task != null) {
-                assignee = string(task.get("assignee_real_name"));
-                if (assignee.isEmpty()) assignee = string(task.get("assignee_name"));
+                assignee = string(TaskTags.value(task, "assignee_real_name"));
+                if (assignee.isEmpty()) assignee = string(TaskTags.value(task, "assignee_name"));
             }
             if (assignee.isEmpty()) assignee = "未指派";
             String tagNames = com.example.project_pandora.core.util.TaskTags.names(task);
             String metaText = "截止 " + deadlineText + " · " + assignee + (tagNames.isEmpty() ? "" : "\n" + tagNames);
             metaView.setText(metaText);
 
-            String status = string(task != null ? task.get("status") : null);
+            String status = string(TaskTags.value(task, "status"));
             boolean completed = "COMPLETED".equals(status);
             String statusText = completed ? "已完成" : "未完成";
             statusBackground.setColor(ContextCompat.getColor(context, completed
@@ -264,8 +264,8 @@ public class MonthTaskAdapter extends RecyclerView.Adapter<MonthTaskAdapter.Mont
 
     private static String formatTimeRange(Map<String, Object> task) {
         if (task == null) return TEXT_TIME_UNSET;
-        String start = DateCompat.toLocalDateTime(task.get("start_time"));
-        String end = DateCompat.toLocalDateTime(task.get("end_time"));
+        String start = DateCompat.toLocalDateTime(TaskTags.value(task, "start_time"));
+        String end = DateCompat.toLocalDateTime(TaskTags.value(task, "end_time"));
         if (start == null && end == null) return TEXT_TIME_UNSET;
 
         String startTime = clock(start);

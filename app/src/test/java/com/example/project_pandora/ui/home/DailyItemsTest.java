@@ -67,4 +67,13 @@ public class DailyItemsTest {
         assertEquals("大写字段", DailyItems.content(upper));
         assertEquals("2026-11-03", DailyItems.date(upper)); assertTrue(DailyItems.completed(upper));
     }
+    @Test public void timedItemFeedsClockIntoCalendarAndLeavesOriginalDatesUntouched() {
+        Map<String, Object> todo = item(1, "2026-11-23", false);
+        todo.put("start_time", "09:15"); todo.put("end_time", "10:30");
+        Map<String, Object> entry = DailyItems.calendarEntries(Collections.singletonList(todo)).get(0);
+        assertEquals("2026-11-23T09:15:00", entry.get("start_time"));
+        assertEquals("2026-11-23T10:30:00", entry.get("end_time"));
+        assertEquals("09:15—10:30", DailyItems.timeLabel(todo));
+        assertEquals("09:15", todo.get("start_time"));
+    }
 }

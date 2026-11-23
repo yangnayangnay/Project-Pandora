@@ -97,6 +97,8 @@ CREATE TABLE IF NOT EXISTS `task_tags` (
     `color_index` INT NOT NULL,
     `deleted` TINYINT NOT NULL DEFAULT 0
 );
+ALTER TABLE `task_tags` ADD COLUMN IF NOT EXISTS `created_by` BIGINT DEFAULT NULL;
+ALTER TABLE `task_tags` ADD COLUMN IF NOT EXISTS `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
 CREATE TABLE IF NOT EXISTS `task_tag_links` (
     `task_id` BIGINT NOT NULL,
     `tag_id` BIGINT NOT NULL,
@@ -342,6 +344,7 @@ CREATE TABLE IF NOT EXISTS `notifications` (
     PRIMARY KEY (`id`)
 );
 CREATE INDEX IF NOT EXISTS `idx_notif_user_created` ON `notifications` (`target_user_id`, `created_at`);
+ALTER TABLE `notifications` ADD COLUMN IF NOT EXISTS `log_id` BIGINT DEFAULT NULL;
 CREATE INDEX IF NOT EXISTS `idx_notif_user_unread` ON `notifications` (`target_user_id`, `is_read`);
 
 
@@ -472,6 +475,10 @@ CREATE TABLE IF NOT EXISTS `task_change_requests` (
     `reviewed_at` TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS `idx_task_change_reviewer` ON `task_change_requests` (`approver_id`, `status`);
+ALTER TABLE `task_change_requests` ADD COLUMN IF NOT EXISTS `actor_id` BIGINT DEFAULT NULL;
+ALTER TABLE `task_change_requests` ADD COLUMN IF NOT EXISTS `reviewer_id` BIGINT DEFAULT NULL;
+ALTER TABLE `task_change_requests` ADD COLUMN IF NOT EXISTS `review_reason` VARCHAR(500) DEFAULT NULL;
+ALTER TABLE `task_change_requests` ADD COLUMN IF NOT EXISTS `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS `sync_relay_keys` (
     `id`           BIGINT       NOT NULL AUTO_INCREMENT,
@@ -483,3 +490,7 @@ CREATE TABLE IF NOT EXISTS `sync_relay_keys` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_sync_client_key` (`client_key`)
 );
+
+-- Optional clocks preserve existing all-day records and are retained when dates are moved.
+ALTER TABLE daily_items ADD COLUMN IF NOT EXISTS start_clock VARCHAR(5) DEFAULT NULL;
+ALTER TABLE daily_items ADD COLUMN IF NOT EXISTS end_clock VARCHAR(5) DEFAULT NULL;

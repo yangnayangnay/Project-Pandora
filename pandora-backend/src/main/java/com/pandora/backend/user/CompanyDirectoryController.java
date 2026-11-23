@@ -64,6 +64,11 @@ public class CompanyDirectoryController {
         if (endDate != null && !endDate.isBlank()) { taskSql.append(" AND tk.start_time<=?"); taskArgs.add(endDate); }
         taskSql.append(" ORDER BY tk.is_urgent DESC,tk.end_time,tk.created_at DESC");
         List<Map<String, Object>> tasks = tags.attach(db.queryForList(taskSql.toString(), taskArgs.toArray()));
+        tasks = tasks.stream().map(row -> {
+            Map<String, Object> normalized = new LinkedHashMap<>();
+            row.forEach((key, value) -> normalized.put(key.toLowerCase(Locale.ROOT), value));
+            return normalized;
+        }).toList();
 
         List<Object> logArgs = new ArrayList<>(List.of(userId));
         StringBuilder logSql = new StringBuilder("SELECT * FROM work_logs WHERE user_id=? AND deleted=0");
@@ -72,7 +77,7 @@ public class CompanyDirectoryController {
         logSql.append(" ORDER BY log_date DESC,created_at DESC");
 
         List<Object> itemArgs = new ArrayList<>(List.of(userId));
-        StringBuilder itemSql = new StringBuilder("SELECT id,content,start_date,end_date,completed FROM daily_items WHERE user_id=? AND deleted=0");
+        StringBuilder itemSql = new StringBuilder("SELECT id,content,start_date,end_date,start_clock AS start_time,end_clock AS end_time,completed FROM daily_items WHERE user_id=? AND deleted=0");
         if (startDate != null && !startDate.isBlank()) { itemSql.append(" AND end_date>=?"); itemArgs.add(startDate); }
         if (endDate != null && !endDate.isBlank()) { itemSql.append(" AND start_date<=?"); itemArgs.add(endDate); }
         itemSql.append(" ORDER BY start_date,end_date,id");

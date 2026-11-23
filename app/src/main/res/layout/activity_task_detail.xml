@@ -59,7 +59,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnEditTaskTags"
-                    style="@style/Widget.Pandora.Button.Text"
+                    style="@style/Widget.Pandora.Button.Brown"
                     android:layout_width="wrap_content"
                     android:layout_height="48dp"
                     android:text="调整标签"

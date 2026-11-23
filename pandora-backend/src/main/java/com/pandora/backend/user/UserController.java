@@ -292,8 +292,9 @@ public class UserController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserRelations() {
         Long userId = getCurrentUserId();
 
-        List<Map<String, Object>> superiorMaps = hierarchyService.getSuperiors(userId);
-        List<Map<String, Object>> subordinateMaps = hierarchyService.getSubordinates(userId);
+        var organization = new OrganizationHierarchy(jdbcTemplate);
+        List<Map<String, Object>> superiorMaps = organization.relatives(userId, true);
+        List<Map<String, Object>> subordinateMaps = organization.relatives(userId, false);
 
         List<Map<String, Object>> superiors = new ArrayList<>();
         for (Map<String, Object> s : superiorMaps) {
@@ -472,6 +473,13 @@ public class UserController {
      * 仅 ADMIN 角色可调用，非 ADMIN 返回 403。
      * 密码经 BCryptPasswordEncoder 加密存储，approval_status='APPROVED'，deleted=0。
      */
+    @GetMapping("/next-employee-number")
+    public ResponseEntity<ApiResponse<Map<String, String>>> nextEmployeeNumber() {
+        if (!RoleChecker.isAdminOnly(getCurrentUserRole()))
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        return ResponseEntity.ok(ApiResponse.success(Map.of("employeeNo", accountCreationService.nextEmployeeNumber())));
+    }
+
     @PostMapping("/create")
     @Auditable(operationType = "USER_CREATE", targetType = "USER")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createUser(@RequestBody Map<String, Object> request) {

@@ -14,10 +14,11 @@ class OrganizationHierarchyTest {
     JdbcTemplate db;
     PersonnelController personnel;
     final UsernamePasswordAuthenticationToken admin = new UsernamePasswordAuthenticationToken(1L, null, List.of());
+    @AfterEach void cleanup() { org.springframework.security.core.context.SecurityContextHolder.clearContext(); }
 
     @BeforeEach void setup() {
         var source = new DriverManagerDataSource("jdbc:h2:mem:organization-" + UUID.randomUUID() + ";MODE=MySQL;DB_CLOSE_DELAY=-1", "sa", "");
-        new ResourceDatabasePopulator(new ClassPathResource("db/h2_schema.sql")).execute(source);
+        new ResourceDatabasePopulator(new org.springframework.core.io.FileSystemResource("src/main/resources/db/h2_schema.sql")).execute(source);
         db = new JdbcTemplate(source);
         db.update("DELETE FROM user_hierarchy"); db.update("DELETE FROM users");
         db.update("INSERT INTO departments(id,name) VALUES(10,'研发'),(20,'产品')");
@@ -113,5 +114,45 @@ class OrganizationHierarchyTest {
             assertFalse(employee.containsKey(field), field);
         assertTrue(employee.containsKey("birthday"));
         assertTrue(employee.containsKey("id_card"));
+    }
+
+    @SuppressWarnings("unchecked") @Test void legacyAdminAndPeerFounderLinksNeverAppearAndAdjustmentRepairsAllViews() {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(admin);
+        user(9, "FOUNDER", null, null);
+        db.update("INSERT INTO user_hierarchy(superior_id,subordinate_id) VALUES(1,2),(2,9)");
+        db.update("DELETE FROM user_hierarchy WHERE subordinate_id=6");
+        // Reading already projects correct posts before any administrator resaves a person.
+        var directory = personnel.directory().getData();
+        for (long id : List.of(1L, 2L, 9L)) {
+            var row = directory.stream().filter(p -> Objects.equals(p.get("id"), id)).findFirst().orElseThrow();
+            assertTrue(((List<?>) row.get("superiors")).isEmpty());
+            if (id == 1) assertTrue(((List<?>) row.get("subordinates")).isEmpty());
+        }
+        personnel.employment(admin, 6L, Map.of("role", "DEPT_HEAD", "departmentId", 20));
+        assertEquals(List.of(2L, 9L), parents(6));
+        assertTrue(parents(2).isEmpty()); assertTrue(parents(9).isEmpty());
+        directory = personnel.directory().getData();
+        var head = directory.stream().filter(p -> Objects.equals(p.get("id"), 6L)).findFirst().orElseThrow();
+        assertEquals(2, ((List<?>) head.get("superiors")).size());
+        var controller = new UserController();
+        org.springframework.test.util.ReflectionTestUtils.setField(controller, "jdbcTemplate", db);
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(6L, null, List.of()));
+        try {
+            var mobile = controller.getUserRelations().getBody().getData();
+            var superiors = (List<Map<String, Object>>) mobile.get("superiors");
+            assertEquals(List.of(2L, 9L), superiors.stream().map(p -> (Long) p.get("id")).sorted().toList());
+            assertTrue(((List<Map<String, Object>>) mobile.get("subordinates")).stream()
+                    .noneMatch(p -> "ADMIN".equals(p.get("role")) || "FOUNDER".equals(p.get("role"))));
+        } finally { org.springframework.security.core.context.SecurityContextHolder.clearContext(); }
+    }
+
+    @Test void startupRepairIsIdempotentAndPreservesProfiles() {
+        db.update("INSERT INTO user_hierarchy(superior_id,subordinate_id) VALUES(1,2)");
+        db.update("DELETE FROM user_hierarchy WHERE subordinate_id=6");
+        var repair = new OrganizationHierarchyInitializer(db);
+        repair.run(null); repair.run(null);
+        assertTrue(parents(2).isEmpty()); assertEquals(List.of(2L), parents(6));
+        assertEquals("untouched-hash", db.queryForObject("SELECT password_hash FROM users WHERE id=2", String.class));
     }
 }

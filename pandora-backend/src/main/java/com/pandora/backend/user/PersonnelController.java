@@ -13,6 +13,8 @@ import java.util.*;
 @RequestMapping("/user")
 @PreAuthorize("hasAnyRole('ADMIN','FOUNDER')")
 public class PersonnelController {
+    @org.springframework.beans.factory.annotation.Autowired
+    private AccountDepartureService departureService;
     private final JdbcTemplate db;
     public PersonnelController(JdbcTemplate db) { this.db = db; }
 
@@ -184,10 +186,7 @@ public class PersonnelController {
                 "u.birthday, u.department_id, u.team_id, u.avatar, u.approval_status, u.created_at, u.updated_at, " +
                 "d.name AS department_name, t.name AS team_name FROM users u LEFT JOIN departments d ON d.id = u.department_id " +
                 "LEFT JOIN teams t ON t.id = u.team_id WHERE u.deleted = 0 ORDER BY u.id");
-        List<Map<String, Object>> relations = db.queryForList("SELECT h.superior_id, h.subordinate_id, COALESCE(s.real_name,s.username) AS superior_name, " +
-                "COALESCE(u.real_name,u.username) AS subordinate_name FROM user_hierarchy h JOIN users s ON s.id = h.superior_id " +
-                "JOIN users u ON u.id = h.subordinate_id WHERE s.deleted = 0 AND u.deleted = 0 "
-                        + (administrator ? "" : "AND s.role <> 'ADMIN' AND u.role <> 'ADMIN'"));
+        List<Map<String, Object>> relations = new OrganizationHierarchy(db).relations();
         if (!administrator) users.removeIf(user -> "ADMIN".equals(user.get("role")));
         for (Map<String, Object> user : users) {
             OrganizationRules.normalize(user);
@@ -196,6 +195,14 @@ public class PersonnelController {
             user.put("subordinates", relations.stream().filter(r -> Objects.equals(r.get("superior_id"), id)).toList());
         }
         return ApiResponse.success(users);
+    }
+
+    @PostMapping("/{id}/departure")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Auditable(operationType = "USER_DEPARTURE", targetType = "USER")
+    public ApiResponse<Void> departure(Authentication auth, @PathVariable("id") long id) {
+        departureService.depart(((Number) auth.getPrincipal()).longValue(), id);
+        return ApiResponse.success();
     }
 
     @PutMapping("/{id}/employment")

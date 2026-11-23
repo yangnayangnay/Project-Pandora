@@ -27,7 +27,10 @@ public class AccountCreationService {
 
     @Transactional
     public Map<String, Object> create(Map<String, Object> request) {
-        String employeeNo = required(request, request.containsKey("employeeNo") ? "employeeNo" : "username", "工号");
+        db.queryForList("SELECT id FROM users WHERE role='ADMIN' AND deleted=0 ORDER BY id FOR UPDATE", Long.class);
+        String employeeNo = request.containsKey("employeeNo") || request.containsKey("username")
+                ? required(request, request.containsKey("employeeNo") ? "employeeNo" : "username", "工号")
+                : nextEmployeeNumber();
         if (request.containsKey("employeeNo") && request.containsKey("username")
                 && !employeeNo.equals(required(request, "username", "工号"))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "工号与兼容账号字段不一致");
@@ -35,8 +38,8 @@ public class AccountCreationService {
         if (!employeeNo.matches("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"))
             throw new BusinessException(ErrorCode.BAD_REQUEST, "工号须为1至64位字母、数字、点、下划线或短横线");
         Object passwordValue = request.get("password");
-        if (!(passwordValue instanceof String) || ((String) passwordValue).length() < 6)
-            throw new BusinessException(ErrorCode.PASSWORD_TOO_SHORT);
+        if (!(passwordValue instanceof String) || !AccountInputRules.password((String) passwordValue))
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "密码格式错误");
         String password = (String) passwordValue;
         if (password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72)
             throw new BusinessException(ErrorCode.BAD_REQUEST, "密码不能超过72个UTF-8字节");
@@ -44,14 +47,14 @@ public class AccountCreationService {
         if (!OrganizationRules.isBusinessRole(role))
             throw new BusinessException(ErrorCode.INVALID_ROLE);
         String realName = required(request, "realName", "真实姓名");
-        if (realName.length() > 64) throw new BusinessException(ErrorCode.BAD_REQUEST, "真实姓名不能超过64字");
+        if (!AccountInputRules.realName(realName)) throw new BusinessException(ErrorCode.BAD_REQUEST, "真实姓名格式错误");
         String email = required(request, "email", "邮箱");
         if (email.length() > 128 || !email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"))
             throw new BusinessException(ErrorCode.INVALID_EMAIL_FORMAT);
         String phone = required(request, "phone", "手机号");
         if (!phone.matches("^1[3-9]\\d{9}$")) throw new BusinessException(ErrorCode.INVALID_PHONE_FORMAT);
         String idCard = required(request, "idCard", "身份证号").toUpperCase(Locale.ROOT);
-        if (!idCard.matches("^\\d{17}[\\dX]$")) throw new BusinessException(ErrorCode.INVALID_ID_CARD);
+        if (!AccountInputRules.idCard(idCard)) throw new BusinessException(ErrorCode.INVALID_ID_CARD, "身份证号格式错误");
         String birthdayValue = required(request, "birthday", "生日");
         LocalDate birthday;
         try { birthday = LocalDate.parse(birthdayValue); }
@@ -90,6 +93,19 @@ public class AccountCreationService {
         long createdId = key.getKey().longValue();
         if (OrganizationRules.isBusinessRole(role)) relationships.synchronize(before, createdId);
         return Map.of("id", createdId, "employeeNo", employeeNo, "username", employeeNo);
+    }
+
+    public String nextEmployeeNumber() {
+        var occupied = new java.util.HashSet<Long>();
+        // Deleted accounts reserve their login names too: never give a former account's identity to a new person.
+        for (String username : db.queryForList("SELECT username FROM users", String.class)) {
+            if (username != null && username.matches("[0-9]{1,18}")) {
+                try { occupied.add(Long.parseLong(username)); } catch (NumberFormatException ignored) { }
+            }
+        }
+        long candidate = 1;
+        while (occupied.contains(candidate)) candidate++;
+        return String.format(Locale.ROOT, "%06d", candidate);
     }
 
     private static String required(Map<String, Object> request, String key, String label) {

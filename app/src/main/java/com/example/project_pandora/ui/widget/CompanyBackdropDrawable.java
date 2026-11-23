@@ -78,7 +78,7 @@ public final class CompanyBackdropDrawable extends Drawable {
             float width = photo.getWidth() * scale, height = photo.getHeight() * scale;
             photoBounds.set(bounds.exactCenterX() - width / 2, bounds.top,
                     bounds.exactCenterX() + width / 2, bounds.top + height);
-            paint.setAlpha(style == BackgroundPrefs.CUTE ? Math.min(112, photoAlpha + 36) : photoAlpha);
+            paint.setAlpha(style == BackgroundPrefs.CUTE ? Math.min(72, photoAlpha + 8) : photoAlpha);
             canvas.drawBitmap(photo, null, photoBounds, paint);
             if (style != BackgroundPrefs.CUTE) {
                 paint.setAlpha(255); paint.setShader(fade); canvas.drawRect(bounds, paint); paint.setShader(null);

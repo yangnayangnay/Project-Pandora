@@ -29,6 +29,7 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <activity android:name=".ui.notification.NotificationsActivity" android:exported="false" />
         <activity android:name=".ui.task.TaskReviewsActivity" android:exported="false" />
         <activity android:name=".ui.task.TaskTagManageActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".ui.task.TaskDetailsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />

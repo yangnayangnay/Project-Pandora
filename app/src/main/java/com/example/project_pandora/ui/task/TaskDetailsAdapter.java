@@ -69,6 +69,7 @@ final class TaskDetailsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
                 "COMPLETED".equals(status) ? "已完成" : "进行中", TaskDetailFilter.assigneeNames(task)};
         for (int i = 0; i < values.length; i++) if (i != 2) textCell(row, i).setText(values[i].isEmpty() ? "—" : values[i]);
         boolean isPinned = TaskPinOrder.isPinned(task, pinned);
+        row.setBackgroundColor(ContextCompat.getColor(row.getContext(), isPinned ? R.color.color_surface_soft : R.color.color_surface));
         if (isPinned) textCell(row, 0).setText("置顶 · " + values[0]);
         textCell(row, 0).setTypeface(null, isPinned ? Typeface.BOLD : Typeface.NORMAL);
         bindTags((ViewGroup) row.getChildAt(2), task);

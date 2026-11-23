@@ -32,15 +32,16 @@
           <el-table-column label="职级" min-width="120"><template #default="{ row }">{{ roleMap[row.role] || row.role }}</template></el-table-column>
           <el-table-column label="部门" min-width="120"><template #default="{ row }">{{ hasDepartment(row.role) ? row.department_name || '—' : '不设部门' }}</template></el-table-column>
           <el-table-column label="团队" min-width="120"><template #default="{ row }">{{ hasTeam(row.role) ? row.team_name || '—' : '不设团队' }}</template></el-table-column>
-          <el-table-column label="直接上级" min-width="140"><template #default="{ row }">{{ relationNames(row.superiors, 'superior_name') }}</template></el-table-column>
-          <el-table-column label="直接下属" min-width="180"><template #default="{ row }">{{ relationNames(row.subordinates, 'subordinate_name') }}</template></el-table-column>
+          <el-table-column label="直接上级" min-width="140"><template #default="{ row }">{{ relationNames(row.superiors, 'superior_name', row) }}</template></el-table-column>
+          <el-table-column label="直接下属" min-width="180"><template #default="{ row }">{{ relationNames(row.subordinates, 'subordinate_name', row) }}</template></el-table-column>
           <el-table-column prop="phone" label="手机号" min-width="140" />
           <el-table-column prop="email" label="邮箱" min-width="200" />
           <el-table-column label="账号状态" min-width="110"><template #default="{ row }">{{ statusNames[row.approval_status] || row.approval_status }}</template></el-table-column>
-          <el-table-column label="操作" :width="isAdmin ? 270 : 110" fixed="right">
+          <el-table-column label="操作" :width="isAdmin ? 340 : 110" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="detail = row">全部资料</el-button>
               <el-button v-if="isAdmin" link type="primary" @click="startProfileEdit(row)">编辑资料</el-button>
+              <el-button v-if="isAdmin && businessRoles.includes(row.role)" link type="danger" @click="depart(row)">办理离职</el-button>
               <el-button v-if="isAdmin && businessRoles.includes(row.role)" link type="primary" @click="startEdit(row)">调整关系</el-button>
             </template>
           </el-table-column>
@@ -65,6 +66,12 @@
               <div><span class="card-kicker">DEPARTMENT</span><h3>{{ department.name }}</h3></div>
               <el-tag effect="plain">{{ departmentMemberCount(department) }} 人</el-tag>
             </div>
+            <section v-if="department.heads.length" class="team-card">
+              <div class="team-heading"><strong>部门负责人</strong><span>{{ department.heads.length }} 人</span></div>
+              <div class="member-list"><div v-for="member in department.heads" :key="member.id" class="member-row">
+                <span class="member-avatar">{{ memberInitial(member) }}</span><div class="member-copy"><strong>{{ member.real_name || member.username }}</strong><span>{{ relationSummary(member) }}</span></div><el-button link type="primary" @click="detail = member">查看</el-button>
+              </div></div>
+            </section>
             <div v-if="department.teams.length" class="team-list">
               <section v-for="team in department.teams" :key="team.id" class="team-card">
                 <div class="team-heading"><strong>{{ team.name }}</strong><span>{{ team.members.length }} 人</span></div>
@@ -78,12 +85,6 @@
                 <span v-else class="empty-team">暂无成员</span>
               </section>
             </div>
-            <section v-if="department.heads.length" class="team-card">
-              <div class="team-heading"><strong>部门负责人</strong><span>{{ department.heads.length }} 人</span></div>
-              <div class="member-list"><div v-for="member in department.heads" :key="member.id" class="member-row">
-                <span class="member-avatar">{{ memberInitial(member) }}</span><div class="member-copy"><strong>{{ member.real_name || member.username }}</strong><span>{{ relationSummary(member) }}</span></div><el-button link type="primary" @click="detail = member">查看</el-button>
-              </div></div>
-            </section>
             <section v-if="department.members.length" class="team-card unassigned-card">
               <div class="team-heading"><strong>未分配团队</strong><span>{{ department.members.length }} 人</span></div>
               <div class="member-list">
@@ -113,8 +114,8 @@
     <el-dialog :model-value="!!detail" title="人员全部资料" width="min(800px, 94vw)" @close="detail = null">
       <el-descriptions v-if="detail" :column="1" border>
         <el-descriptions-item v-for="(label, key) in fieldLabels" :key="key" :label="label">{{ displayField(key, detail[key]) }}</el-descriptions-item>
-        <el-descriptions-item label="直接上级">{{ relationNames(detail.superiors, 'superior_name') }}</el-descriptions-item>
-        <el-descriptions-item label="直接下属">{{ relationNames(detail.subordinates, 'subordinate_name') }}</el-descriptions-item>
+        <el-descriptions-item label="直接上级">{{ relationNames(detail.superiors, 'superior_name', detail) }}</el-descriptions-item>
+        <el-descriptions-item label="直接下属">{{ relationNames(detail.subordinates, 'subordinate_name', detail) }}</el-descriptions-item>
       </el-descriptions>
       <template #footer>
         <el-button @click="detail = null">关闭</el-button>
@@ -157,9 +158,9 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, onActivated } from 'vue'
-import { businessRoles, hasDepartment, hasTeam, normalizeOrganization, organizationPayload, automaticSuperiors, organizationError } from '@/utils/organization'
-import { ElMessage } from 'element-plus'
+import { ref, computed, nextTick, onMounted, onActivated, onDeactivated, onUnmounted } from 'vue'
+import { businessRoles, hasDepartment, hasTeam, normalizeOrganization, compareOrganizationMembers, organizationPayload, automaticSuperiors, organizationError } from '@/utils/organization'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/userStore'
 import request from '@/utils/request'
 import { roleMap } from '@/utils/roleConstants'
@@ -184,11 +185,21 @@ const profileRules = Object.fromEntries(Object.keys(profileForm.value).map(field
   }, trigger: field === 'birthday' ? 'change' : 'blur'
 }]]))
 const form = ref({ role: '', departmentId: null, teamId: null })
+const departing = ref(false)
+const depart = async row => {
+  if (departing.value) return
+  try { await ElMessageBox.confirm(`确定为“${row.real_name || row.username}”办理离职？账号将立即停用并移出组织，历史任务和日志保留；其进行中的工作请另行交接。`, '办理离职', { type: 'warning', confirmButtonText: '确认离职', cancelButtonText: '取消' }) }
+  catch { return }
+  departing.value = true
+  try { await request.post(`/user/${row.id}/departure`); detail.value = null; ElMessage.success('已办理离职，账号已停用'); await loadUsers() }
+  finally { departing.value = false }
+}
 const statusNames = { APPROVED: '已批准', PENDING: '待审批', REJECTED: '已拒绝' }
 const fieldLabels = { id: '人员 ID', username: '工号', real_name: '真实姓名', role: '职级', department_name: '部门', team_name: '团队', email: '邮箱', phone: '手机号', id_card: '身份证号', birthday: '生日', avatar: '头像地址', approval_status: '账号状态', created_at: '创建时间', updated_at: '更新时间' }
 const displayField = (key, value) => value == null || value === '' ? '—' : key === 'role' ? roleMap[value] || value : key === 'approval_status' ? statusNames[value] || value : value
-const relationNames = (rows, key) => rows?.map(r => r[key]).filter(Boolean).join('、') || '未配置'
-const relationSummary = user => user.superiors?.length ? `上级：${relationNames(user.superiors, 'superior_name')}` : '未配置上级'
+const relationNames = (rows, key, person) => person?.role === 'ADMIN' ? '不参与组织'
+  : rows?.map(r => r[key]).filter(Boolean).join('、') || (key === 'superior_name' ? person?.role === 'FOUNDER' ? '无上级' : '暂无匹配上级' : '无下属')
+const relationSummary = user => `上级：${relationNames(user.superiors, 'superior_name', user)}`
 const memberInitial = user => (user.real_name || user.username || '?').slice(0, 1).toUpperCase()
 const filteredUsers = computed(() => users.value.filter(u => (!filterRole.value || u.role === filterRole.value) && [u.real_name, u.username, u.email, u.phone].some(v => String(v || '').toLowerCase().includes(keyword.value.trim().toLowerCase()))))
 const availableTeams = computed(() => teams.value.filter(t => String(t.department_id) === String(form.value.departmentId)))
@@ -199,7 +210,7 @@ const organizationDepartments = computed(() => departments.value.map(department 
   ...department,
   teams: teams.value.filter(team => String(team.department_id) === String(department.id)).map(team => ({
     ...team,
-    members: users.value.filter(user => String(user.department_id) === String(department.id) && String(user.team_id) === String(team.id))
+    members: users.value.filter(user => String(user.department_id) === String(department.id) && String(user.team_id) === String(team.id)).sort(compareOrganizationMembers)
   })),
   heads: users.value.filter(user => user.role === 'DEPT_HEAD' && String(user.department_id) === String(department.id)),
   members: users.value.filter(user => user.role !== 'DEPT_HEAD' && String(user.department_id) === String(department.id) && (user.team_id == null || user.team_id === ''))
@@ -209,15 +220,26 @@ const unassignedUsers = computed(() => users.value.filter(user => businessRoles.
 const departmentMemberCount = department => department.teams.reduce((total, team) => total + team.members.length, 0) + department.members.length + department.heads.length
 const onRoleChange = () => { form.value = organizationPayload(form.value) }
 
-const loadUsers = async () => {
-  if (loading.value) return
-  loading.value = true; loadError.value = ''
-  try {
-    const [directory, options] = await Promise.all([request.get('/user/directory'), request.get('/user/directory/options')])
-    users.value = (directory.data || []).map(normalizeOrganization); departments.value = options.data?.departments || []; teams.value = options.data?.teams || []
-    if (detail.value) detail.value = users.value.find(user => String(user.id) === String(detail.value.id)) || null
-  } catch (e) { loadError.value = '人员资料加载失败，请点击刷新重试。' }
-  finally { loading.value = false }
+let loadingRequest = null
+const loadUsers = async (background = false) => {
+  background = background === true
+  if (loadingRequest) {
+    await loadingRequest
+    // A save must fetch again after an older in-flight read has finished.
+    if (!background) return loadUsers()
+    return
+  }
+  if (!background) loading.value = true
+  loadError.value = ''
+  loadingRequest = (async () => {
+    try {
+      const [directory, options] = await Promise.all([request.get('/user/directory'), request.get('/user/directory/options')])
+      users.value = (directory.data || []).map(normalizeOrganization); departments.value = options.data?.departments || []; teams.value = options.data?.teams || []
+      if (detail.value) detail.value = users.value.find(user => String(user.id) === String(detail.value.id)) || null
+    } catch (e) { loadError.value = '人员资料加载失败，请点击刷新重试。' }
+  })()
+  try { await loadingRequest }
+  finally { loadingRequest = null; loading.value = false }
 }
 const startEdit = row => {
   if (!isAdmin.value || !businessRoles.includes(row.role)) return
@@ -271,8 +293,25 @@ const saveEmployment = async () => {
   finally { saving.value = false }
 }
 
-onMounted(loadUsers)
-onActivated(loadUsers)
+let refreshTimer = null
+const refreshVisible = () => {
+  if (document.visibilityState === 'visible' && !saving.value && !profileSaving.value) loadUsers(true)
+}
+const startRefreshing = () => {
+  if (refreshTimer != null) return
+  window.addEventListener('focus', refreshVisible)
+  document.addEventListener('visibilitychange', refreshVisible)
+  refreshTimer = window.setInterval(refreshVisible, 15000)
+}
+const stopRefreshing = () => {
+  window.clearInterval(refreshTimer); refreshTimer = null
+  window.removeEventListener('focus', refreshVisible)
+  document.removeEventListener('visibilitychange', refreshVisible)
+}
+onMounted(() => { startRefreshing(); loadUsers() })
+onActivated(() => { startRefreshing(); loadUsers() })
+onDeactivated(stopRefreshing)
+onUnmounted(stopRefreshing)
 </script>
 
 <style scoped>

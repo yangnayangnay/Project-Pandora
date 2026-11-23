@@ -47,19 +47,7 @@ public class TaskNotificationService {
      * TASK-R18-016: 按通知类型映射标题
      */
     public static String titleOfType(String type) {
-        if (type == null) return "通知";
-        switch (type) {
-            case "NEW_TASK":
-            case "STATUS_CHANGE":
-                return "任务通知";
-            case "LOG_COMPLETED":
-                return "日志通知";
-            case "TOP10_DISPATCH_CHANGED":
-            case "TOP10_IMPORTANT_CHANGED":
-                return "导图变更通知";
-            default:
-                return "通知";
-        }
+        return NotificationContent.systemTitle(type);
     }
 
     /**
@@ -67,7 +55,11 @@ public class TaskNotificationService {
      *
      * @return 跳转 Intent（任务类跳 TaskDetailActivity，其余跳主界面兜底）
      */
-    private static Intent intentOfType(Context context, String type, Long taskId) {
+    private static Intent intentOfType(Context context, String type, Long taskId, Long logId) {
+        if ("LOG_COMMENTED".equals(type) && logId != null && logId > 0) {
+            return new Intent(context, com.example.project_pandora.ui.log.LogDetailActivity.class)
+                    .putExtra(com.example.project_pandora.ui.log.LogDetailActivity.EXTRA_LOG_ID, logId.longValue());
+        }
         if (type != null && (type.equals("NEW_TASK") || type.equals("STATUS_CHANGE")) && taskId != null) {
             Intent intent = new Intent(context, TaskDetailActivity.class);
             intent.putExtra("taskId", taskId);
@@ -96,13 +88,18 @@ public class TaskNotificationService {
      */
     public static void showNotification(Context context, long notificationId, String type,
                                         String fallbackTitle, String content, Long taskId) {
+        showNotification(context, notificationId, type, fallbackTitle, content, taskId, null);
+    }
+
+    public static void showNotification(Context context, long notificationId, String type,
+                                        String fallbackTitle, String content, Long taskId, Long logId) {
         try {
             String title = titleOfType(type);
             if ("通知".equals(title) && fallbackTitle != null) {
                 title = fallbackTitle;
             }
 
-            Intent intent = intentOfType(context, type, taskId);
+            Intent intent = intentOfType(context, type, taskId, logId);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 
             android.app.PendingIntent pendingIntent = android.app.PendingIntent.getActivity(
@@ -118,7 +115,7 @@ public class TaskNotificationService {
                     .setContentIntent(pendingIntent);
 
             // R45: lint MissingPermission 显式防线（权限拒绝时静默跳过，语义与原 catch 一致）
-            if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS)
+            if (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS)
                     == android.content.pm.PackageManager.PERMISSION_GRANTED) {
                 NotificationManagerCompat.from(context).notify((int) notificationId, builder.build());
             }

@@ -36,7 +36,8 @@ public final class DailyItemEditor {
     private AlertDialog dialog, deleteDialog;
     private AlertDialog datePicker;
     private DialogDailyItemBinding form;
-    private String startDate, endDate;
+    private String startDate, endDate, startTime, endTime;
+    private com.example.project_pandora.ui.widget.WheelTimePickerDialog timePicker;
     private Long id;
     private boolean writing;
 
@@ -47,6 +48,8 @@ public final class DailyItemEditor {
         id = item == null ? null : NumberCompat.toLong(DailyItems.value(item, "id"));
         startDate = item == null ? date : DailyItems.startDate(item);
         endDate = item == null ? date : DailyItems.endDate(item);
+        startTime = item == null ? null : DailyItems.clock(item, true);
+        endTime = item == null ? null : DailyItems.clock(item, false);
         form = DialogDailyItemBinding.inflate(LayoutInflater.from(context));
         form.textEditorTitle.setText(id == null ? "新增事项" : "编辑事项");
         form.editDailyContent.setText(item == null ? "" : DailyItems.content(item));
@@ -61,6 +64,9 @@ public final class DailyItemEditor {
         renderDates();
         form.btnDailyStartDate.setOnClickListener(v -> chooseDate(true));
         form.btnDailyEndDate.setOnClickListener(v -> chooseDate(false));
+        form.btnDailyStartTime.setOnClickListener(v -> chooseTime(true));
+        form.btnDailyEndTime.setOnClickListener(v -> chooseTime(false));
+        form.btnDailyAllDay.setOnClickListener(v -> { startTime = null; endTime = null; renderDates(); });
         form.btnSaveDailyItem.setOnClickListener(v -> save());
         form.btnCancelDailyItem.setOnClickListener(v -> dialog.dismiss());
         form.btnDeleteDailyItem.setVisibility(id == null ? View.GONE : View.VISIBLE);
@@ -75,6 +81,7 @@ public final class DailyItemEditor {
             // Dismiss callbacks are queued by Dialog. An old callback must not
             // clear a newly opened editor or its date selector.
             if (dialog != opened) return;
+            if (timePicker != null) { timePicker.dismiss(); timePicker = null; }
             if (datePicker != null) { datePicker.dismiss(); datePicker = null; }
             dialog = null;
         });
@@ -89,6 +96,8 @@ public final class DailyItemEditor {
     private void renderDates() {
         renderDate(form.btnDailyStartDate, startDate, "开始日期");
         renderDate(form.btnDailyEndDate, endDate, "结束日期");
+        form.btnDailyStartTime.setText(startTime == null ? "开始时间 · 全天" : "开始 " + startTime);
+        form.btnDailyEndTime.setText(endTime == null ? "结束时间 · 全天" : "结束 " + endTime);
     }
     private void renderDate(android.widget.Button button, String value, String label) {
         String[] parts = value.split("-");
@@ -96,6 +105,9 @@ public final class DailyItemEditor {
         button.setContentDescription(label + "：" + value + "，点击选择日期");
     }
     private void chooseDate(boolean start) {
+        form.editDailyContent.clearFocus();
+        ((android.view.inputmethod.InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE))
+                .hideSoftInputFromWindow(form.editDailyContent.getWindowToken(), 0);
         if (datePicker != null && datePicker.isShowing()) return;
         Calendar calendar = Calendar.getInstance(); String[] parts = (start ? startDate : endDate).split("-");
         calendar.set(Calendar.DAY_OF_MONTH, 1);
@@ -114,15 +126,33 @@ public final class DailyItemEditor {
         opened.setOnDismissListener(ignored -> { if (datePicker == opened) datePicker = null; });
         opened.show();
     }
+    private void chooseTime(boolean start) {
+        if (writing || timePicker != null && timePicker.isShowing()) return;
+        form.editDailyContent.clearFocus();
+        ((android.view.inputmethod.InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE))
+                .hideSoftInputFromWindow(form.editDailyContent.getWindowToken(), 0);
+        String previous = start ? startTime : endTime;
+        int hour = previous == null ? 9 : Integer.parseInt(previous.substring(0, 2));
+        int minute = previous == null ? 0 : Integer.parseInt(previous.substring(3));
+        timePicker = new com.example.project_pandora.ui.widget.WheelTimePickerDialog(context,
+                start ? "开始时间" : "结束时间", hour, minute, (h, m) -> {
+            String chosen = String.format(Locale.ROOT, "%02d:%02d", h, m);
+            if (start) { startTime = chosen; if (endTime == null) endTime = chosen; }
+            else { endTime = chosen; if (startTime == null) startTime = chosen; }
+            renderDates();
+        });
+        timePicker.show();
+    }
     private void save() {
         if (writing) return;
         String text = form.editDailyContent.getText().toString().trim();
         if (text.isEmpty()) { form.dailyContentLayout.setError("请输入事项内容"); form.editDailyContent.requestFocus(); return; }
         if (!DailyItems.validDate(startDate) || !DailyItems.validDate(endDate)) { showError("请选择有效日期"); return; }
         if (endDate.compareTo(startDate) < 0) { showError("结束日期不能早于开始日期"); return; }
+        if (startDate.equals(endDate) && startTime != null && endTime.compareTo(startTime) < 0) { showError("结束时间不能早于开始时间"); return; }
         setWriting(true);
         form.btnSaveDailyItem.setText("正在保存…");
-        writingRequest.set(repository.save(id, text, startDate, endDate).timeout(20, java.util.concurrent.TimeUnit.SECONDS).observeOn(AndroidSchedulers.mainThread()).subscribe(saved -> {
+        writingRequest.set(repository.save(id, text, startDate, endDate, startTime, endTime).timeout(20, java.util.concurrent.TimeUnit.SECONDS).observeOn(AndroidSchedulers.mainThread()).subscribe(saved -> {
             setWriting(false); dialog.dismiss(); onSaved.accept(saved);
         }, error -> { setWriting(false); showError("保存失败：" + errorMessage(error)); }));
     }
@@ -139,6 +169,7 @@ public final class DailyItemEditor {
     }
     private void setWriting(boolean value) {
         writing = value;
+        form.btnDailyStartTime.setEnabled(!value); form.btnDailyEndTime.setEnabled(!value); form.btnDailyAllDay.setEnabled(!value);
         form.dailyContentLayout.setEnabled(!value); form.btnDailyStartDate.setEnabled(!value); form.btnDailyEndDate.setEnabled(!value); dialog.setCancelable(!value);
         form.btnSaveDailyItem.setEnabled(!value); form.btnCancelDailyItem.setEnabled(!value); form.btnDeleteDailyItem.setEnabled(!value);
         if (!value) { form.btnSaveDailyItem.setText("保存事项"); form.btnDeleteDailyItem.setText("删除事项"); }
@@ -156,5 +187,5 @@ public final class DailyItemEditor {
         return NetworkErrorClassifier.classify(error);
     }
     private int dp(int value) { return Math.round(value * context.getResources().getDisplayMetrics().density); }
-    public void close() { writingRequest.dispose(); if (datePicker != null) datePicker.dismiss(); if (deleteDialog != null) deleteDialog.dismiss(); if (dialog != null) dialog.dismiss(); }
+    public void close() { writingRequest.dispose(); if (timePicker != null) timePicker.dismiss(); if (datePicker != null) datePicker.dismiss(); if (deleteDialog != null) deleteDialog.dismiss(); if (dialog != null) dialog.dismiss(); }
 }

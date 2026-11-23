@@ -147,7 +147,7 @@
 
                                 <com.google.android.material.button.MaterialButton
                                     android:id="@+id/btnResetZoom"
-                                    style="@style/Widget.Pandora.Button.Text"
+                                    style="@style/Widget.Pandora.Button.Outlined"
                                     android:layout_width="48dp"
                                     android:layout_height="48dp"
                                     android:minWidth="0dp"
@@ -155,7 +155,7 @@
                                     android:paddingHorizontal="0dp"
                                     android:text="今天"
                                     android:textSize="14sp"
-                                    android:contentDescription="回到今天" />
+                                    android:contentDescription="回到今天" app:backgroundTint="@color/color_surface_soft" />
 
                             </LinearLayout>
 

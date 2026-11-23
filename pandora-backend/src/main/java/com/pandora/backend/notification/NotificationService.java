@@ -17,6 +17,24 @@ public class NotificationService {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    public NotificationService() {}
+    public NotificationService(JdbcTemplate db) { this.jdbcTemplate = db; }
+
+    /** Called in the comment transaction: a failed comment never leaves a notification. */
+    public void detectLogComment(long logId, long authorId, String comment) {
+        Map<String, Object> row = jdbcTemplate.queryForMap(
+                "SELECT l.user_id,l.log_date,u.role,COALESCE(NULLIF(u.real_name,''),u.username) AS author_name "
+                + "FROM work_logs l JOIN users u ON u.id=? WHERE l.id=? AND l.deleted=0", authorId, logId);
+        long owner = ((Number) row.get("user_id")).longValue();
+        // Administrator comments are hidden from the mobile comment list as well.
+        if (owner == authorId || "ADMIN".equals(row.get("role"))) return;
+        String excerpt = comment.replaceAll("\\s+", " ");
+        if (excerpt.codePointCount(0, excerpt.length()) > 100)
+            excerpt = excerpt.substring(0, excerpt.offsetByCodePoints(0, 100)) + "…";
+        String content = row.get("author_name") + "评论了你" + row.get("log_date") + "的日志：" + excerpt;
+        jdbcTemplate.update("INSERT INTO notifications(target_user_id,type,log_id,content) VALUES(?,'LOG_COMMENTED',?,?)", owner, logId, content);
+    }
+
     public void recordEvent(String type, Long taskId, Long targetUserId, String content) {
         jdbcTemplate.update(
                 "INSERT INTO notifications (target_user_id, type, task_id, content) VALUES (?, ?, ?, ?)",

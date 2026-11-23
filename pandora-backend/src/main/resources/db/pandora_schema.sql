@@ -141,6 +141,8 @@ CREATE TABLE `daily_items` (
     `item_date` DATE NOT NULL,
     `start_date` DATE NOT NULL,
     `end_date` DATE NOT NULL,
+    `start_clock` VARCHAR(5) DEFAULT NULL,
+    `end_clock` VARCHAR(5) DEFAULT NULL,
     `completed` TINYINT NOT NULL DEFAULT 0,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

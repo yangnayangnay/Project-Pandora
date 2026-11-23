@@ -33,10 +33,7 @@ public class NotificationPollWorker extends Worker {
     private static final long PREF_CACHE_TTL_MS = 60 * 60 * 1000L;
 
     /** 5 类通知类型（与后端保持一致） */
-    private static final String[] NOTIFICATION_TYPES = {
-            "NEW_TASK", "STATUS_CHANGE", "LOG_COMPLETED",
-            "TOP10_DISPATCH_CHANGED", "TOP10_IMPORTANT_CHANGED"
-    };
+    private static final String[] NOTIFICATION_TYPES = NotificationContent.TYPES;
 
     public NotificationPollWorker(Context context, WorkerParameters params) {
         super(context, params);

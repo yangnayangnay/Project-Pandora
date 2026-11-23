@@ -64,6 +64,8 @@ public class MindMapFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        binding.btnAllNotifications.setOnClickListener(v -> startActivity(new Intent(requireContext(),
+                com.example.project_pandora.ui.notification.NotificationsActivity.class)));
         Bundle state = viewState != null ? viewState : savedInstanceState;
         returningFromBoards = false;
         pendingEventsScroll = state == null ? 0 : state.getInt("homeEventsScroll");

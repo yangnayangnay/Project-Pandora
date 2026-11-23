@@ -49,10 +49,8 @@ class AuthLoginPolicyTest {
         db.update("DELETE FROM log_comments");
         db.update("DELETE FROM work_logs");
         db.update("DELETE FROM daily_items");
-        db.update("DELETE FROM ai_analysis_records");
         db.update("DELETE FROM divination_records");
         db.update("DELETE FROM mbti_reports");
-        db.update("DELETE FROM calendar_events");
         db.update("DELETE FROM teams");
         db.update("DELETE FROM departments");
         db.update("DELETE FROM users");

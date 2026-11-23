@@ -38,11 +38,26 @@ public final class DailyItems {
             String start = startDate(item), end = endDate(item);
             if (!validDate(start) || !validDate(end)) continue;
             Map<String, Object> entry = new LinkedHashMap<>(item);
-            entry.put("name", content(item)); entry.put("start_time", start); entry.put("end_time", end);
+            entry.put("name", content(item));
+            String startClock = Objects.toString(value(item, "start_time"), "");
+            String endClock = Objects.toString(value(item, "end_time"), "");
+            entry.put("item_start_clock", startClock); entry.put("item_end_clock", endClock);
+            entry.put("start_time", startClock.matches("[0-2][0-9]:[0-5][0-9]") ? start + "T" + startClock + ":00" : start);
+            entry.put("end_time", endClock.matches("[0-2][0-9]:[0-5][0-9]") ? end + "T" + endClock + ":00" : end);
             result.add(entry);
         }
         result.sort(Comparator.comparing(DailyItems::completed));
         return result;
+    }
+    public static String clock(Map<String, Object> item, boolean start) {
+        Object explicit = value(item, start ? "item_start_clock" : "item_end_clock");
+        String raw = Objects.toString(explicit != null ? explicit : value(item, start ? "start_time" : "end_time"), "");
+        return raw.matches("(?:[01][0-9]|2[0-3]):[0-5][0-9]") ? raw : null;
+    }
+    public static String timeLabel(Map<String, Object> item) {
+        String start = Objects.toString(clock(item, true), "");
+        String end = Objects.toString(clock(item, false), "");
+        return start.isEmpty() ? "全天" : start + "—" + end;
     }
     public static boolean validDate(String day) {
         if (day == null || !day.matches("\\d{4}-\\d{2}-\\d{2}") || day.compareTo("1900-01-01") < 0) return false;

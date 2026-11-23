@@ -63,6 +63,18 @@
                     android:textColor="@color/color_text_primary" android:textSize="16sp"
                     app:backgroundTint="@color/color_surface_soft" app:strokeColor="@color/color_divider"
                     app:cornerRadius="12dp" app:icon="@drawable/ic_calendar" app:iconPadding="12dp" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:layout_marginTop="12dp">
+                    <com.google.android.material.button.MaterialButton android:id="@+id/btnDailyStartTime"
+                        style="@style/Widget.Pandora.Button.Outlined" android:layout_width="0dp" android:layout_weight="1"
+                        android:layout_height="wrap_content" android:minHeight="48dp" android:layout_marginEnd="8dp" android:text="开始时间" android:textColor="@color/color_text_primary" app:backgroundTint="@color/color_surface_soft" app:strokeColor="@color/color_divider" app:cornerRadius="12dp" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/btnDailyEndTime"
+                        style="@style/Widget.Pandora.Button.Outlined" android:layout_width="0dp" android:layout_weight="1"
+                        android:layout_height="wrap_content" android:minHeight="48dp" android:text="结束时间" android:textColor="@color/color_text_primary" app:backgroundTint="@color/color_surface_soft" app:strokeColor="@color/color_divider" app:cornerRadius="12dp" />
+                </LinearLayout>
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnDailyAllDay"
+                    style="@style/Widget.Pandora.Button.Outlined" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:minHeight="48dp" android:text="设为全天事项" android:textColor="@color/color_text_primary" app:backgroundTint="@color/color_surface_soft" app:strokeColor="@color/color_divider" app:cornerRadius="12dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

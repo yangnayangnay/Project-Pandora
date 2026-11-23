@@ -54,6 +54,10 @@ class TaskChangeServiceTest {
             ReflectionTestUtils.setField(h, "cycleDetect", true); return h;
         }
         @Bean TaskTagService tags(JdbcTemplate db) { return new TaskTagService(db); }
+        @Bean com.pandora.backend.auth.SessionStore sessions() { return new com.pandora.backend.auth.SessionStore(); }
+        @Bean com.pandora.backend.user.AccountDepartureService departures(JdbcTemplate db, com.pandora.backend.auth.SessionStore sessions) {
+            return new com.pandora.backend.user.AccountDepartureService(db, sessions);
+        }
         @Bean TaskChangeService changes(JdbcTemplate db, HierarchyService h, TaskTagService tags) { return new TaskChangeService(db, new ObjectMapper(), h, new NotificationService() { @Override public void detectNewTask(Long taskId, Long assigneeId, Long dispatcherId) {} }, tags); }
         @Bean PersonnelController personnel(JdbcTemplate db) { return new PersonnelController(db); }
     }

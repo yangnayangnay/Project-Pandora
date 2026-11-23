@@ -24,7 +24,11 @@ public final class DailyItemRepository {
         });
     }
     public Observable<Map<String, Object>> save(Long id, String content, String startDate, String endDate) {
+        return save(id, content, startDate, endDate, null, null);
+    }
+    public Observable<Map<String, Object>> save(Long id, String content, String startDate, String endDate, String startTime, String endTime) {
         Map<String, Object> body = new HashMap<>();
+        body.put("startTime", startTime); body.put("endTime", endTime);
         body.put("content", content); body.put("startDate", startDate); body.put("endDate", endDate);
         return (id == null ? api.create(body) : api.update(id, body)).subscribeOn(Schedulers.io()).map(response -> {
             if (!response.isSuccess() || response.getData() == null) throw new BusinessException(response.getCode(), response.getMessage());

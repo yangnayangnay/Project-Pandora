@@ -40,7 +40,7 @@ class LogCommentsAndDirectoryTest {
                 "(102,3,'已删除','2026-10-31',1),(103,1,'上级日志','2026-11-01',0)");
         hierarchy = new HierarchyService();
         ReflectionTestUtils.setField(hierarchy, "jdbcTemplate", db); ReflectionTestUtils.setField(hierarchy, "maxDepth", 10);
-        comments = new LogCommentService(db, hierarchy); directory = new LogDirectoryService(db, hierarchy);
+        comments = new LogCommentService(db, hierarchy, new com.pandora.backend.notification.NotificationService(db)); directory = new LogDirectoryService(db, hierarchy);
     }
     @AfterEach void cleanup() { SecurityContextHolder.clearContext(); }
 

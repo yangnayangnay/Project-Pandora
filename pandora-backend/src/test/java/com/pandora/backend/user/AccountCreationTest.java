@@ -36,7 +36,7 @@ class AccountCreationTest {
 
     @BeforeEach void setup() {
         var source = new DriverManagerDataSource("jdbc:h2:mem:employee-accounts-" + UUID.randomUUID() + ";MODE=MySQL;DB_CLOSE_DELAY=-1", "sa", "");
-        new ResourceDatabasePopulator(new ClassPathResource("db/h2_schema.sql")).execute(source);
+        new ResourceDatabasePopulator(new org.springframework.core.io.FileSystemResource("src/main/resources/db/h2_schema.sql")).execute(source);
         db = new JdbcTemplate(source);
         db.update("DELETE FROM users");
         encoder = new BCryptPasswordEncoder();
@@ -62,8 +62,8 @@ class AccountCreationTest {
     @AfterEach void cleanup() { SecurityContextHolder.clearContext(); }
 
     private Map<String, Object> complete() {
-        return new HashMap<>(Map.of("employeeNo", "000123", "password", " employee-password ", "role", "EMPLOYEE", "realName", "测试人员",
-                "email", "employee@example.test", "phone", "13800000000", "idCard", "11010119900101001x", "birthday", "1990-01-01", "departmentId", 10, "teamId", 11));
+        return new HashMap<>(Map.of("employeeNo", "000123", "password", " password123 ", "role", "EMPLOYEE", "realName", "测试人员",
+                "email", "employee@example.test", "phone", "13800000000", "idCard", "110101199001010015", "birthday", "1990-01-01", "departmentId", 10, "teamId", 11));
     }
     private void rejects(Map<String, Object> request, ErrorCode expected) {
         int before = db.queryForObject("SELECT COUNT(*) FROM users", Integer.class);
@@ -78,26 +78,32 @@ class AccountCreationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.employeeNo").value("000123"));
         var row = db.queryForMap("SELECT * FROM users WHERE username='000123'");
         assertEquals("测试人员", row.get("real_name")); assertEquals("employee@example.test", row.get("email"));
-        assertEquals("13800000000", row.get("phone")); assertEquals("11010119900101001X", row.get("id_card"));
+        assertEquals("13800000000", row.get("phone")); assertEquals("110101199001010015", row.get("id_card"));
         assertEquals(LocalDate.of(1990, 1, 1), ((java.sql.Date) row.get("birthday")).toLocalDate());
         assertEquals(10L, row.get("department_id")); assertEquals(11L, row.get("team_id"));
         assertEquals("APPROVED", row.get("approval_status"));
-        assertTrue(encoder.matches(" employee-password ", (String) row.get("password_hash")));
+        assertTrue(encoder.matches(" password123 ", (String) row.get("password_hash")));
         http.perform(post("/auth/login").contentType("application/json")
-                        .content("{\"employeeNo\":\"000123\",\"password\":\" employee-password \",\"clientType\":\"APP\"}"))
+                        .content("{\"employeeNo\":\"000123\",\"password\":\" password123 \",\"clientType\":\"APP\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.user.employeeNo").value("000123"))
                 .andExpect(jsonPath("$.data.user.departmentId").value(10)).andExpect(jsonPath("$.data.user.teamId").value(11));
     }
 
-    @ParameterizedTest @ValueSource(strings={"employeeNo","password","role","realName","email","phone","idCard","birthday","departmentId","teamId"})
+    @ParameterizedTest @ValueSource(strings={"password","role","realName","email","phone","idCard","birthday","departmentId","teamId"})
     void missingRequiredFieldCannotCreateAPartialAccount(String field) {
         var request = complete(); request.remove(field);
-        rejects(request, field.equals("password") ? ErrorCode.PASSWORD_TOO_SHORT : ErrorCode.MISSING_REQUIRED_FIELD);
+        rejects(request, field.equals("password") ? ErrorCode.BAD_REQUEST : ErrorCode.MISSING_REQUIRED_FIELD);
         request.put(field, " ");
-        rejects(request, field.equals("password") ? ErrorCode.PASSWORD_TOO_SHORT : ErrorCode.MISSING_REQUIRED_FIELD);
+        rejects(request, field.equals("password") ? ErrorCode.BAD_REQUEST : ErrorCode.MISSING_REQUIRED_FIELD);
     }
     @Test void validatesContactIdentityDateAndEmployeeNumberInputs() {
         var cases = List.of(new Object[]{"email","invalid",ErrorCode.INVALID_EMAIL_FORMAT},
+                new Object[]{"realName","Alice",ErrorCode.BAD_REQUEST},new Object[]{"realName","汉".repeat(16),ErrorCode.BAD_REQUEST},
+                new Object[]{"password","12345",ErrorCode.BAD_REQUEST},new Object[]{"password","a".repeat(17),ErrorCode.BAD_REQUEST},
+                new Object[]{"idCard",AccountInputRulesTest.identity("11999919900101001"),ErrorCode.INVALID_ID_CARD},
+                new Object[]{"idCard",AccountInputRulesTest.identity("11010119900101000"),ErrorCode.INVALID_ID_CARD},
+                new Object[]{"idCard",AccountInputRulesTest.identity("11010119600101001"),ErrorCode.INVALID_ID_CARD},
+                new Object[]{"idCard","11010119900101001X",ErrorCode.INVALID_ID_CARD},
                 new Object[]{"phone","123",ErrorCode.INVALID_PHONE_FORMAT}, new Object[]{"idCard","123",ErrorCode.INVALID_ID_CARD},
                 new Object[]{"birthday","1990-02-30",ErrorCode.BAD_REQUEST},new Object[]{"birthday","2999-01-01",ErrorCode.BAD_REQUEST},
                 new Object[]{"employeeNo","bad number",ErrorCode.BAD_REQUEST},new Object[]{"employeeNo",123,ErrorCode.BAD_REQUEST},
@@ -150,7 +156,7 @@ class AccountCreationTest {
         var row = db.queryForMap("SELECT * FROM users WHERE id=?", result.get("id"));
         assertNull(row.get("department_id")); assertNull(row.get("team_id"));
         assertEquals("FOUNDER", row.get("role"));
-        assertTrue(encoder.matches(" employee-password ", row.get("password_hash").toString()));
+        assertTrue(encoder.matches(" password123 ", row.get("password_hash").toString()));
     }
     @Test void departmentHeadNeedsDepartmentButIgnoresObsoleteTeamMembership() {
         var request = complete(); request.put("role", "DEPT_HEAD"); request.put("teamId", 999);
