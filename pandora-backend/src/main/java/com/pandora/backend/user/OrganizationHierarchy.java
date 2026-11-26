@@ -3,16 +3,37 @@ package com.pandora.backend.user;
 import org.springframework.jdbc.core.JdbcTemplate;
 import java.util.*;
 
-/** Derives business reporting lines from approved posts; never treats ADMIN as a post. */
+/**
+ * 组织层级服务——从已审批岗位推导汇报关系。
+ * 基于 users 表中的角色和组织归属，计算上下级关系。
+ * 不将 ADMIN 视为岗位（系统管理员不参与组织架构）。
+ */
 public final class OrganizationHierarchy {
     private final JdbcTemplate db;
     public OrganizationHierarchy(JdbcTemplate db) { this.db = db; }
 
+    /**
+     * 获取当前所有已审批岗位的快照。
+     * 仅包含业务角色（FOUNDER、DEPT_HEAD、TEAM_LEADER、EMPLOYEE）。
+     *
+     * @return 岗位列表
+     */
     public List<Map<String, Object>> snapshot() {
         return db.queryForList("SELECT id,username,real_name,role,department_id,team_id FROM users WHERE deleted=0 "
                 + "AND approval_status='APPROVED' AND role IN ('FOUNDER','DEPT_HEAD','TEAM_LEADER','EMPLOYEE') ORDER BY id");
     }
 
+    /**
+     * 计算指定人员的直属上级 ID 列表。
+     * 汇报关系规则：
+     * - DEPT_HEAD -> FOUNDER（同部门）
+     * - TEAM_LEADER -> DEPT_HEAD（同部门）
+     * - EMPLOYEE -> TEAM_LEADER（同部门+同团队）
+     *
+     * @param person 人员数据
+     * @param people 岗位快照
+     * @return 上级 ID 列表
+     */
     public static List<Long> superiors(Map<String, Object> person, List<Map<String, Object>> people) {
         String expected = switch (Objects.toString(person.get("role"), "")) {
             case "DEPT_HEAD" -> "FOUNDER";
@@ -27,11 +48,19 @@ public final class OrganizationHierarchy {
                 .map(candidate -> ((Number) candidate.get("id")).longValue()).sorted().toList();
     }
 
+    /**
+     * 判断两个人员是否属于同一组织单元（部门/团队）。
+     */
     private static boolean sameUnit(Map<String, Object> a, Map<String, Object> b, String key) {
         return a.get(key) != null && Objects.equals(a.get(key), b.get(key));
     }
 
-    /** All directory clients project the same approved posts, even with legacy stored links. */
+    /**
+     * 获取所有汇报关系（用于组织架构图展示）。
+     * 每个关系包含上级ID、下级ID、上级姓名、下级姓名。
+     *
+     * @return 汇报关系列表
+     */
     public List<Map<String, Object>> relations() {
         var people = snapshot();
         Map<Long, Map<String, Object>> byId = new HashMap<>();
@@ -46,6 +75,14 @@ public final class OrganizationHierarchy {
         return result;
     }
 
+    /**
+     * 获取指定人员的亲属（上级或下级）。
+     * 使用 BFS 遍历组织层级图，返回所有可达节点。
+     *
+     * @param id 人员ID
+     * @param upward true 表示获取上级，false 表示获取下级
+     * @return 亲属列表（按层级深度排序）
+     */
     public List<Map<String, Object>> relatives(long id, boolean upward) {
         var people = snapshot();
         Map<Long, Map<String, Object>> byId = new HashMap<>();
@@ -88,10 +125,20 @@ public final class OrganizationHierarchy {
         return result;
     }
 
-    /** Call in the personnel write transaction. Reconcile legacy links too, including
-     * administrator, peer-founder and no-longer-approved endpoints. */
+    /**
+     * 同步组织层级关系到数据库。
+     * 在人员调动或角色变更后调用，确保 user_hierarchy 表与当前组织状态一致。
+     * 流程：
+     * 1. 清理无效关系（已删除/未审批/非业务角色）
+     * 2. 计算每个人员的预期上级列表
+     * 3. 对比当前关系，差异部分进行增删
+     *
+     * @param before 变更前的岗位快照
+     * @param changedId 变更的人员ID
+     */
     public void synchronize(List<Map<String, Object>> before, long changedId) {
         List<Map<String, Object>> after = snapshot();
+        // 清理无效关系
         db.update("DELETE FROM user_hierarchy WHERE superior_id NOT IN (SELECT id FROM users WHERE deleted=0 "
                 + "AND approval_status='APPROVED' AND role IN ('FOUNDER','DEPT_HEAD','TEAM_LEADER','EMPLOYEE')) "
                 + "OR subordinate_id NOT IN (SELECT id FROM users WHERE deleted=0 "

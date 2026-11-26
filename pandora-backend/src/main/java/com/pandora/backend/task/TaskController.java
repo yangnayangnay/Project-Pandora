@@ -14,6 +14,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+/**
+ * 任务控制器——处理任务的创建、查询、更新、删除、状态流转等操作。
+ * 被前端任务管理页面调用，依赖 TaskChangeService 处理业务逻辑。
+ * 权限控制：普通用户仅可操作自己相关的任务，管理员可操作所有任务。
+ */
 @RestController
 @RequestMapping("/task")
 public class TaskController {
@@ -36,6 +41,13 @@ public class TaskController {
     @Autowired
     private com.pandora.backend.hierarchy.HierarchyService hierarchyService;
 
+    /**
+     * 创建任务。
+     * 调用 TaskChangeService.submit 提交创建申请，成功后清除草稿。
+     *
+     * @param taskRequest 包含任务信息的请求体
+     * @return 包含任务ID和审批状态的响应
+     */
     @PostMapping
     @Auditable(operationType = "TASK_CREATE", targetType = "TASK")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createTask(@RequestBody Map<String, Object> taskRequest) {
@@ -44,6 +56,20 @@ public class TaskController {
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
+    /**
+     * 获取任务列表。
+     * 支持多维度筛选：状态、负责人、派发人、关键词、日期范围。
+     * 权限控制：仅可见自己相关的任务。
+     *
+     * @param status 任务状态筛选（IN_PROGRESS/COMPLETED）
+     * @param assigneeId 负责人ID筛选
+     * @param dispatcherId 派发人ID筛选
+     * @param showCompleted 是否显示已完成任务
+     * @param keyword 关键词搜索（名称/内容）
+     * @param startDate 开始日期筛选
+     * @param endDate 结束日期筛选
+     * @return 任务列表
+     */
     @GetMapping("/list")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listTasks(
             @RequestParam(required = false) String status,
@@ -68,6 +94,7 @@ public class TaskController {
             params.add(status);
         }
         if (assigneeId != null) {
+            // 支持多负责人：检查 task_assignees 表
             sql.append(" AND (EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id=t.id AND ta.user_id=?) " +
                     "OR (NOT EXISTS (SELECT 1 FROM task_assignees tx WHERE tx.task_id=t.id) AND t.assignee_id=?))");
             params.add(assigneeId); params.add(assigneeId);
@@ -88,22 +115,31 @@ public class TaskController {
         return ResponseEntity.ok(ApiResponse.success(attachAssignees(taskTags.attach(tasks))));
     }
 
-    /** Internal/test compatibility for callers that do not use the newer search and date filters. */
+    /**
+     * 内部/测试兼容接口：不带日期筛选的任务列表。
+     */
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listTasks(
             String status, Long assigneeId, Long dispatcherId, Boolean showCompleted) {
         return listTasks(status, assigneeId, dispatcherId, showCompleted, null, null, null);
     }
 
+    /**
+     * 获取任务详情。
+     * 包含任务信息、负责人列表、标签列表。
+     *
+     * @param taskId 任务ID
+     * @return 任务详情
+     */
     @GetMapping("/{taskId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getTask(@PathVariable Long taskId) {
         try {
             Map<String, Object> task = jdbcTemplate.queryForMap(
-                "SELECT t.*, CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.username END AS assignee_name, " +
-                "CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.real_name END AS assignee_real_name, " +
-                "CASE WHEN d.role='ADMIN' THEN '系统' ELSE d.username END AS dispatcher_name, " +
-                "CASE WHEN d.role='ADMIN' THEN '系统' ELSE d.real_name END AS dispatcher_real_name " +
-                "FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id " +
-                "LEFT JOIN users d ON t.dispatcher_id = d.id WHERE t.id = ? AND t.deleted = 0", taskId);
+                    "SELECT t.*, CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.username END AS assignee_name, " +
+                    "CASE WHEN u.role='ADMIN' THEN '系统' ELSE u.real_name END AS assignee_real_name, " +
+                    "CASE WHEN d.role='ADMIN' THEN '系统' ELSE d.username END AS dispatcher_name, " +
+                    "CASE WHEN d.role='ADMIN' THEN '系统' ELSE d.real_name END AS dispatcher_real_name " +
+                    "FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id " +
+                    "LEFT JOIN users d ON t.dispatcher_id = d.id WHERE t.id = ? AND t.deleted = 0", taskId);
             taskTags.attach(Collections.singletonList(task));
             attachAssignees(Collections.singletonList(task));
             return ResponseEntity.ok(ApiResponse.success(task));
@@ -112,6 +148,14 @@ public class TaskController {
         }
     }
 
+    /**
+     * 更新任务进度。
+     * 仅责任人可更新进度。
+     *
+     * @param taskId 任务ID
+     * @param request 包含 progressNote 和 status 的请求体
+     * @return 成功响应
+     */
     @PatchMapping("/{taskId}/progress")
     @Auditable(operationType = "TASK_PROGRESS_UPDATE", targetType = "TASK")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateProgress(
@@ -124,6 +168,14 @@ public class TaskController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+    /**
+     * 更新任务信息。
+     * 调用 TaskChangeService.submit 提交更新申请。
+     *
+     * @param taskId 任务ID
+     * @param request 包含待更新字段的请求体
+     * @return 包含任务ID和审批状态的响应
+     */
     @PatchMapping("/{taskId}")
     @Auditable(operationType = "TASK_UPDATE", targetType = "TASK")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateTask(
@@ -131,6 +183,12 @@ public class TaskController {
         return ResponseEntity.ok(ApiResponse.success(taskChanges.submit(getCurrentUserId(), "UPDATE", taskId, request)));
     }
 
+    /**
+     * 获取象限任务列表（紧急/普通）。
+     * 用于四象限任务视图展示。
+     *
+     * @return 包含紧急任务和普通任务的响应
+     */
     @GetMapping("/quadrant")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getQuadrantTasks() {
         Long currentUserId = getCurrentUserId();
@@ -147,6 +205,14 @@ public class TaskController {
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
+    /**
+     * 任务状态流转。
+     * 支持 IN_PROGRESS ↔ COMPLETED 双向流转。
+     *
+     * @param taskId 任务ID
+     * @param request 包含目标状态的请求体
+     * @return 成功响应
+     */
     @PostMapping("/{taskId}/transition")
     @Auditable(operationType = "TASK_TRANSITION", targetType = "TASK")
     public ResponseEntity<ApiResponse<Map<String, Object>>> transitionStatus(
@@ -160,6 +226,12 @@ public class TaskController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+    /**
+     * 获取下属任务列表。
+     * 仅返回当前用户可见的下属任务。
+     *
+     * @return 下属任务列表
+     */
     @GetMapping("/subordinate")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSubordinateTasks() {
         Long currentUserId = getCurrentUserId();
@@ -176,6 +248,12 @@ public class TaskController {
         return ResponseEntity.ok(ApiResponse.success(attachAssignees(taskTags.attach(tasks))));
     }
 
+    /**
+     * 获取下属用户列表。
+     * 包含层级深度信息，用于任务分配界面。
+     *
+     * @return 下属用户列表（按深度和ID排序）
+     */
     @GetMapping("/subordinate/users")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSubordinateUsers() {
         Long currentUserId = getCurrentUserId();
@@ -208,12 +286,17 @@ public class TaskController {
         return ResponseEntity.ok(ApiResponse.success(com.pandora.backend.user.OrganizationRules.normalize(users)));
     }
 
-
+    /**
+     * 获取当前用户ID。
+     */
     private Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return (Long) auth.getPrincipal();
     }
 
+    /**
+     * 安全地将对象转换为 Boolean 类型。
+     */
     private static Boolean toBool(Object v) {
         if (v == null) return false;
         if (v instanceof Boolean) return (Boolean) v;
@@ -221,11 +304,25 @@ public class TaskController {
         return Boolean.parseBoolean(v.toString());
     }
 
+    /**
+     * 删除任务（软删除）。
+     * 调用 TaskChangeService.submit 提交删除申请。
+     *
+     * @param taskId 任务ID
+     * @return 包含任务ID和审批状态的响应
+     */
     @DeleteMapping("/{taskId}")
     @Auditable(operationType = "TASK_DELETE", targetType = "TASK")
     public ResponseEntity<ApiResponse<Map<String, Object>>> deleteTask(@PathVariable Long taskId) {
         return ResponseEntity.ok(ApiResponse.success(taskChanges.submit(getCurrentUserId(), "DELETE", taskId, Collections.emptyMap())));
     }
+
+    /**
+     * 获取可见的负责人列表。
+     * 根据当前用户角色返回可见的下属用户列表。
+     *
+     * @return 可见的负责人列表
+     */
     @GetMapping("/assignees")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> assignees() {
         Long actor = getCurrentUserId();
@@ -250,6 +347,10 @@ public class TaskController {
                 "AND u.role<>'ADMIN' ORDER BY d.name,t.name,u.real_name,u.username", visible.toArray()))));
     }
 
+    /**
+     * 批量附加负责人信息到任务列表。
+     * 避免 N+1 查询问题。
+     */
     private List<Map<String, Object>> attachAssignees(List<Map<String, Object>> tasks) {
         if (tasks.isEmpty()) return tasks;
         Map<Long, Map<String, Object>> byId = new LinkedHashMap<>();
@@ -270,6 +371,4 @@ public class TaskController {
         }
         return tasks;
     }
-
-
 }

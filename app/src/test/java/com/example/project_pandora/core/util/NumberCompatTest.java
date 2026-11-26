@@ -7,7 +7,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Round26 REQ-26-02：NumberCompat 数字安全解析单测。
+ * Round26 REQ-26-02：NumberCompat 数字安全解析单元测试。
  * 覆盖 spec 4.2-2 全部输入形态：null、空串、"5.0"、"-3.0"、Double、Integer、Long、
  * 纯数字串、非数字串、科学计数法、超范围大数；toBool 的 Boolean/Number/其他三形态。
  * 任何输入组合均不抛异常（异常即用例失败）。

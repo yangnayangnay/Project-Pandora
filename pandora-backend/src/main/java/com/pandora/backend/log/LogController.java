@@ -17,6 +17,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+/**
+ * 日志控制器——处理工作日志的创建、查询、编辑、删除、统计等操作。
+ * 被前端日志页面调用，依赖 LogDirectoryService、LogDraftGenerator 等组件。
+ * 权限控制：普通用户仅可操作自己的日志，管理员可查看下属日志。
+ */
 @RestController
 @RequestMapping("/log")
 public class LogController {
@@ -45,6 +50,12 @@ public class LogController {
     @Autowired
     private com.pandora.backend.notification.NotificationService notificationService;
 
+    /**
+     * 生成日志草稿。
+     * 根据当日任务自动生成日志草稿内容。
+     *
+     * @return 包含草稿内容的响应
+     */
     @PostMapping("/draft")
     @Auditable(operationType = "LOG_DRAFT_GENERATE", targetType = "WORK_LOG")
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateDraft() {
@@ -52,6 +63,18 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(logDraftGenerator.generateDraft(userId)));
     }
 
+    /**
+     * 创建日志。
+     * 业务规则：
+     * - 每人每天只能有一篇日志（日期唯一）
+     * - 仅可填写或编辑前天、昨天、今天的日志
+     * - 日志正文不能为空
+     * - 创建成功后触发 AI 自动分析和通知
+     *
+     * @param request 包含日志信息的请求体
+     * @param servletRequest HTTP 请求（用于获取 AI 配置头）
+     * @return 包含日志ID的响应
+     */
     @PostMapping
     @Auditable(operationType = "LOG_CREATE", targetType = "WORK_LOG")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createLog(@RequestBody Map<String, Object> request, HttpServletRequest servletRequest) {
@@ -63,6 +86,7 @@ public class LogController {
         LogDatePolicy.requireWritable(logDate);
         String workItem = LogContentRules.title(logDate);
 
+        // 查询当日是否已有日志
         List<Map<String, Object>> existingLogs = jdbcTemplate.queryForList(
                 "SELECT id, deleted FROM work_logs WHERE user_id = ? AND log_date = ? ORDER BY deleted ASC",
                 userId, logDate);
@@ -76,6 +100,7 @@ public class LogController {
                 throw new BusinessException(ErrorCode.LOG_DATE_CONFLICT);
             }
             logId = ((Number) existing.get("ID")).longValue();
+            // 恢复已删除的日志
             jdbcTemplate.update(
                     "UPDATE work_logs SET work_item = ?, work_content = ?, completion_status = ?, time_cost = ?, deleted = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                     workItem, workContent, completionStatus, timeCostObj, logId
@@ -112,6 +137,16 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
+    /**
+     * 获取全量日志列表（管理员/创始人独占）。
+     * 支持按用户、日期范围、关键词筛选。
+     *
+     * @param userId 用户ID筛选（可选）
+     * @param startDate 开始日期筛选（可选）
+     * @param endDate 结束日期筛选（可选）
+     * @param keyword 关键词筛选（可选）
+     * @return 日志列表
+     */
     @GetMapping("/all")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listAllLogs(
             @RequestParam(required = false) Long userId,
@@ -153,6 +188,10 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(logs));
     }
 
+    /**
+     * 获取测试数据清理预览（管理员独占）。
+     * 查找包含测试关键词的日志。
+     */
     @GetMapping("/cleanup-preview")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> cleanupPreview() {
         String role = getCurrentUserRole();
@@ -167,6 +206,10 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(candidates));
     }
 
+    /**
+     * 执行测试数据清理（管理员独占）。
+     * 软删除包含测试关键词的日志。
+     */
     @PostMapping("/cleanup-execute")
     @Auditable(operationType = "TEST_DATA_CLEANUP", targetType = "WORK_LOG")
     public ResponseEntity<ApiResponse<Map<String, Object>>> cleanupExecute() {
@@ -183,6 +226,13 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
+    /**
+     * 获取日志详情。
+     * 权限控制：仅所有者、管理员、上级可查看。
+     *
+     * @param logId 日志ID
+     * @return 包含日志详情和AI分析结果的响应
+     */
     @GetMapping("/{logId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getLogDetail(@PathVariable Long logId) {
         Long userId = getCurrentUserId();
@@ -209,6 +259,7 @@ public class LogController {
             }
         }
 
+        // 附加AI分析结果
         List<Map<String, Object>> analyses = jdbcTemplate.queryForList(
                 "SELECT id, analysis_type, result, status, generated_at FROM ai_analyses " +
                 "WHERE user_id = ? AND deleted = 0 ORDER BY generated_at DESC LIMIT 5",
@@ -218,6 +269,15 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(log));
     }
 
+    /**
+     * 获取当前用户的日志列表。
+     * 支持按日期范围、关键词筛选。
+     *
+     * @param startDate 开始日期筛选（可选）
+     * @param endDate 结束日期筛选（可选）
+     * @param keyword 关键词筛选（可选）
+     * @return 日志列表
+     */
     @GetMapping("/list")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listLogs(
             @RequestParam(required = false) String startDate,
@@ -251,12 +311,19 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(logs));
     }
 
+    /**
+     * 获取日志统计信息。
+     * 包含完成率、总时长等统计。
+     *
+     * @return 统计数据
+     */
     @GetMapping("/stat")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getLogStats() {
         Long userId = getCurrentUserId();
 
         Map<String, Object> stats = new HashMap<>();
 
+        // 近30天完成率
         List<Map<String, Object>> completionRate = jdbcTemplate.queryForList(
                 "SELECT DATE(log_date) as date, COUNT(*) as total, " +
                 "SUM(CASE WHEN completion_status = 'COMPLETED' THEN 1 ELSE 0 END) as completed " +
@@ -283,6 +350,13 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
+    /**
+     * 更新十大事项。
+     * 支持 PERSONAL_IMPORTANT 和其他类型。
+     *
+     * @param top10List 十大事项列表
+     * @return 成功响应
+     */
     @PutMapping("/top10")
     @Auditable(operationType = "TOP10_UPDATE", targetType = "TOP10_WORK")
     public ResponseEntity<ApiResponse<Void>> updateTop10(@RequestBody List<Map<String, Object>> top10List) {
@@ -303,6 +377,13 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+    /**
+     * 获取十大事项。
+     * 支持按类型筛选。
+     *
+     * @param workType 工作类型筛选（可选）
+     * @return 十大事项列表
+     */
     @GetMapping("/top10")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTop10(@RequestParam(required = false) String workType) {
         Long userId = getCurrentUserId();
@@ -322,6 +403,17 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(top10));
     }
 
+    /**
+     * 编辑日志。
+     * 业务规则：
+     * - 仅可编辑自己的日志
+     * - 不能更改日志日期
+     * - 仅可编辑前天、昨天、今天的日志
+     *
+     * @param logId 日志ID
+     * @param request 包含待更新字段的请求体
+     * @return 包含更新结果的响应
+     */
     @org.springframework.transaction.annotation.Transactional
     @PutMapping("/{logId}")
     @Auditable(operationType = "LOG_UPDATE", targetType = "WORK_LOG")
@@ -379,6 +471,13 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
+    /**
+     * 删除日志（软删除）。
+     * 仅可删除自己的日志。
+     *
+     * @param logId 日志ID
+     * @return 成功响应
+     */
     @DeleteMapping("/{logId}")
     @Auditable(operationType = "LOG_DELETE", targetType = "WORK_LOG")
     public ResponseEntity<ApiResponse<Void>> deleteLog(@PathVariable Long logId) {
@@ -392,6 +491,17 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+    /**
+     * 获取下属日志列表。
+     * 支持按下属、部门、日期范围、关键词筛选。
+     *
+     * @param subordinateId 下属ID筛选（可选）
+     * @param departmentId 部门ID筛选（可选）
+     * @param startDate 开始日期筛选（可选）
+     * @param endDate 结束日期筛选（可选）
+     * @param keyword 关键词筛选（可选）
+     * @return 下属日志列表
+     */
     @GetMapping("/subordinate")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSubordinateLogs(
             @RequestParam(required = false) Long subordinateId,
@@ -454,6 +564,9 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(logs));
     }
 
+    /**
+     * 获取下属列表（用于日志管理界面）。
+     */
     @GetMapping("/subordinates")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSubordinates() {
         Long userId = getCurrentUserId();
@@ -469,6 +582,10 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(subordinates));
     }
 
+    /**
+     * 自动生成日志（已废弃）。
+     * 根据当日任务自动生成日志内容。
+     */
     @PostMapping("/auto-generate")
     @Deprecated
     @Auditable(operationType = "LOG_AUTO_GENERATE", targetType = "WORK_LOG")
@@ -503,12 +620,17 @@ public class LogController {
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
-
+    /**
+     * 获取当前用户ID。
+     */
     private Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return (Long) auth.getPrincipal();
     }
 
+    /**
+     * 获取当前用户角色。
+     */
     private String getCurrentUserRole() {
         Long userId = getCurrentUserId();
         try {

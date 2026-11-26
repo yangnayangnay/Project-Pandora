@@ -9,6 +9,11 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 
+/**
+ * 层级服务——处理组织架构中的上下级关系查询和管理。
+ * 包括：获取下属、获取上级、判断上下级关系、检测循环引用、管理组织关系等。
+ * 被各个业务模块调用。
+ */
 @Service
 public class HierarchyService {
 
@@ -17,12 +22,24 @@ public class HierarchyService {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    // 最大层级深度（防止无限递归）
     @Value("${hierarchy.max-depth:10}")
     private int maxDepth;
 
+    // 是否启用循环引用检测
     @Value("${hierarchy.cycle-detect:true}")
     private boolean cycleDetect;
 
+    /**
+     * 获取用户的所有下属（递归）。
+     * 权限规则：
+     * - ADMIN：可见所有已审批用户
+     * - FOUNDER：可见除 ADMIN 外的所有已审批用户
+     * - 其他角色：递归查询 user_hierarchy 表
+     *
+     * @param userId 用户ID
+     * @return 下属列表（包含层级深度）
+     */
     public List<Map<String, Object>> getSubordinates(Long userId) {
         String role = getUserRole(userId);
         if ("ADMIN".equals(role)) {
@@ -38,6 +55,7 @@ public class HierarchyService {
         visited.add(userId);
         Queue<long[]> queue = new LinkedList<>();
         queue.add(new long[]{userId, 0});
+        // BFS 遍历组织层级图
         while (!queue.isEmpty()) {
             long[] current = queue.poll();
             long currentId = current[0];
@@ -64,6 +82,9 @@ public class HierarchyService {
         return result;
     }
 
+    /**
+     * 获取用户的所有下属ID列表。
+     */
     public List<Long> getSubordinateIds(Long userId) {
         List<Map<String, Object>> subs = getSubordinates(userId);
         List<Long> ids = new ArrayList<>();
@@ -73,6 +94,12 @@ public class HierarchyService {
         return ids;
     }
 
+    /**
+     * 获取用户的所有上级（递归）。
+     *
+     * @param userId 用户ID
+     * @return 上级列表（包含层级深度）
+     */
     public List<Map<String, Object>> getSuperiors(Long userId) {
         List<Map<String, Object>> result = new ArrayList<>();
         Set<Long> visited = new HashSet<>();
@@ -105,12 +132,26 @@ public class HierarchyService {
         return result;
     }
 
+    /**
+     * 判断指定用户是否为另一用户的下属。
+     *
+     * @param superiorId 上级ID
+     * @param subordinateId 下级ID
+     * @return true 表示是下属
+     */
     public boolean isSubordinate(Long superiorId, Long subordinateId) {
         if (superiorId.equals(subordinateId)) return false;
         List<Long> subIds = getSubordinateIds(superiorId);
         return subIds.contains(subordinateId);
     }
 
+    /**
+     * 检测添加组织关系是否会形成循环引用。
+     *
+     * @param superiorId 上级ID
+     * @param subordinateId 下级ID
+     * @return true 表示不会形成循环
+     */
     public boolean checkNoCycle(Long superiorId, Long subordinateId) {
         if (!cycleDetect) return true;
         if (superiorId.equals(subordinateId)) return false;
@@ -121,12 +162,24 @@ public class HierarchyService {
         return !supIds.contains(subordinateId) && !superiorId.equals(subordinateId);
     }
 
+    /**
+     * 检查用户是否已有直接上级。
+     */
     public boolean checkSingleSuperior(Long subordinateId) {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM user_hierarchy WHERE subordinate_id = ?", Integer.class, subordinateId);
         return count != null && count > 0;
     }
 
+    /**
+     * 添加组织关系。
+     * 支持强制替换已有上级。
+     *
+     * @param superiorId 上级ID
+     * @param subordinateId 下级ID
+     * @param forceReplace 是否强制替换
+     * @return 操作结果
+     */
     public Map<String, Object> addRelation(Long superiorId, Long subordinateId, boolean forceReplace) {
         if (!checkNoCycle(superiorId, subordinateId)) {
             Map<String, Object> r = new HashMap<>();
@@ -150,10 +203,16 @@ public class HierarchyService {
         return r;
     }
 
+    /**
+     * 移除组织关系。
+     */
     public void removeRelation(Long superiorId, Long subordinateId) {
         jdbcTemplate.update("DELETE FROM user_hierarchy WHERE superior_id = ? AND subordinate_id = ?", superiorId, subordinateId);
     }
 
+    /**
+     * 获取完整的组织层级树。
+     */
     public List<Map<String, Object>> getHierarchyTree() {
         List<Map<String, Object>> allRelations = jdbcTemplate.queryForList(
                 "SELECT h.superior_id, h.subordinate_id, COALESCE(u1.real_name, u1.username) as sup_name, u1.role as sup_role, COALESCE(u2.real_name, u2.username) as sub_name, u2.role as sub_role, u2.username as sub_username, u2.real_name as sub_real_name FROM user_hierarchy h JOIN users u1 ON h.superior_id = u1.id JOIN users u2 ON h.subordinate_id = u2.id WHERE u1.deleted = 0 AND u2.deleted = 0 ORDER BY h.superior_id");
@@ -163,7 +222,7 @@ public class HierarchyService {
     }
 
     /**
-     * B10：查询孤儿节点 - 上级已软删除但下属仍有效的用户
+     * B10：查询孤儿节点 - 上级已软删除但下属仍有效的用户。
      */
     public List<Map<String, Object>> getOrphanNodes() {
         try {

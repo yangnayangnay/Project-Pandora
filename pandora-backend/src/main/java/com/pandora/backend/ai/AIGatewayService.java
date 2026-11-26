@@ -13,7 +13,7 @@ import java.util.*;
  * Round28 REQ-28-02: AI 网关改为请求级透传判定。
  * 不再读取 ai_config 表、不再维护进程级通道状态机：
  * 每次调用依据 AiTransmitConfig（客户端随请求透传）独立判定——
- * 配置可用 → 调用客户端指定端点（source=EXTERNAL）；无效/失败/超时 → 本地兜底（source=LOCAL_FALLBACK）。
+ * 配置可用 -> 调用客户端指定端点（source=EXTERNAL）；无效/失败/超时 -> 本地兜底（source=LOCAL_FALLBACK）。
  * 降级语义与 Round24 口径一致：请求正常返回 200、不抛 AI_UNAVAILABLE、result/source 键名不变。
  */
 @Service
@@ -30,6 +30,18 @@ public class AIGatewayService {
     @Autowired
     private LocalFallbackAIClient localFallbackAIClient;
 
+    /**
+     * 调用 AI 服务。
+     * 流程：
+     * 1. 检查配置是否可用
+     * 2. 调用外部 AI，失败时降级到本地兜底
+     * 3. 本地兜底也不可用时抛出 AI_UNAVAILABLE
+     *
+     * @param prompt 提示词
+     * @param analysisType 分析类型
+     * @param config AI 传输配置
+     * @return 包含 result 和 source 的 Map
+     */
     public Map<String, Object> invoke(String prompt, String analysisType, AiTransmitConfig config) {
         Map<String, Object> result = new HashMap<>();
 

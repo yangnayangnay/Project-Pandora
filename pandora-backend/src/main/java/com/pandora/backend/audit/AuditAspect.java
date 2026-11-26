@@ -15,6 +15,11 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
 
+/**
+ * 审计切面——自动记录所有写操作（POST/PUT/DELETE/PATCH）的审计日志。
+ * 使用 Spring AOP 实现，无需在业务代码中手动调用。
+ * 被 Spring 容器自动注册。
+ */
 @Aspect
 @Component
 public class AuditAspect {
@@ -24,6 +29,14 @@ public class AuditAspect {
     @Autowired
     private AuditService auditService;
 
+    /**
+     * 拦截所有 RestController 中的写操作方法。
+     * 切点表达式：@RestController 类中的 @PostMapping/@PutMapping/@DeleteMapping/@PatchMapping 方法。
+     *
+     * @param joinPoint 连接点
+     * @return 方法执行结果
+     * @throws Throwable 方法执行异常
+     */
     @Around("@within(org.springframework.web.bind.annotation.RestController) && " +
             "(@annotation(org.springframework.web.bind.annotation.PostMapping) || " +
             "@annotation(org.springframework.web.bind.annotation.PutMapping) || " +
@@ -45,6 +58,11 @@ public class AuditAspect {
         return result;
     }
 
+    /**
+     * 记录审计日志。
+     * 包含：操作者ID、方法名、目标类型、目标ID、操作详情、操作类型、操作内容。
+     * 敏感操作（密码相关）不记录详细参数。
+     */
     private void recordAuditLog(ProceedingJoinPoint joinPoint) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof Long)) return;
@@ -67,6 +85,7 @@ public class AuditAspect {
         if ("USER_CREATE".equals(operationType) || "USER_DEPARTURE".equals(operationType)) return;
 
         Long targetId = extractTargetId(method, joinPoint.getArgs());
+        // 敏感操作：密码相关、登录、注册、创建用户
         boolean sensitive = methodName.toLowerCase(java.util.Locale.ROOT).contains("password")
                 || methodName.equals("login") || methodName.equals("register") || methodName.equals("createUser");
         String operationContent = sensitive ? "账户安全操作（不记录密码）" : buildOperationContent(joinPoint.getArgs());
@@ -76,6 +95,10 @@ public class AuditAspect {
         auditService.record(operatorId, methodName, targetType, targetId, detail, operationType, operationContent);
     }
 
+    /**
+     * 从方法参数中提取目标ID。
+     * 查找第一个 Long 或 Number 类型的参数。
+     */
     private Long extractTargetId(Method method, Object[] args) {
         Parameter[] params = method.getParameters();
         for (int i = 0; i < params.length && i < args.length; i++) {
@@ -87,6 +110,10 @@ public class AuditAspect {
         return null;
     }
 
+    /**
+     * 构建操作内容字符串。
+     * 截断过长的参数。
+     */
     private String buildOperationContent(Object[] args) {
         if (args == null || args.length == 0) return null;
         StringBuilder sb = new StringBuilder();

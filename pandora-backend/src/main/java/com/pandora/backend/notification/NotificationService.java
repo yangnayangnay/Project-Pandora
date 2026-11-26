@@ -9,6 +9,11 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 通知服务——处理系统通知的创建和发送。
+ * 包括日志评论通知、新任务通知、状态变更通知、日志完成通知、十大事项变更通知等。
+ * 被各个业务模块调用。
+ */
 @Service
 public class NotificationService {
 
@@ -20,13 +25,21 @@ public class NotificationService {
     public NotificationService() {}
     public NotificationService(JdbcTemplate db) { this.jdbcTemplate = db; }
 
-    /** Called in the comment transaction: a failed comment never leaves a notification. */
+    /**
+     * 检测日志评论并创建通知。
+     * 在评论事务中调用，评论失败不会留下通知。
+     * 管理员评论不会触发通知。
+     *
+     * @param logId 日志ID
+     * @param authorId 评论者ID
+     * @param comment 评论内容
+     */
     public void detectLogComment(long logId, long authorId, String comment) {
         Map<String, Object> row = jdbcTemplate.queryForMap(
                 "SELECT l.user_id,l.log_date,u.role,COALESCE(NULLIF(u.real_name,''),u.username) AS author_name "
                 + "FROM work_logs l JOIN users u ON u.id=? WHERE l.id=? AND l.deleted=0", authorId, logId);
         long owner = ((Number) row.get("user_id")).longValue();
-        // Administrator comments are hidden from the mobile comment list as well.
+        // 管理员评论不触发通知，自己评论自己也不触发
         if (owner == authorId || "ADMIN".equals(row.get("role"))) return;
         String excerpt = comment.replaceAll("\\s+", " ");
         if (excerpt.codePointCount(0, excerpt.length()) > 100)
@@ -35,6 +48,14 @@ public class NotificationService {
         jdbcTemplate.update("INSERT INTO notifications(target_user_id,type,log_id,content) VALUES(?,'LOG_COMMENTED',?,?)", owner, logId, content);
     }
 
+    /**
+     * 记录事件通知。
+     *
+     * @param type 通知类型
+     * @param taskId 任务ID（可选）
+     * @param targetUserId 目标用户ID
+     * @param content 通知内容
+     */
     public void recordEvent(String type, Long taskId, Long targetUserId, String content) {
         jdbcTemplate.update(
                 "INSERT INTO notifications (target_user_id, type, task_id, content) VALUES (?, ?, ?, ?)",
@@ -42,16 +63,32 @@ public class NotificationService {
         );
     }
 
+    /**
+     * 检测新任务并创建通知。
+     * 派发给自己时不触发通知。
+     *
+     * @param taskId 任务ID
+     * @param assigneeId 负责人ID
+     * @param dispatcherId 派发人ID
+     */
     public void detectNewTask(Long taskId, Long assigneeId, Long dispatcherId) {
         if (assigneeId.equals(dispatcherId)) return;
         try {
-
             Map<String, Object> task = jdbcTemplate.queryForMap("SELECT name FROM tasks WHERE id = ?", taskId);
             String taskName = task.get("name") != null ? task.get("name").toString() : task.get("NAME").toString();
             recordEvent("NEW_TASK", taskId, assigneeId, "新任务：" + taskName);
         } catch (Exception error) { log.error("New-task notification creation failed: task={}",taskId,error); }
     }
 
+    /**
+     * 检测任务状态变更并创建通知。
+     * 状态未变更时不触发。
+     *
+     * @param taskId 任务ID
+     * @param oldStatus 旧状态
+     * @param newStatus 新状态
+     * @param modifierId 修改人ID
+     */
     public void detectStatusChange(Long taskId, String oldStatus, String newStatus, Long modifierId) {
         if (newStatus == null || newStatus.equals(oldStatus)) return;
         try {
@@ -70,14 +107,15 @@ public class NotificationService {
     }
 
     /**
-     * TASK-R18-007: 下属完成日志通知（LOG_COMPLETED）
-     * 查 user_hierarchy 表找直属上级（superior_id，仅直属一级、不上溯），
-     * 组装"下属已完成日志：{姓名} {日志日期}"，为直属上级调用 recordEvent 单条插入。
-     * 接收方不含操作者本人；沿用现有 try-catch 吞异常模式（通知失败不影响日志主流程）。
+     * TASK-R18-007: 下属完成日志通知（LOG_COMPLETED）。
+     * 查 user_hierarchy 表找直属上级（superior_id，仅直属一级、不上溯）。
+     * 通知失败不影响日志主流程。
+     *
+     * @param logUserId 日志所属用户ID
+     * @param logDate 日志日期
      */
     public void detectLogCompleted(Long logUserId, String logDate) {
         try {
-            // 查直属上级（仅直属一级）
             List<Map<String, Object>> superiors = jdbcTemplate.queryForList(
                     "SELECT superior_id FROM user_hierarchy WHERE subordinate_id = ?", logUserId);
             if (superiors.isEmpty()) return;
@@ -86,9 +124,8 @@ public class NotificationService {
             if (supIdObj == null) supIdObj = superiors.get(0).get("superior_id");
             if (supIdObj == null) return;
             Long superiorId = ((Number) supIdObj).longValue();
-            if (superiorId.equals(logUserId)) return; // 排除自指
+            if (superiorId.equals(logUserId)) return;
 
-            // 查下属姓名
             Map<String, Object> user = jdbcTemplate.queryForMap("SELECT real_name, username FROM users WHERE id = ?", logUserId);
             Object realName = user.get("real_name") != null ? user.get("real_name") : user.get("REAL_NAME");
             Object username = user.get("username") != null ? user.get("username") : user.get("USERNAME");
@@ -100,33 +137,41 @@ public class NotificationService {
     }
 
     /**
-     * TASK-R18-008: 公司十大重要事项变更通知（TOP10_IMPORTANT_CHANGED）
-     * 查询 ADMIN+FOUNDER 角色用户（除操作者本人）逐一生成通知，
-     * 内容组装"公司十大重要事项已{? 动作}（操作者：{姓名}）"。
-     * 复用 recordEvent，沿用 try-catch 模式；每次业务动作仅单次调用（天然满足 REQ-R18-04 规则 7 无重复通知）。
+     * TASK-R18-008: 公司十大重要事项变更通知（TOP10_IMPORTANT_CHANGED）。
+     * 查询 ADMIN+FOUNDER 角色用户（除操作者本人）逐一生成通知。
+     *
+     * @param operatorUserId 操作者ID
+     * @param action 动作描述
      */
     public void detectTop10ImportantChanged(Long operatorUserId, String action) {
         detectTop10Changed(operatorUserId, action, "公司十大重要事项", "TOP10_IMPORTANT_CHANGED");
     }
 
     /**
-     * TASK-R18-008: 公司十大任务派发变更通知（TOP10_DISPATCH_CHANGED）
-     * 查询 ADMIN+FOUNDER 角色用户（除操作者本人）逐一生成通知，
-     * 内容组装"公司十大任务派发已{动作}（操作者：{姓名}）"。
+     * TASK-R18-008: 公司十大任务派发变更通知（TOP10_DISPATCH_CHANGED）。
+     *
+     * @param operatorUserId 操作者ID
+     * @param action 动作描述
      */
     public void detectTop10DispatchChanged(Long operatorUserId, String action) {
         detectTop10Changed(operatorUserId, action, "公司十大任务派发", "TOP10_DISPATCH_CHANGED");
     }
 
+    /**
+     * 通用的十大事项变更通知。
+     *
+     * @param operatorUserId 操作者ID
+     * @param action 动作描述
+     * @param bizName 业务名称
+     * @param notifType 通知类型
+     */
     private void detectTop10Changed(Long operatorUserId, String action, String bizName, String notifType) {
         try {
-            // 查操作者姓名
             Map<String, Object> opUser = jdbcTemplate.queryForMap("SELECT real_name, username FROM users WHERE id = ?", operatorUserId);
             Object opRealName = opUser.get("real_name") != null ? opUser.get("real_name") : opUser.get("REAL_NAME");
             Object opUsername = opUser.get("username") != null ? opUser.get("username") : opUser.get("USERNAME");
             String opDisplayName = opRealName != null ? opRealName.toString() : (opUsername != null ? opUsername.toString() : "未知");
 
-            // 查 ADMIN+FOUNDER 角色用户（除操作者本人）
             List<Map<String, Object>> targets = jdbcTemplate.queryForList(
                     "SELECT id FROM users WHERE role IN ('ADMIN', 'FOUNDER') AND deleted = 0 AND id != ?", operatorUserId);
 

@@ -1,6 +1,18 @@
 package com.pandora.backend.common;
 
+/**
+ * 角色校验工具类。
+ * 提供管理员/创始人角色的判断方法，用于权限控制。
+ * 被 Controller 和 Service 层调用。
+ */
 public class RoleChecker {
+    /**
+     * 判断是否为管理员或创始人。
+     * 创始人拥有最高权限，管理员拥有系统管理权限。
+     *
+     * @param role 用户角色字符串
+     * @return true 若角色为 ADMIN 或 FOUNDER
+     */
     public static boolean isAdminOrFounder(String role) {
         return "ADMIN".equals(role) || "FOUNDER".equals(role);
     }

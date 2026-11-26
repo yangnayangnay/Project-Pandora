@@ -12,7 +12,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 
-/** Editorial changes are proposals until the current responsible superior approves them. */
+/**
+ * 任务变更服务——处理任务的创建、更新、删除申请和审批流程。
+ * 普通用户的任务变更需要上级审批，管理员/创始人免审。
+ * 被 TaskController 调用。
+ */
 @Service
 public class TaskChangeService {
     private final JdbcTemplate db;
@@ -26,14 +30,28 @@ public class TaskChangeService {
         this.tags = tags;
     }
 
+    /**
+     * 判断角色是否免审（管理员/创始人）。
+     */
     public static boolean exempt(String role) { return "ADMIN".equals(role) || "FOUNDER".equals(role); }
 
+    /**
+     * 获取用户角色。
+     * 拦截不存在、已停用、未审批的账号。
+     */
     private String role(long id) {
         List<String> roles = db.queryForList("SELECT role FROM users WHERE id = ? AND deleted = 0 AND approval_status = 'APPROVED'", String.class, id);
         if (roles.isEmpty()) throw new BusinessException(ErrorCode.FORBIDDEN, "账号不存在、已停用或尚未批准");
         return roles.get(0);
     }
 
+    /**
+     * 计算当前用户的审批人。
+     * 汇报关系：EMPLOYEE -> TEAM_LEADER -> DEPT_HEAD -> FOUNDER
+     *
+     * @param actor 当前用户ID
+     * @return 审批人ID，免审角色返回 null
+     */
     public Long approver(long actor) {
         String role = role(actor);
         if (exempt(role)) return null;
@@ -51,12 +69,19 @@ public class TaskChangeService {
                 .findFirst().orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST, "尚未配置对应职级的上级，请联系管理员维护人员关系"));
     }
 
+    /**
+     * 获取任务详情（可选加锁）。
+     */
     private Map<String, Object> task(long id, boolean lock) {
         List<Map<String, Object>> rows = db.queryForList("SELECT * FROM tasks WHERE id = ? AND deleted = 0" + (lock ? " FOR UPDATE" : ""), id);
         if (rows.isEmpty()) throw new BusinessException(ErrorCode.NOT_FOUND, "任务不存在");
         return rows.get(0);
     }
 
+    /**
+     * 校验操作者权限。
+     * 创建人可删除/更新，责任人仅可更新进度。
+     */
     private void checkActor(long actor, Map<String, Object> task, String operation) {
         if (exempt(role(actor))) return;
         boolean dispatcher = task.get("dispatcher_id") instanceof Number && actor == ((Number) task.get("dispatcher_id")).longValue();
@@ -66,6 +91,13 @@ public class TaskChangeService {
         }
     }
 
+    /**
+     * 校验任务数据。
+     * 规则：
+     * - 仅允许指定字段
+     * - 任务名称最多256字，正文最多5000字
+     * - 时间格式校验
+     */
     private void validate(Map<String, Object> data, boolean create) {
         Set<String> allowed = Set.of("name", "content", "assigneeId", "assigneeIds", "isUrgent", "startTime", "endTime", "progressNote", "tagIds");
         for (String key : data.keySet()) if (!allowed.contains(key)) {
@@ -88,6 +120,10 @@ public class TaskChangeService {
         }
     }
 
+    /**
+     * 解析任务时间。
+     * 支持多种格式：Timestamp、LocalDateTime、字符串（ISO格式）。
+     */
     private java.time.LocalDateTime taskDateTime(Object value) {
         if (value == null) return null;
         if (value instanceof java.sql.Timestamp timestamp) return timestamp.toLocalDateTime();
@@ -100,6 +136,10 @@ public class TaskChangeService {
         }
     }
 
+    /**
+     * 校验时间范围。
+     * 规则：截止时间必须晚于开始时间。
+     */
     private void validateSchedule(Map<String, Object> data, Map<String, Object> before, boolean create) {
         if (!create && !data.containsKey("startTime") && !data.containsKey("endTime")) return;
         Object defaultStart = create ? java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai"))
@@ -112,6 +152,20 @@ public class TaskChangeService {
         }
     }
 
+    /**
+     * 提交任务变更申请。
+     * 流程：
+     * 1. 校验操作权限
+     * 2. 校验数据合法性
+     * 3. 免审角色直接执行
+     * 4. 非免审角色创建审批请求
+     *
+     * @param actor 操作者ID
+     * @param operation 操作类型（CREATE/UPDATE/DELETE）
+     * @param taskId 任务ID（创建时为 null）
+     * @param data 任务数据
+     * @return 包含任务ID、请求ID、审批状态的消息
+     */
     @Transactional
     public Map<String, Object> submit(long actor, String operation, Long taskId, Map<String, Object> data) {
         Map<String, Object> before = taskId == null ? null : task(taskId, true);
@@ -137,12 +191,19 @@ public class TaskChangeService {
         return result(taskId, requestId, "PENDING", "申请已提交，审核通过后生效");
     }
 
+    /**
+     * 构建响应结果。
+     */
     private Map<String, Object> result(Long id, Long requestId, String status, String message) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", id); result.put("requestId", requestId); result.put("approvalStatus", status); result.put("message", message);
         return result;
     }
 
+    /**
+     * 获取审批请求列表。
+     * 支持查看自己发起的或待审批的请求。
+     */
     public List<Map<String, Object>> requests(long viewer, boolean mine) {
         List<Map<String, Object>> rows = db.queryForList(
                 "SELECT r.*, CASE WHEN u.role='ADMIN' THEN '系统' ELSE COALESCE(u.real_name,u.username) END AS requester_name, t.name AS task_name " +
@@ -174,6 +235,21 @@ public class TaskChangeService {
         return visible;
     }
 
+    /**
+     * 审批任务变更申请。
+     * 流程：
+     * 1. 校验申请存在且为待处理状态
+     * 2. 校验审批人身份
+     * 3. 退回时必须填写原因
+     * 4. 通过时重新校验数据合法性
+     * 5. 执行变更
+     *
+     * @param reviewer 审批人ID
+     * @param requestId 申请ID
+     * @param approved 是否通过
+     * @param reason 退回原因（退回时必填）
+     * @return 审批结果
+     */
     @Transactional
     public Map<String, Object> decide(long reviewer, long requestId, boolean approved, String reason) {
         List<Map<String, Object>> rows = db.queryForList("SELECT * FROM task_change_requests WHERE id = ? FOR UPDATE", requestId);
@@ -210,52 +286,18 @@ public class TaskChangeService {
         return result(taskId, requestId, approved ? "APPROVED" : "REJECTED", approved ? "审核通过，操作已生效" : "申请已退回");
     }
 
-    private Long apply(long actor, String operation, Long taskId, Map<String, Object> data) {
-        if ("CREATE".equals(operation)) {
-            List<Long> assignees = assigneeIds(data, true);
-            long assignee = assignees.get(0);
-            taskId = insert("INSERT INTO tasks (name, content, status, assignee_id, dispatcher_id, is_urgent, start_time, end_time) VALUES (?, ?, 'IN_PROGRESS', ?, ?, ?, ?, ?)",
-                    data.get("name"), data.get("content"), assignee, actor,
-                    bool(data.get("isUrgent")), data.getOrDefault("startTime", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString()), data.get("endTime"));
-            replaceAssignees(taskId, assignees);
-            if (data.containsKey("tagIds")) tags.replace(taskId, data.get("tagIds"));
-            for (Long id : assignees) notifications.detectNewTask(taskId, id, actor);
-            return taskId;
-        }
-        if ("DELETE".equals(operation)) {
-            db.update("UPDATE tasks SET deleted = 1, revision = revision + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?", taskId);
-            return taskId;
-        }
-        Map<String, String> columns = Map.of("name", "name", "content", "content", "isUrgent", "is_urgent", "startTime", "start_time", "endTime", "end_time", "progressNote", "progress_note");
-        StringBuilder sql = new StringBuilder("UPDATE tasks SET revision = revision + 1, updated_at = CURRENT_TIMESTAMP");
-        List<Object> args = new ArrayList<>();
-        Set<Long> previousAssignees = new LinkedHashSet<>();
-        List<Long> nextAssignees = null;
-        data.forEach((key, value) -> { if (columns.containsKey(key)) { sql.append(", ").append(columns.get(key)).append(" = ?"); args.add(key.startsWith("is") ? bool(value) : value); } });
-        if (data.containsKey("assigneeId") || data.containsKey("assigneeIds")) {
-            previousAssignees.addAll(db.queryForList("SELECT user_id FROM task_assignees WHERE task_id=?", Long.class, taskId));
-            if (previousAssignees.isEmpty()) {
-                Long legacy = db.queryForObject("SELECT assignee_id FROM tasks WHERE id=?", Long.class, taskId);
-                if (legacy != null) previousAssignees.add(legacy);
-            }
-            nextAssignees = assigneeIds(data, true);
-            sql.append(", assignee_id = ?"); args.add(nextAssignees.get(0));
-            replaceAssignees(taskId, nextAssignees);
-        }
-        sql.append(" WHERE id = ?"); args.add(taskId); db.update(sql.toString(), args.toArray());
-        if (nextAssignees != null) {
-            Long dispatcher = db.queryForObject("SELECT dispatcher_id FROM tasks WHERE id=?", Long.class, taskId);
-            for (Long id : nextAssignees) if (!previousAssignees.contains(id)) notifications.detectNewTask(taskId, id, dispatcher);
-        }
-        if (data.containsKey("tagIds")) tags.replace(taskId, data.get("tagIds"));
-        return taskId;
-    }
-
+    /**
+     * 读取 CLOB 类型的 payload 字段。
+     */
     private String payloadText(Object value) throws java.sql.SQLException {
         if (value instanceof java.sql.Clob clob) return clob.getSubString(1, Math.toIntExact(clob.length()));
         return Objects.toString(value, "{}");
     }
 
+    /**
+     * 更新任务执行状态（进度/状态流转）。
+     * 仅责任人可更新进度。
+     */
     @Transactional
     public void updateExecution(long actor, long taskId, String status, String progressNote) {
         Map<String, Object> before = task(taskId, true);
@@ -267,8 +309,16 @@ public class TaskChangeService {
                 status == null ? before.get("status") : status, progressNote == null ? before.get("progress_note") : progressNote, taskId);
     }
 
+    /**
+     * 安全地将对象转换为整数（0/1）。
+     */
     private int bool(Object value) { return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(Objects.toString(value)) || "1".equals(Objects.toString(value)) ? 1 : 0; }
 
+    /**
+     * 解析负责人ID列表。
+     * 支持 assigneeId 和 assigneeIds 两种字段。
+     * 拦截管理员作为负责人。
+     */
     private List<Long> assigneeIds(Map<String, Object> data, boolean required) {
         LinkedHashSet<Long> ids = new LinkedHashSet<>();
         Object raw = data.get("assigneeIds");
@@ -286,16 +336,25 @@ public class TaskChangeService {
         return new ArrayList<>(ids);
     }
 
+    /**
+     * 替换任务负责人列表。
+     */
     private void replaceAssignees(long taskId, List<Long> ids) {
         db.update("DELETE FROM task_assignees WHERE task_id = ?", taskId);
         for (Long id : ids) db.update("INSERT INTO task_assignees(task_id,user_id) VALUES(?,?)", taskId, id);
     }
 
+    /**
+     * 判断用户是否为任务负责人。
+     */
     private boolean isAssignee(long taskId, long actor, Map<String, Object> task) {
         if (!db.queryForList("SELECT user_id FROM task_assignees WHERE task_id=? AND user_id=?", Long.class, taskId, actor).isEmpty()) return true;
         return task.get("assignee_id") instanceof Number && actor == ((Number) task.get("assignee_id")).longValue();
     }
 
+    /**
+     * 执行插入并返回自增ID。
+     */
     private long insert(String sql, Object... args) {
         GeneratedKeyHolder keys = new GeneratedKeyHolder();
         db.update(connection -> {

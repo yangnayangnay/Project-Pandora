@@ -12,12 +12,23 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.*;
 
-/** Private multi-day calendar items. Ownership always comes from the authenticated account. */
+/**
+ * 日程事项服务——处理个人日程事项的增删改查。
+ * 支持按月、按日期查询，包含时间段和时钟设置。
+ * 被前端日程页面调用。
+ */
 @Service
 public class DailyItemService {
     private final JdbcTemplate db;
     public DailyItemService(JdbcTemplate db) { this.db = db; }
 
+    /**
+     * 按月查询日程事项。
+     *
+     * @param actor 用户ID
+     * @param month 月份（yyyy-MM 格式）
+     * @return 该月的所有日程事项
+     */
     public List<Map<String, Object>> list(long actor, String month) {
         YearMonth range;
         try {
@@ -28,11 +39,21 @@ public class DailyItemService {
         return range(actor, Date.valueOf(range.atDay(1)), Date.valueOf(range.atEndOfMonth()));
     }
 
+    /**
+     * 按日期查询日程事项。
+     *
+     * @param actor 用户ID
+     * @param day 日期（yyyy-MM-dd 格式）
+     * @return 该日的所有日程事项
+     */
     public List<Map<String, Object>> listForDate(long actor, String day) {
         Date date = date(day);
         return range(actor, date, date);
     }
 
+    /**
+     * 日期范围查询。
+     */
     private List<Map<String, Object>> range(long actor, Date from, Date to) {
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> row : db.queryForList(
@@ -42,6 +63,18 @@ public class DailyItemService {
         return result;
     }
 
+    /**
+     * 创建日程事项。
+     * 业务规则：
+     * - 内容必填，1-500字
+     * - 日期格式：yyyy-MM-dd
+     * - 结束日期不能早于开始日期
+     * - 时间格式：HH:mm（24小时制）
+     *
+     * @param actor 用户ID
+     * @param request 包含事项信息的请求体
+     * @return 创建的事项
+     */
     @Transactional
     public Map<String, Object> create(long actor, Map<String, Object> request) {
         if (!Set.of("content", "itemDate", "startDate", "endDate", "startTime", "endTime").containsAll(request.keySet())
@@ -63,6 +96,15 @@ public class DailyItemService {
         return get(actor, Objects.requireNonNull(holder.getKey()).longValue());
     }
 
+    /**
+     * 更新日程事项。
+     * 仅可更新自己的事项。
+     *
+     * @param actor 用户ID
+     * @param id 事项ID
+     * @param request 包含待更新字段的请求体
+     * @return 更新后的事项
+     */
     @Transactional
     public Map<String, Object> update(long actor, long id, Map<String, Object> request) {
         if (request.isEmpty() || !Set.of("content", "itemDate", "startDate", "endDate", "startTime", "endTime", "completed").containsAll(request.keySet())) throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的事项字段");
@@ -92,6 +134,12 @@ public class DailyItemService {
         return get(actor, id);
     }
 
+    /**
+     * 删除日程事项（软删除）。
+     *
+     * @param actor 用户ID
+     * @param id 事项ID
+     */
     @Transactional
     public void delete(long actor, long id) {
         if (db.update("UPDATE daily_items SET deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ? AND deleted = 0", id, actor) != 1) throw missing();

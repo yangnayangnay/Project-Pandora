@@ -17,9 +17,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
-/** Admin-only partial maintenance; legacy fields that were not edited remain intact. */
+/**
+ * 账号资料服务——管理员独占的账号信息维护。
+ * 支持修改工号、真实姓名、邮箱、手机、身份证、生日等字段。
+ * 不处理密码（密码由 PasswordResetController 处理）。
+ */
 @Service
 public class AccountProfileService {
+    // 字段映射：前端字段名 -> 数据库列名
     private static final Map<String, String> COLUMNS = Map.of(
             "employeeNo", "username", "realName", "real_name", "email", "email",
             "phone", "phone", "idCard", "id_card", "birthday", "birthday");
@@ -27,13 +32,31 @@ public class AccountProfileService {
 
     public AccountProfileService(JdbcTemplate db) { this.db = db; }
 
+    /**
+     * 更新账号资料。
+     * 流程：
+     * 1. 校验操作者为管理员
+     * 2. 校验字段合法性
+     * 3. 加锁查询目标账号
+     * 4. 逐字段校验并构建更新语句
+     * 5. 执行更新
+     * 6. 返回更新后的账号信息（不含密码）
+     *
+     * @param actorId 操作者ID（管理员）
+     * @param targetId 目标账号ID
+     * @param request 包含待更新字段的请求体
+     * @return 更新后的账号信息
+     */
     @Transactional
     public Map<String, Object> update(long actorId, long targetId, Map<String, Object> request) {
+        // 校验操作者为管理员
         if (db.queryForList("SELECT id FROM users WHERE id=? AND role='ADMIN' AND deleted=0 "
                 + "AND approval_status='APPROVED'", Long.class, actorId).isEmpty())
             throw new BusinessException(ErrorCode.FORBIDDEN);
+        // 拦截不支持的字段
         if (!COLUMNS.keySet().containsAll(request.keySet()))
             throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的账号资料字段");
+        // 加锁查询，防止并发修改
         List<Map<String, Object>> accounts = db.queryForList("SELECT id,username,real_name,email,phone,id_card,birthday "
                 + "FROM users WHERE id=? AND deleted=0 FOR UPDATE", targetId);
         if (accounts.isEmpty()) throw new BusinessException(ErrorCode.USER_NOT_FOUND);
@@ -46,6 +69,7 @@ public class AccountProfileService {
             String value = raw == null ? "" : ((String) raw).trim();
             String original = Objects.toString(current.get(column), "");
             if (value.equals(original)) continue;
+            // 拦截空值（已填写的资料不能为空）
             if (value.isEmpty()) throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "已填写的账号资料不能为空");
             changes.put(column, validate(field, value, targetId));
         }
@@ -68,6 +92,10 @@ public class AccountProfileService {
         return saved;
     }
 
+    /**
+     * 校验单个字段。
+     * 根据不同字段执行不同的校验规则。
+     */
     private Object validate(String field, String value, long id) {
         switch (field) {
             case "employeeNo" -> {

@@ -2,6 +2,11 @@ package com.pandora.backend.common;
 
 import lombok.Getter;
 
+/**
+ * 错误码枚举——定义系统中所有业务错误码和对应消息。
+ * 错误码采用分层设计：200/400/500 为 HTTP 标准码，4000+ 为业务自定义码。
+ * 所有错误码在 GlobalExceptionHandler 中统一处理，转换为 ApiResponse 返回给前端。
+ */
 @Getter
 public enum ErrorCode {
     SUCCESS(200, "success"),
@@ -21,6 +26,7 @@ public enum ErrorCode {
     TASK_CONFLICT(4008, "任务并发冲突"),
     RULE_CONFLICT(4009, "审核规则冲突"),
     USERNAME_ALREADY_EXISTS(4010, "用户名已存在"),
+    // 密码长度校验：系统安全策略要求至少 6 位
     PASSWORD_TOO_SHORT(4011, "密码长度不能少于6位"),
     INVALID_ROLE(4012, "无效的角色"),
     ACCOUNT_PENDING_APPROVAL(4013, "账号待审批，请等待管理员审核"),
@@ -36,9 +42,11 @@ public enum ErrorCode {
 
     RESET_REQUEST_NOT_FOUND(4023, "重置申请不存在"),
     RESET_REQUEST_ALREADY_PROCESSED(4024, "该重置申请已处理"),
+    // 防重：同一用户不能有多个待处理的重置申请
     RESET_REQUEST_DUPLICATE(4025, "您已有待审批的重置申请，请等待管理员处理"),
 
     INVALID_PHONE_FORMAT(4026, "手机号格式不正确"),
+    // 文件大小限制：头像上传不超过 5MB，防止存储资源耗尽
     FILE_TOO_LARGE(4027, "图片过大，请选择不超过5MB的图片"),
     UNSUPPORTED_IMAGE_FORMAT(4028, "仅支持 JPG/PNG/WEBP 格式"),
 
@@ -52,6 +60,7 @@ public enum ErrorCode {
     TOP10_TASK_NOT_FOUND(4042, "任务不存在"),
     FUNCTION_CODE_NOT_FOUND(4043, "功能客体不存在"),
     PERMISSION_SUBJECT_NOT_FOUND(4044, "权限主体不存在"),
+    // 保护机制：防止删除最后一个管理员导致系统无法管理
     LAST_ADMIN_PROTECTION(4045, "至少保留一位管理员权限"),
     PERSONAL_TOP10_INJECT_FORBIDDEN(4046, "禁止篡改他人信息"),
 
@@ -60,7 +69,9 @@ public enum ErrorCode {
     TOP10_RANK_OUT_OF_RANGE(4049, "排名序号必须在1-10之间"),
     TOP10_SAVE_VERIFY_FAILED(4050, "保存失败，请重试。若多次失败请联系管理员"),
     INVALID_PARAM_LENGTH(4051, "参数长度超限"),
+    // 组织架构防循环引用检测
     HIERARCHY_CYCLE_DETECTED(4060, "检测到循环引用，已截断"),
+    // 上级节点已删除时的孤儿节点处理
     HIERARCHY_ORPHAN_NODE(4061, "存在孤儿节点（上级已删除），已单独展示"),
 
     AI_CONFIG_INVALID(5003, "AI配置参数无效"),

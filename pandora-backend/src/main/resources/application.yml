@@ -1,29 +1,35 @@
+# ============================================================
+# Pandora 后端服务配置文件
+# 包含：服务器配置、数据库连接、JWT、AI 服务、组织架构等
+# ============================================================
+
 server:
-  port: 8080
+  port: 8080  # 服务端口
   servlet:
-    context-path: /api
+    context-path: /api  # API 上下文路径
 
 spring:
   profiles:
-    active: h2
+    active: h2  # 默认使用 H2 数据库（开发环境）
   application:
-    name: pandora-backend
+    name: pandora-backend  # 应用名称
   datasource:
+    # H2 数据库连接（开发环境）
     url: jdbc:h2:file:./pandora-data/pandora-db;MODE=MySQL;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE
     username: sa
     password:
     driver-class-name: org.h2.Driver
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: 20  # 最大连接池大小
+      minimum-idle: 5  # 最小空闲连接
   h2:
     console:
-      enabled: ${H2_CONSOLE_ENABLED:true}
+      enabled: ${H2_CONSOLE_ENABLED:true}  # H2 控制台开关
       path: /h2-console
   jpa:
     hibernate:
-      ddl-auto: none
-    show-sql: false
+      ddl-auto: none  # 不自动创建表（使用 SQL 脚本）
+    show-sql: false  # 不显示 SQL
     properties:
       hibernate:
         format_sql: true
@@ -31,27 +37,37 @@ spring:
   sql:
     init:
       mode: always
-      schema-locations: classpath:db/h2_schema.sql
+      schema-locations: classpath:db/h2_schema.sql  # H2 初始化脚本
   servlet:
     multipart:
-      max-file-size: 5MB
+      max-file-size: 5MB  # 文件上传大小限制
       max-request-size: 6MB
 
+# ============================================================
+# JWT 配置
+# ============================================================
 jwt:
+  # 学习备注: 生产环境必须更换为强密钥
   secret: pandora-secret-key-2026-please-change-in-production-environment
-  expiration: 86400000
-  refresh-expiration: 604800000
+  expiration: 86400000  # 访问令牌有效期：24小时（毫秒）
+  refresh-expiration: 604800000  # 刷新令牌有效期：7天（毫秒）
 
+# ============================================================
+# AI 服务配置（DeepSeek）
+# ============================================================
 deepseek:
   api-url: https://api.deepseek.com/v1/chat/completions
-  api-key: ${DEEPSEEK_API_KEY:dummy-key}
-  timeout-mbti: 30000
-  timeout-keyword: 10000
+  api-key: ${DEEPSEEK_API_KEY:dummy-key}  # 从环境变量获取
+  timeout-mbti: 30000  # MBTI 请求超时：30秒
+  timeout-keyword: 10000  # 关键词分析超时：10秒
 
+# ============================================================
+# Pandora 自定义配置
+# ============================================================
 pandora:
-  # R41 REQ-41-A: API 密钥三态（off/log/enforce；云端经 pandora.env 注入值）
+  # R41 REQ-41-A: API 密钥三态（off/log/enforce）
   api-key:
-    mode: ${PANDORA_API_KEY_MODE:off}
+    mode: ${PANDORA_API_KEY_MODE:off}  # off=关闭, log=仅记录, enforce=强制校验
     value: ${PANDORA_API_KEY:}
   admin-email: ${ADMIN_EMAIL:admin@pandora.local}
   permission:
@@ -60,17 +76,20 @@ pandora:
 
   top10:
     cleanup-dirty-data: true
-    # Round19 REQ-19-07: 加权排序权重配置（可调）
-    urgency-weight: 0.6
-    time-weight: 0.4
+    # Round19 REQ-19-07: 加权排序权重配置
+    urgency-weight: 0.6  # 紧急程度权重
+    time-weight: 0.4  # 时间权重
   ai:
-    quota-threshold: 100
-    monitor-interval-ms: 300000
+    quota-threshold: 100  # AI 配额阈值
+    monitor-interval-ms: 300000  # 监控间隔：5分钟
     external:
-      timeout-ms: 30000
+      timeout-ms: 30000  # 外部 AI 调用超时
     fallback:
-      url: http://localhost:8081
+      url: http://localhost:8081  # 本地兜底 AI 服务地址
 
+# ============================================================
+# 日志配置
+# ============================================================
 logging:
   level:
     com.pandora: INFO
@@ -78,18 +97,28 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 
+# ============================================================
+# 管理端点配置
+# ============================================================
 management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health  # 仅暴露健康检查端点
   endpoint:
     health:
-      show-details: never
-hierarchy:
-  max-depth: 10
-  cycle-detect: true
+      show-details: never  # 不显示健康检查详情
 
+# ============================================================
+# 组织架构配置
+# ============================================================
+hierarchy:
+  max-depth: 10  # 最大层级深度
+  cycle-detect: true  # 启用循环引用检测
+
+# ============================================================
+# MBTI 配置
+# ============================================================
 mbti:
   ai:
-    timeout-ms: 30000
+    timeout-ms: 30000  # MBTI AI 请求超时

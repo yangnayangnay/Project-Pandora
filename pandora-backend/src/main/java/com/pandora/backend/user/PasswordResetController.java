@@ -16,10 +16,15 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+/**
+ * 密码重置控制器——处理密码重置申请审批和执行。
+ * 仅管理员可访问，包含申请列表、审批通过、审批拒绝、直接重置等功能。
+ */
 @RestController
 @RequestMapping("/user")
 public class PasswordResetController {
 
+    // 默认重置密码
     private static final String DEFAULT_PASSWORD = "pandora123";
 
     @Autowired
@@ -31,6 +36,13 @@ public class PasswordResetController {
     @Autowired
     private AuditService auditService;
 
+    /**
+     * 获取密码重置申请列表。
+     * 支持按状态筛选（PENDING/APPROVED/REJECTED）。
+     *
+     * @param status 状态筛选（可选）
+     * @return 包含申请列表和总数的响应
+     */
     @GetMapping("/reset-requests")
     public ResponseEntity<ApiResponse<Map<String, Object>>> listResetRequests(
             @RequestParam(value = "status", required = false) String status) {
@@ -53,6 +65,17 @@ public class PasswordResetController {
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
+    /**
+     * 审批通过密码重置申请。
+     * 业务规则：
+     * - 仅待处理状态可审批
+     * - 密码长度至少6位
+     * - 移除目标用户会话（强制重新登录）
+     *
+     * @param requestId 申请ID
+     * @param request 可选包含 newPassword 的请求体
+     * @return 包含新密码的响应（前端需提示管理员告知用户）
+     */
     @PostMapping("/reset-requests/{id}/approve")
     @Auditable(operationType = "PASSWORD_RESET_APPROVE", targetType = "USER")
     public ResponseEntity<ApiResponse<Map<String, Object>>> approveResetRequest(
@@ -62,6 +85,7 @@ public class PasswordResetController {
         requireAdmin();
 
         Map<String, Object> resetReq = findResetRequest(requestId);
+        // 拦截已处理的申请
         if (!"PENDING".equals(resetReq.get("status"))) {
             throw new BusinessException(ErrorCode.RESET_REQUEST_ALREADY_PROCESSED);
         }
@@ -71,6 +95,7 @@ public class PasswordResetController {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
 
+        // 使用指定密码或默认密码
         String newPassword = (request != null && request.get("newPassword") != null
                 && !request.get("newPassword").isEmpty())
                 ? request.get("newPassword") : DEFAULT_PASSWORD;
@@ -83,6 +108,7 @@ public class PasswordResetController {
         jdbcTemplate.update(
                 "UPDATE password_reset_requests SET status = 'APPROVED', processed_by = ?, processed_at = CURRENT_TIMESTAMP WHERE id = ?",
                 adminId, requestId);
+        // 移除会话，强制用户重新登录
         sessionStore.remove(targetUserId);
         auditService.record(adminId, "RESET_PASSWORD_APPROVE", "USER", targetUserId,
                 "approved reset request #" + requestId + " for user " + resetReq.get("username"));
@@ -93,6 +119,13 @@ public class PasswordResetController {
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
+    /**
+     * 审批拒绝密码重置申请。
+     *
+     * @param requestId 申请ID
+     * @param request 可选包含拒绝原因的请求体
+     * @return 成功响应
+     */
     @PostMapping("/reset-requests/{id}/reject")
     @Auditable(operationType = "PASSWORD_RESET_REJECT", targetType = "USER")
     public ResponseEntity<ApiResponse<Void>> rejectResetRequest(
@@ -115,6 +148,16 @@ public class PasswordResetController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+    /**
+     * 直接重置用户密码（无需申请）。
+     * 业务规则：
+     * - 管理员不能重置其他管理员密码（除非是本人）
+     * - 密码长度至少6位
+     *
+     * @param targetUserId 目标用户ID
+     * @param request 可选包含 newPassword 的请求体
+     * @return 包含新密码的响应
+     */
     @PostMapping("/{userId}/reset-password")
     @Auditable(operationType = "PASSWORD_RESET_EXECUTE", targetType = "USER")
     public ResponseEntity<ApiResponse<Map<String, Object>>> resetUserPassword(
@@ -130,6 +173,7 @@ public class PasswordResetController {
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
+        // 保护机制：管理员不能重置其他管理员密码
         if ("ADMIN".equals(targetUser.get("role")) && !adminId.equals(targetUserId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN_ACTION);
         }
@@ -154,6 +198,9 @@ public class PasswordResetController {
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
+    /**
+     * 查询密码重置申请详情。
+     */
     private Map<String, Object> findResetRequest(Long id) {
         try {
             return jdbcTemplate.queryForMap(
@@ -163,6 +210,9 @@ public class PasswordResetController {
         }
     }
 
+    /**
+     * 校验当前用户为管理员。
+     */
     private void requireAdmin() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String role = auth.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "");
@@ -171,6 +221,9 @@ public class PasswordResetController {
         }
     }
 
+    /**
+     * 获取当前用户ID。
+     */
     private Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return (Long) auth.getPrincipal();

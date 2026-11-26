@@ -195,7 +195,7 @@ openspec/
 
 **修复内容**：
 - `pandora-backend/src/test/java/com/pandora/backend/auth/AuthLoginPolicyTest.java` - 修复 DELETE 顺序
-- `pandora-backend/src/test/resources/db/h2_schema.sql` - 添加 name_key 列
+- `pandora-backend/src/main/resources/db/h2_schema.sql` - 添加 name_key 列
 - `pandora-backend/src/test/java/com/pandora/backend/task/TaskChangeServiceTest.java` - 添加 work_content
 
 **教训**：AI 助手声明的"已修复"若未经人工在磁盘上落地则不产生任何效果，必须以本地文件 diff 和测试重跑输出为准。

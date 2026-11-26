@@ -11,13 +11,24 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.*;
 
+/**
+ * 任务标签服务——管理任务标签的创建、删除、引用。
+ * 仅创始人可管理标签，其他角色只能引用。
+ * 被 TaskController 和 TaskChangeService 调用。
+ */
 @Service
 public class TaskTagService {
     private final JdbcTemplate db;
     public TaskTagService(JdbcTemplate db) { this.db = db; }
 
+    /**
+     * 判断角色是否为创始人（可管理标签）。
+     */
     public static boolean canManage(String role) { return "FOUNDER".equals(role); }
 
+    /**
+     * 校验操作者为创始人。
+     */
     private void requireFounder(long actor) {
         List<String> roles = db.queryForList("SELECT role FROM users WHERE id = ? AND deleted = 0 AND approval_status = 'APPROVED'", String.class, actor);
         if (roles.size() != 1 || !canManage(roles.get(0))) {
@@ -25,12 +36,30 @@ public class TaskTagService {
         }
     }
 
+    /**
+     * 获取所有标签列表。
+     *
+     * @return 标签列表
+     */
     public List<Map<String, Object>> list() {
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> tag : db.queryForList("SELECT id, name, color_index FROM task_tags WHERE deleted = 0 ORDER BY name, id")) result.add(tagFields(tag));
         return result;
     }
 
+    /**
+     * 创建或更新标签。
+     * 业务规则：
+     * - 仅创始人可操作
+     * - 标签名称：1-32字，不含空白或#
+     * - 颜色索引：0-7（八种预设颜色）
+     * - 名称不区分大小写
+     *
+     * @param actor 操作者ID
+     * @param id 标签ID（创建时为 null）
+     * @param request 包含 name 和 colorIndex 的请求体
+     * @return 标签信息
+     */
     @Transactional
     public Map<String, Object> save(long actor, Long id, Map<String, Object> request) {
         requireFounder(actor);
@@ -38,6 +67,7 @@ public class TaskTagService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供标签名称和颜色");
         }
         String name = request.get("name").toString().trim().replaceFirst("^[#＃]+", "");
+        // 标签名称规则：1-32字，不含空白或#
         if (name.isEmpty() || name.length() > 32 || name.codePoints().anyMatch(c -> Character.isWhitespace(c) || Character.isSpaceChar(c) || c == '#' || c == '＃')) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "标签名称须为1至32字，不含空白或#");
         }
@@ -63,6 +93,13 @@ public class TaskTagService {
         return tagFields(db.queryForMap("SELECT id, name, color_index FROM task_tags WHERE id = ?", id));
     }
 
+    /**
+     * 删除标签（软删除）。
+     * 同时清除任务与标签的关联关系。
+     *
+     * @param actor 操作者ID
+     * @param id 标签ID
+     */
     @Transactional
     public void delete(long actor, long id) {
         requireFounder(actor);
@@ -72,12 +109,19 @@ public class TaskTagService {
         db.update("DELETE FROM task_tag_links WHERE tag_id = ?", id);
     }
 
+    /**
+     * 安全地将对象转换为整数。
+     */
     private static long integer(Object value, String message) {
         if (!(value instanceof Number)) throw new BusinessException(ErrorCode.BAD_REQUEST, message);
         try { return new BigDecimal(value.toString()).longValueExact(); }
         catch (RuntimeException e) { throw new BusinessException(ErrorCode.BAD_REQUEST, message); }
     }
 
+    /**
+     * 解析标签ID列表。
+     * 业务规则：每项任务最多引用10个标签。
+     */
     public List<Long> ids(Object value) {
         if (!(value instanceof List<?> values) || values.size() > 10) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "每项任务最多引用10个标签，请提交有序标签列表");
@@ -91,14 +135,27 @@ public class TaskTagService {
         return ids;
     }
 
+    /**
+     * 校验标签ID列表的有效性。
+     */
     public void validate(Object value) { validateIds(ids(value), false); }
 
+    /**
+     * 校验标签ID列表的有效性（可选加锁）。
+     */
     private void validateIds(List<Long> ids, boolean lock) {
         if (ids.isEmpty()) return;
         List<Long> found = db.queryForList("SELECT id FROM task_tags WHERE deleted = 0 AND id IN (" + marks(ids.size()) + ")" + (lock ? " ORDER BY id FOR UPDATE" : ""), Long.class, ids.toArray());
         if (found.size() != ids.size()) throw new BusinessException(ErrorCode.BAD_REQUEST, "部分标签已删除或不存在，请重新选择标签后提交");
     }
 
+    /**
+     * 替换任务的标签关联。
+     * 先删除旧关联，再插入新关联（保持排序）。
+     *
+     * @param taskId 任务ID
+     * @param value 标签ID列表
+     */
     @Transactional
     public void replace(long taskId, Object value) {
         List<Long> ids = ids(value);
@@ -109,7 +166,13 @@ public class TaskTagService {
         }
     }
 
-    /** Batch enrichment preserves task order and avoids a separate query for each task. */
+    /**
+     * 批量附加标签信息到任务列表。
+     * 避免 N+1 查询问题，支持大列表分批处理。
+     *
+     * @param tasks 任务列表
+     * @return 附加了标签信息的任务列表
+     */
     public List<Map<String, Object>> attach(List<Map<String, Object>> tasks) {
         if (tasks.isEmpty()) return tasks;
         Map<Long, List<Map<String, Object>>> grouped = new HashMap<>();
@@ -119,7 +182,7 @@ public class TaskTagService {
             if (id instanceof Number) grouped.put(((Number) id).longValue(), new ArrayList<>());
         }
         List<Long> ids = new ArrayList<>(grouped.keySet());
-        // Keep bind parameter counts bounded for large task lists.
+        // 分批处理，避免 IN 子句参数过多
         for (int offset = 0; offset < ids.size(); offset += 500) {
             List<Long> batch = ids.subList(offset, Math.min(offset + 500, ids.size()));
             List<Map<String, Object>> tags = db.queryForList("SELECT l.task_id, g.id, g.name, g.color_index FROM task_tag_links l JOIN task_tags g ON g.id = l.tag_id AND g.deleted = 0 WHERE l.task_id IN (" + marks(batch.size()) + ") ORDER BY l.task_id, l.sort_order, g.id", batch.toArray());
@@ -135,7 +198,14 @@ public class TaskTagService {
         return tasks;
     }
 
+    /**
+     * 生成占位符字符串（用于 IN 子句）。
+     */
     private static String marks(int size) { return String.join(",", Collections.nCopies(size, "?")); }
+
+    /**
+     * 规范化标签字段。
+     */
     private static Map<String, Object> tagFields(Map<String, Object> raw) {
         Map<String, Object> tag = new LinkedHashMap<>();
         tag.put("id", raw.get("id")); tag.put("name", raw.get("name")); tag.put("color_index", raw.get("color_index"));

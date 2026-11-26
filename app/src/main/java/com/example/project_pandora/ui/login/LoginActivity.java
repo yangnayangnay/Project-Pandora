@@ -38,10 +38,16 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
+/**
+ * 登录页面——处理用户登录、自动登录、服务器连接状态监控。
+ * 是应用的入口页面，登录成功后跳转到 MainActivity。
+ * 支持 Web 端和 App 端两种登录方式。
+ */
 public class LoginActivity extends PandoraActivity {
 
     private ActivityLoginBinding binding;
     private AuthApi authApi;
+    // 用于管理 RxJava 订阅，防止内存泄漏
     private final CompositeDisposable disposables = new CompositeDisposable();
     private static final String CHANNEL_ID = "pandora_notifications";
     private static final int NOTIF_SERVER_DISCONNECTED = 1;
@@ -56,14 +62,17 @@ public class LoginActivity extends PandoraActivity {
         authApi = NetworkClient.getInstance(this).createService(AuthApi.class);
         createNotificationChannel();
 
-
+        // 尝试自动登录
         autoLogin();
 
+        // 登录按钮点击事件
         binding.btnLogin.setOnClickListener(v -> handleLogin());
 
+        // 忘记密码跳转
         binding.btnForgotPassword.setOnClickListener(v -> {
             startActivity(new Intent(this, ForgotPasswordActivity.class));
         });
+        // 刷新服务器状态
         binding.btnRefreshServer.setOnClickListener(v -> {
             binding.btnRefreshServer.setVisibility(android.view.View.GONE);
             binding.textServerStatus.setText(R.string.server_checking);
@@ -71,10 +80,11 @@ public class LoginActivity extends PandoraActivity {
             ServerConnectivityMonitor.getInstance().checkNow();
         });
 
-        // Round29 T7 修复: 生效地址不可达时的自救入口（ServerConfigActivity 无登录依赖）
+        // Round29 T7 修复: 服务器配置入口（无登录依赖）
         binding.btnLoginServerConfig.setOnClickListener(v ->
                 startActivity(new Intent(this, com.example.project_pandora.ui.mine.ServerConfigActivity.class)));
 
+        // 启动服务器连接状态监控
         ServerConnectivityMonitor.getInstance().startMonitoring(this);
         disposables.add(ServerConnectivityMonitor.getInstance().stateStream()
                 .observeOn(AndroidSchedulers.mainThread())
@@ -99,9 +109,14 @@ public class LoginActivity extends PandoraActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        // 清除所有订阅，防止内存泄漏
         disposables.clear();
     }
 
+    /**
+     * 更新服务器状态 UI。
+     * 根据连接状态显示不同文本和按钮。
+     */
     private void updateServerStatusUI(ServerConnectivity state) {
         switch (state) {
             case CONNECTED:
@@ -126,6 +141,9 @@ public class LoginActivity extends PandoraActivity {
         }
     }
 
+    /**
+     * 创建通知通道（Android O 及以上）。
+     */
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
@@ -136,6 +154,9 @@ public class LoginActivity extends PandoraActivity {
         }
     }
 
+    /**
+     * 显示通知。
+     */
     private void showNotification(int id, String title, String content) {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
@@ -145,6 +166,10 @@ public class LoginActivity extends PandoraActivity {
         getSystemService(NotificationManager.class).notify(id, builder.build());
     }
 
+    /**
+     * 处理登录逻辑。
+     * 校验输入 -> 调用登录接口 -> 保存 Token -> 跳转主页。
+     */
     private void handleLogin() {
         if (ServerConnectivityMonitor.getInstance().getCurrentState() == ServerConnectivity.DISCONNECTED) {
             Toast.makeText(this, "无法连接服务器，请检查网络", Toast.LENGTH_SHORT).show();
@@ -176,6 +201,7 @@ public class LoginActivity extends PandoraActivity {
                             if (response.isSuccess() && response.getData() != null) {
                                 Map<String, Object> data = response.getData();
                                 Map<String, Object> user = (Map<String, Object>) data.get("user");
+                                // 拦截管理员登录 App 端
                                 if (rejectAdminLogin(user == null ? null : user.get("role"))) return;
                                 String token = (String) data.get("token");
                                 TokenManager tm = TokenManager.getInstance(this);
@@ -189,11 +215,12 @@ public class LoginActivity extends PandoraActivity {
 
                                 tm.saveLastUsername(username);
 
+                                // 更新网络状态监控
                                 ServerConnectivity conn = ServerConnectivityMonitor.getInstance().getCurrentState();
                                 NetworkStateMonitor.getInstance().onServerConnectivityChanged(conn);
 
                                 startActivity(new Intent(this, MainActivity.class));
-        com.example.project_pandora.notification.PollingForegroundService.startIfLoggedIn(this);
+                                com.example.project_pandora.notification.PollingForegroundService.startIfLoggedIn(this);
                                 finish();
                             } else {
                                 String msg = response.getMessage();
@@ -229,6 +256,10 @@ public class LoginActivity extends PandoraActivity {
                 );
     }
 
+    /**
+     * 自动登录。
+     * 检查本地 Token 是否存在且有效，有效则直接跳转主页。
+     */
     private void autoLogin() {
         TokenManager tm = TokenManager.getInstance(this);
         if (rejectAdminLogin(tm.getRole())) return;
@@ -251,7 +282,7 @@ public class LoginActivity extends PandoraActivity {
                                 Long userId = com.example.project_pandora.core.util.NumberCompat.toLong(user.get("id"));
                                 if (userId != null) tm.saveUserInfo(userId, (String) user.get("role"));
                                 startActivity(new Intent(this, MainActivity.class));
-        com.example.project_pandora.notification.PollingForegroundService.startIfLoggedIn(this);
+                                com.example.project_pandora.notification.PollingForegroundService.startIfLoggedIn(this);
                                 finish();
                             }
                         },
@@ -263,6 +294,10 @@ public class LoginActivity extends PandoraActivity {
                 ));
     }
 
+    /**
+     * 拦截管理员登录 App 端。
+     * 业务规则：管理员仅可登录管理员 Web 端。
+     */
     private boolean rejectAdminLogin(Object role) {
         if (!"ADMIN".equals(role)) return false;
         TokenManager.getInstance(this).clear();

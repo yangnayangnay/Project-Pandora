@@ -20,6 +20,11 @@ import com.pandora.backend.audit.Auditable;
 import java.util.*;
 import java.util.regex.Pattern;
 
+/**
+ * 用户控制器——处理用户个人信息、设置、组织关系等接口。
+ * 被前端调用，依赖 JdbcTemplate 访问数据库、FileStorageService 处理文件上传。
+ * 权限规则：普通用户仅可修改个人资料，管理员可进行组织调动和账号创建。
+ */
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -43,9 +48,17 @@ public class UserController {
     @Autowired
     private com.pandora.backend.view.PersonalTop10Generator personalTop10Generator;
 
+    // 邮箱正则：标准邮箱格式
     private static final Pattern EMAIL_REGEX = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+    // 手机号正则：中国大陆手机号（1开头，11位）
     private static final Pattern PHONE_REGEX = Pattern.compile("^1[3-9]\\d{9}$");
 
+    /**
+     * 获取当前用户信息。
+     * 从安全上下文中获取用户ID，查询 users 表并关联 departments/teams 表获取组织信息。
+     *
+     * @return 包含用户完整信息的响应
+     */
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCurrentUser() {
         Long userId = getCurrentUserId();
@@ -66,6 +79,16 @@ public class UserController {
         }
     }
 
+    /**
+     * 获取用户列表（管理员视角）。
+     * 非管理员用户无法看到 ADMIN 角色用户。
+     * 支持按角色、部门、团队筛选。
+     *
+     * @param role 角色筛选（可选）
+     * @param departmentId 部门ID筛选（可选）
+     * @param teamId 团队ID筛选（可选）
+     * @return 用户列表
+     */
     @GetMapping("/list")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listUsers(
             @RequestParam(required = false) String role,
@@ -73,6 +96,7 @@ public class UserController {
             @RequestParam(required = false) Long teamId) {
         StringBuilder sql = new StringBuilder("SELECT id, username, role, real_name, email, phone, department_id, team_id, avatar, approval_status FROM users WHERE deleted = 0");
         List<Object> params = new ArrayList<>();
+        // 非管理员隐藏 ADMIN 用户
         if (!"ADMIN".equals(getCurrentUserRole())) sql.append(" AND role <> 'ADMIN'");
 
         if (role != null) {
@@ -80,10 +104,12 @@ public class UserController {
             params.add(role);
         }
         if (departmentId != null) {
+            // 创始人不属于任何部门
             sql.append(" AND role <> 'FOUNDER' AND department_id = ?");
             params.add(departmentId);
         }
         if (teamId != null) {
+            // 创始人和部门负责人不归属团队
             sql.append(" AND role NOT IN ('FOUNDER','DEPT_HEAD') AND team_id = ?");
             params.add(teamId);
         }
@@ -93,11 +119,19 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(OrganizationRules.normalize(users)));
     }
 
+    /**
+     * 获取用户面板信息（个人资料、最近任务、最近日志、十大事项）。
+     * 仅管理员可查看其他用户的 ADMIN 角色信息。
+     *
+     * @param userId 用户ID
+     * @return 包含用户面板信息的响应
+     */
     @GetMapping("/{userId}/panel")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserPanel(@PathVariable Long userId) {
         try {
             Map<String, Object> user = jdbcTemplate.queryForMap(
                     "SELECT id, username, role, department_id, team_id, avatar FROM users WHERE id = ? AND deleted = 0", userId);
+            // 拦截非管理员查看管理员信息
             if ("ADMIN".equals(user.get("role")) && !"ADMIN".equals(getCurrentUserRole())) {
                 throw new BusinessException(ErrorCode.USER_NOT_FOUND);
             }
@@ -123,12 +157,24 @@ public class UserController {
         }
     }
 
+    /**
+     * 更新当前用户个人资料。
+     * 业务规则：
+     * - 普通用户仅可修改头像、签名
+     * - 用户名、真实姓名由组织统一维护
+     * - 邮箱、手机号由管理员统一维护（非管理员不可修改）
+     * - 签名最多 20 字、4 行
+     *
+     * @param request 包含待更新字段的请求体
+     * @return 成功响应
+     */
     @PutMapping("/me")
     @Transactional
     @Auditable(operationType = "USER_PROFILE_UPDATE", targetType = "USER")
     public ResponseEntity<ApiResponse<Void>> updateProfile(@RequestBody Map<String, Object> request) {
         Long userId = getCurrentUserId();
         // APP accounts are maintained by administrators. Reject the entire request before any write.
+        // 拦截非管理员修改敏感字段（真实姓名、邮箱、工号、手机号及密码）
         if (!RoleChecker.isAdminOnly(getCurrentUserRole())
                 && request.keySet().stream().anyMatch(key -> !Set.of("avatar", "signature").contains(key))) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "真实姓名、邮箱、工号、手机号及密码由管理员统一维护，不能自行修改");
@@ -142,16 +188,20 @@ public class UserController {
         if (signatureRaw != null && !(signatureRaw instanceof String)) throw new BusinessException(ErrorCode.BAD_REQUEST, "个人签名格式无效");
         String signature = signatureRaw == null ? null : signatureRaw.toString().replace("\r\n", "\n").replace('\r', '\n')
                 .replace('\u0085', '\n').replace('\u2028', '\n').replace('\u2029', '\n');
+        // 签名行数限制：最多 4 行
         if (signature != null && signature.chars().filter(ch -> ch == '\n').count() > 3)
             throw new BusinessException(ErrorCode.BAD_REQUEST, "个人签名最多 4 行");
         if (signature != null) signature = signature.trim();
+        // 签名字数限制：最多 20 字
         if (signature != null && signature.length() > 20) throw new BusinessException(ErrorCode.BAD_REQUEST, "个人签名最多 20 字");
         Map<String, Object> identity = jdbcTemplate.queryForMap(
                 "SELECT username, real_name FROM users WHERE id = ? AND deleted = 0", userId);
+        // 拦截用户名/真实姓名字段修改（由组织统一维护）
         if ((username != null && !username.equals(identity.get("username")))
                 || (realName != null && !realName.equals(identity.get("real_name")))) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "用户名和真实姓名由组织统一维护，不能自行修改");
         }
+        // 拦截身份、职级或组织字段修改
         for (String key : request.keySet()) {
             if (!Set.of("username", "realName", "email", "phone", "avatar", "signature").contains(key)) {
                 throw new BusinessException(ErrorCode.FORBIDDEN, "不能自行修改身份、职级或组织字段");
@@ -189,6 +239,15 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+    /**
+     * 上传头像接口。
+     * 文件大小限制：不超过 5MB（防止存储资源耗尽）
+     * 文件格式限制：仅支持 JPG/PNG/WEBP
+     *
+     * @param file 头像文件
+     * @param source 可选来源参数
+     * @return 包含头像 URL 的响应
+     */
     @PostMapping("/me/avatar")
     @Auditable(operationType = "USER_AVATAR_UPDATE", targetType = "USER")
     public ResponseEntity<ApiResponse<Map<String, Object>>> uploadAvatar(
@@ -199,6 +258,7 @@ public class UserController {
         if (file.isEmpty()) {
             throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD, "请选择图片文件");
         }
+        // 文件大小限制：5MB
         if (file.getSize() > 5L * 1024 * 1024) {
             throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
         }
@@ -218,6 +278,14 @@ public class UserController {
         }
     }
 
+    /**
+     * 修改密码接口。
+     * 业务规则：仅管理员可修改密码（普通员工密码由管理员统一维护）。
+     * 密码长度：6-72 字节（BCrypt 算法限制）
+     *
+     * @param request 包含 oldPassword 和 newPassword 的请求体
+     * @return 成功响应
+     */
     @PutMapping("/me/password")
     @Auditable(operationType = "USER_PASSWORD_CHANGE", targetType = "USER")
     public ResponseEntity<ApiResponse<Void>> changePassword(@RequestBody Map<String, String> request) {
@@ -231,6 +299,7 @@ public class UserController {
         if (oldPassword == null || newPassword == null) {
             throw new BusinessException(ErrorCode.MISSING_REQUIRED_FIELD);
         }
+        // 密码长度限制：BCrypt 算法最大支持 72 字节
         if (newPassword.length() < 6 || newPassword.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "新密码至少6位，UTF-8长度不能超过72字节");
         }
@@ -256,6 +325,11 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+    /**
+     * 获取用户设置（显示已完成任务、显示昨日日志、生日等）。
+     *
+     * @return 包含用户设置的响应
+     */
     @GetMapping("/settings")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getSettings() {
         Long userId = getCurrentUserId();
@@ -271,6 +345,12 @@ public class UserController {
         }
     }
 
+    /**
+     * 更新用户设置。
+     *
+     * @param request 包含待更新设置的请求体
+     * @return 成功响应
+     */
     @PutMapping("/settings")
     @Auditable(operationType = "USER_SETTINGS_UPDATE", targetType = "USER")
     public ResponseEntity<ApiResponse<Void>> updateSettings(@RequestBody Map<String, Object> request) {
@@ -288,6 +368,12 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+    /**
+     * 获取用户上下级关系。
+     * 基于组织架构层级计算，返回上级和下级列表。
+     *
+     * @return 包含上级和下级列表的响应
+     */
     @GetMapping("/relations")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserRelations() {
         Long userId = getCurrentUserId();
@@ -307,6 +393,7 @@ public class UserController {
             if (isOrganizationPerson(person)) subordinates.add(person);
         }
 
+        // 按权限等级排序
         superiors.sort((a, b) -> Integer.compare(permLevel((String) b.get("role")), permLevel((String) a.get("role"))));
         subordinates.sort((a, b) -> Integer.compare(permLevel((String) b.get("role")), permLevel((String) a.get("role"))));
 
@@ -316,11 +403,17 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
+    /**
+     * 判断是否为组织人员（排除管理员）。
+     */
     private boolean isOrganizationPerson(Map<String, Object> person) {
         return !"ADMIN".equals(person.get("role")) && ("FOUNDER".equals(person.get("role"))
                 || person.get("departmentId") != null && !Objects.toString(person.get("departmentName"), "").isBlank());
     }
 
+    /**
+     * 丰富关系项数据（补充头像、部门、团队信息）。
+     */
     private Map<String, Object> enrichRelationItem(Map<String, Object> hierarchyEntry) {
         Long userId = toLong(hierarchyEntry.get("id"));
         Map<String, Object> item = new HashMap<>();
@@ -383,6 +476,10 @@ public class UserController {
         }
     }
 
+    /**
+     * 计算角色权限等级（用于排序）。
+     * 数字越大权限越高：FOUNDER=4, DEPT_HEAD=3, TEAM_LEADER=2, EMPLOYEE=1, ADMIN=0
+     */
     private int permLevel(String role) {
         if (role == null) return -1;
         switch (role) {
@@ -395,6 +492,9 @@ public class UserController {
         }
     }
 
+    /**
+     * 安全地将对象转换为 Long 类型。
+     */
     private Long toLong(Object val) {
         if (val == null) return null;
         if (val instanceof Number) return ((Number) val).longValue();
@@ -404,6 +504,7 @@ public class UserController {
 
     /**
      * R40 REQ-40-C: 部门/团队归属选项（调动界面下拉数据源，ADMIN 独占）。
+     * 仅管理员可调用，返回所有部门和团队列表。
      */
     @GetMapping("/org-options")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getOrgOptions() {
@@ -423,7 +524,15 @@ public class UserController {
 
     /**
      * R40 REQ-40-C: 人员归属调动（部门/团队，ADMIN 独占）。
-     * 直接更新 users 表 department_id/team_id（user_org_affiliation 为零引用历史设计，不启用）。
+     * 直接更新 users 表 department_id/team_id。
+     * 业务规则：
+     * - 管理员账号不参与岗位调整
+     * - 必须选择有效部门
+     * - 团队负责人和员工需选择本部门团队
+     *
+     * @param userId 被调动用户ID
+     * @param request 包含 departmentId 和 teamId 的请求体
+     * @return 包含调动结果的响应
      */
     @PutMapping("/{userId}/org")
     @Transactional
@@ -492,6 +601,10 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(accountCreationService.create(request)));
     }
 
+    /**
+     * 批量重命名接口（管理员独占）。
+     * 为用户名添加角色后缀（如 username0 表示 ADMIN）。
+     */
     @PostMapping("/rename-batch")
     @Auditable(operationType = "USER_BATCH_RENAME", targetType = "USER")
     public ResponseEntity<ApiResponse<Map<String, Object>>> renameBatch() {
@@ -546,11 +659,17 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
+    /**
+     * 从安全上下文中获取当前用户ID。
+     */
     private Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return (Long) auth.getPrincipal();
     }
 
+    /**
+     * 从数据库中获取当前用户角色。
+     */
     private String getCurrentUserRole() {
         Long userId = getCurrentUserId();
         try {

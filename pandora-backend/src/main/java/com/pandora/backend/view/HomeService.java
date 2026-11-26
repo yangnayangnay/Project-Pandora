@@ -3,14 +3,27 @@ package com.pandora.backend.view;
 import com.pandora.backend.task.TaskTagService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+
 import java.util.*;
 
+/**
+ * 首页服务——处理首页数据聚合。
+ * 包括：公司十大重要事项、个人进行中任务等。
+ * 被首页页面调用。
+ */
 @Service
 public class HomeService {
     private final JdbcTemplate db;
     private final TaskTagService tags;
     public HomeService(JdbcTemplate db, TaskTagService tags) { this.db = db; this.tags = tags; }
 
+    /**
+     * 获取首页概览数据。
+     * 包含：公司十大重要事项、个人进行中任务。
+     *
+     * @param actor 当前用户ID
+     * @return 首页概览数据
+     */
     public Map<String, Object> overview(long actor) {
         List<Map<String, Object>> events = normalized(db.queryForList("SELECT id, content, rank_order FROM top10_works WHERE work_type = 'COMPANY_IMPORTANT' AND deleted = 0 ORDER BY rank_order, id LIMIT 10"));
         List<Map<String, Object>> tasks = normalized(db.queryForList(
@@ -23,9 +36,13 @@ public class HomeService {
         result.put("events", events); result.put("tasks", tags.attach(tasks));
         return result;
     }
-    /** Compatibility for older callers; the completed switch is intentionally ignored. */
+    /** 兼容旧调用者：completed 开关被有意忽略。 */
     public Map<String, Object> overview(long actor, boolean ignored) { return overview(actor); }
 
+    /**
+     * 附加任务负责人信息。
+     * 支持多负责人和单负责人两种模式。
+     */
     private void attachAssignees(List<Map<String, Object>> tasks) {
         for (Map<String, Object> task : tasks) {
             long id = ((Number) task.get("id")).longValue();
@@ -38,6 +55,9 @@ public class HomeService {
                     ? Objects.toString(person.get("username"), "") : Objects.toString(person.get("real_name"), "")).reduce((a,b) -> a + "、" + b).orElse(""));
         }
     }
+    /**
+     * 规范化查询结果：字段名转为小写。
+     */
     private static List<Map<String, Object>> normalized(List<Map<String, Object>> rows) {
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> row : rows) {
