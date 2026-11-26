@@ -201,6 +201,57 @@ public class TaskChangeService {
     }
 
     /**
+     * 执行任务变更操作（创建/更新/删除）。
+     * 免审角色直接执行，不经过审批流程。
+     *
+     * @param actor 操作者ID
+     * @param operation 操作类型（CREATE/UPDATE/DELETE）
+     * @param taskId 任务ID
+     * @param data 任务数据
+     * @return 任务ID
+     */
+    private Long apply(long actor, String operation, Long taskId, Map<String, Object> data) {
+        if ("CREATE".equals(operation)) {
+            List<Long> assignees = assigneeIds(data, true);
+            long assignee = assignees.get(0);
+            taskId = insert("INSERT INTO tasks (name, content, status, assignee_id, dispatcher_id, is_urgent, start_time, end_time) VALUES (?, ?, 'IN_PROGRESS', ?, ?, ?, ?, ?)",
+                    data.get("name"), data.get("content"), assignee, actor,
+                    bool(data.get("isUrgent")), data.getOrDefault("startTime", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString()), data.get("endTime"));
+            replaceAssignees(taskId, assignees);
+            if (data.containsKey("tagIds")) tags.replace(taskId, data.get("tagIds"));
+            for (Long id : assignees) notifications.detectNewTask(taskId, id, actor);
+            return taskId;
+        }
+        if ("DELETE".equals(operation)) {
+            db.update("UPDATE tasks SET deleted = 1, revision = revision + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?", taskId);
+            return taskId;
+        }
+        Map<String, String> columns = Map.of("name", "name", "content", "content", "isUrgent", "is_urgent", "startTime", "start_time", "endTime", "end_time", "progressNote", "progress_note");
+        StringBuilder sql = new StringBuilder("UPDATE tasks SET revision = revision + 1, updated_at = CURRENT_TIMESTAMP");
+        List<Object> args = new ArrayList<>();
+        Set<Long> previousAssignees = new LinkedHashSet<>();
+        List<Long> nextAssignees = null;
+        data.forEach((key, value) -> { if (columns.containsKey(key)) { sql.append(", ").append(columns.get(key)).append(" = ?"); args.add(key.startsWith("is") ? bool(value) : value); } });
+        if (data.containsKey("assigneeId") || data.containsKey("assigneeIds")) {
+            previousAssignees.addAll(db.queryForList("SELECT user_id FROM task_assignees WHERE task_id=?", Long.class, taskId));
+            if (previousAssignees.isEmpty()) {
+                Long legacy = db.queryForObject("SELECT assignee_id FROM tasks WHERE id=?", Long.class, taskId);
+                if (legacy != null) previousAssignees.add(legacy);
+            }
+            nextAssignees = assigneeIds(data, true);
+            sql.append(", assignee_id = ?"); args.add(nextAssignees.get(0));
+            replaceAssignees(taskId, nextAssignees);
+        }
+        sql.append(" WHERE id = ?"); args.add(taskId); db.update(sql.toString(), args.toArray());
+        if (nextAssignees != null) {
+            Long dispatcher = db.queryForObject("SELECT dispatcher_id FROM tasks WHERE id=?", Long.class, taskId);
+            for (Long id : nextAssignees) if (!previousAssignees.contains(id)) notifications.detectNewTask(taskId, id, dispatcher);
+        }
+        if (data.containsKey("tagIds")) tags.replace(taskId, data.get("tagIds"));
+        return taskId;
+    }
+
+    /**
      * 获取审批请求列表。
      * 支持查看自己发起的或待审批的请求。
      */

@@ -761,4 +761,12 @@ public class AIController {
 
     private List<Map<String, Object>> parseExternalKeywords(String result) { /* ... */ return new ArrayList<>(); }
     private List<Map<String, Object>> extractKeywords(String text) { /* ... */ return new ArrayList<>(); }
+
+    /**
+     * 获取当前用户ID。
+     */
+    private Long getCurrentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return (Long) auth.getPrincipal();
+    }
 }
