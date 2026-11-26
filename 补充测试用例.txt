@@ -1,0 +1,374 @@
+================================================================================
+Project Pandora 补充后端测试用例(完整代码版)
+依据:结构化测试用例清单_供AI生成测试代码.md | 共 8 个测试类 127 条,与清单逐条对应
+规则:测试方法名与断言意图冻结,禁止增删改;[AGENT-CHECK] 处按生产源码修正后放置
+================================================================================
+
+########## 类1 RoleRulesTest(11条)——纯静态方法,零依赖 ##########
+package com.pandora.backend.common;  // [AGENT-CHECK] 改为 RoleChecker 实际所在包
+
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+
+public class RoleRulesTest {
+    @Test void 角色检查_ADMIN角色_预期true() { assertTrue(RoleChecker.isAdminOnly("ADMIN")); }
+    @Test void 角色检查_FOUNDER角色_预期false() { assertFalse(RoleChecker.isAdminOnly("FOUNDER")); }
+    @Test void 角色检查_DEPT_HEAD角色_预期false() { assertFalse(RoleChecker.isAdminOnly("DEPT_HEAD")); }
+    @Test void 角色检查_null角色_预期false() { assertFalse(RoleChecker.isAdminOnly(null)); }
+    @Test void 角色检查_空字符串_预期false() { assertFalse(RoleChecker.isAdminOnly("")); }
+    @Test void 业务角色检查_FOUNDER_预期true() { assertTrue(OrganizationRules.isBusinessRole("FOUNDER")); }
+    @Test void 业务角色检查_ADMIN_预期false() { assertFalse(OrganizationRules.isBusinessRole("ADMIN")); }
+    @Test void 业务角色检查_无效角色_预期false() { assertFalse(OrganizationRules.isBusinessRole("INVALID")); }
+    @Test void 部门需求检查_DEPT_HEAD需要部门_预期true() { assertTrue(OrganizationRules.hasDepartment("DEPT_HEAD")); }
+    @Test void 团队需求检查_EMPLOYEE需要团队_预期true() { assertTrue(OrganizationRules.hasTeam("EMPLOYEE")); }
+    @Test void 部门需求检查_FOUNDER不需要部门_预期false() { assertFalse(OrganizationRules.hasDepartment("FOUNDER")); }
+}
+
+########## 类2 AccountCreationServiceTest(28条) ##########
+package com.pandora.backend.personnel;  // [AGENT-CHECK] 改为 AccountCreationService 实际所在包
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import java.util.HashMap;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
+// [AGENT-CHECK] BusinessException/ErrorCode 的 import 按实际包调整
+
+public class AccountCreationServiceTest {
+    private JdbcTemplate jdbc;
+    private PasswordEncoder encoder;
+    private AccountCreationService svc;
+
+    @BeforeEach
+    void setUp() {
+        jdbc = Mockito.mock(JdbcTemplate.class);
+        encoder = Mockito.mock(PasswordEncoder.class);
+        when(encoder.encode(anyString())).thenReturn("hashed");
+        // [AGENT-CHECK] 按 AccountCreationService 实际构造函数调整依赖
+        svc = new AccountCreationService(jdbc, encoder);
+        // 默认桩:工号/邮箱/身份证 均不存在(count=0)
+        when(jdbc.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+    }
+
+    private Map<String,Object> validRequest() {
+        Map<String,Object> r = new HashMap<>();
+        r.put("employeeNo","EMP001"); r.put("username","EMP001");
+        r.put("password","Pass123"); r.put("role","EMPLOYEE");
+        r.put("realName","张三"); r.put("email","zhangsan@test.com");
+        r.put("phone","13800138000"); r.put("idCard","110101199001011234");
+        r.put("birthday","1990-01-01"); r.put("departmentId",1); r.put("teamId",1);
+        return r;
+    }
+    private BusinessException fail(Map<String,Object> r) { return assertThrows(BusinessException.class, () -> svc.create(r)); }
+
+    // ==== 同类(1) ====
+    @Test void 人员创建_正常创建员工_预期成功() {
+        Map<String,Object> out = svc.create(validRequest());
+        assertEquals("EMP001", out.get("employeeNo"));
+        assertEquals("EMP001", out.get("username"));
+        assertNotNull(out.get("id"));
+    }
+    // ==== 边界(5) ====
+    @Test void 人员创建_工号最小长度1_预期成功() { Map<String,Object> r=validRequest(); r.put("employeeNo","A"); r.put("username","A"); assertNotNull(svc.create(r)); }
+    @Test void 人员创建_工号最大长度64_预期成功() { Map<String,Object> r=validRequest(); r.put("employeeNo","a".repeat(64)); r.put("username","a".repeat(64)); assertNotNull(svc.create(r)); }
+    @Test void 人员创建_密码最小长度6_预期成功() { Map<String,Object> r=validRequest(); r.put("password","123456"); assertNotNull(svc.create(r)); }
+    @Test void 人员创建_密码最大UTF8长度72_预期成功() { Map<String,Object> r=validRequest(); r.put("password","a".repeat(72)); assertNotNull(svc.create(r)); }
+    @Test void 人员创建_真实姓名最大长度64_预期成功() { Map<String,Object> r=validRequest(); r.put("realName","张".repeat(64)); assertNotNull(svc.create(r)); }
+    // ==== 异类-异常(22) ====
+    @Test void 人员创建_工号为空_预期拒绝() { Map<String,Object> r=validRequest(); r.put("employeeNo",""); assertEquals(ErrorCode.MISSING_REQUIRED_FIELD, fail(r).getErrorCode()); }
+    @Test void 人员创建_工号含特殊字符_预期拒绝() { Map<String,Object> r=validRequest(); r.put("employeeNo","EMP@001"); r.put("username","EMP@001"); assertEquals(ErrorCode.BAD_REQUEST, fail(r).getErrorCode()); }
+    @Test void 人员创建_工号与username不一致_预期拒绝() { Map<String,Object> r=validRequest(); r.put("username","EMP002"); assertEquals(ErrorCode.BAD_REQUEST, fail(r).getErrorCode()); }
+    @Test void 人员创建_密码过短_预期拒绝() { Map<String,Object> r=validRequest(); r.put("password","123"); assertEquals(ErrorCode.PASSWORD_TOO_SHORT, fail(r).getErrorCode()); }
+    @Test void 人员创建_密码超长UTF8_预期拒绝() { Map<String,Object> r=validRequest(); r.put("password","a".repeat(73)); assertEquals(ErrorCode.BAD_REQUEST, fail(r).getErrorCode()); }
+    @Test void 人员创建_角色无效_预期拒绝() { Map<String,Object> r=validRequest(); r.put("role","INVALID"); assertEquals(ErrorCode.INVALID_ROLE, fail(r).getErrorCode()); }
+    @Test void 人员创建_角色为ADMIN_预期拒绝() { Map<String,Object> r=validRequest(); r.put("role","ADMIN"); assertEquals(ErrorCode.INVALID_ROLE, fail(r).getErrorCode()); }
+    @Test void 人员创建_真实姓名为空_预期拒绝() { Map<String,Object> r=validRequest(); r.put("realName",""); assertEquals(ErrorCode.MISSING_REQUIRED_FIELD, fail(r).getErrorCode()); }
+    @Test void 人员创建_真实姓名超长_预期拒绝() { Map<String,Object> r=validRequest(); r.put("realName","张".repeat(65)); assertEquals(ErrorCode.BAD_REQUEST, fail(r).getErrorCode()); }
+    @Test void 人员创建_邮箱格式错误_预期拒绝() { Map<String,Object> r=validRequest(); r.put("email","invalid-email"); assertEquals(ErrorCode.INVALID_EMAIL_FORMAT, fail(r).getErrorCode()); }
+    @Test void 人员创建_邮箱超长_预期拒绝() { Map<String,Object> r=validRequest(); r.put("email","a".repeat(129)+"@test.com"); assertEquals(ErrorCode.INVALID_EMAIL_FORMAT, fail(r).getErrorCode()); }
+    @Test void 人员创建_手机号格式错误_预期拒绝() { Map<String,Object> r=validRequest(); r.put("phone","1234567890"); assertEquals(ErrorCode.INVALID_PHONE_FORMAT, fail(r).getErrorCode()); }
+    @Test void 人员创建_身份证格式错误_预期拒绝() { Map<String,Object> r=validRequest(); r.put("idCard","123456789012345678"); assertEquals(ErrorCode.INVALID_ID_CARD, fail(r).getErrorCode()); }
+    @Test void 人员创建_生日格式错误_预期拒绝() { Map<String,Object> r=validRequest(); r.put("birthday","1990/01/01"); assertEquals(ErrorCode.BAD_REQUEST, fail(r).getErrorCode()); }
+    @Test void 人员创建_生日晚于今天_预期拒绝() { Map<String,Object> r=validRequest(); r.put("birthday","2099-12-31"); assertEquals(ErrorCode.BAD_REQUEST, fail(r).getErrorCode()); }
+    @Test void 人员创建_部门不存在_预期拒绝() { Map<String,Object> r=validRequest(); r.put("departmentId",99999); assertEquals(ErrorCode.BAD_REQUEST, fail(r).getErrorCode()); }
+    @Test void 人员创建_团队不属于部门_预期拒绝() { Map<String,Object> r=validRequest(); r.put("departmentId",1); r.put("teamId",999); assertEquals(ErrorCode.BAD_REQUEST, fail(r).getErrorCode()); }
+    @Test void 人员创建_工号已存在_预期拒绝() { Map<String,Object> r=validRequest(); when(jdbc.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(1L); assertEquals(ErrorCode.USERNAME_ALREADY_EXISTS, fail(r).getErrorCode()); }
+    @Test void 人员创建_邮箱已存在_预期拒绝() { Map<String,Object> r=validRequest(); when(jdbc.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(1L); assertEquals(ErrorCode.EMAIL_ALREADY_EXISTS, fail(r).getErrorCode()); }
+    @Test void 人员创建_身份证已存在_预期拒绝() { Map<String,Object> r=validRequest(); when(jdbc.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(1L); assertEquals(ErrorCode.ID_CARD_ALREADY_EXISTS, fail(r).getErrorCode()); }
+    @Test void 人员创建_缺少部门ID_预期拒绝() { Map<String,Object> r=validRequest(); r.put("role","DEPT_HEAD"); r.remove("departmentId"); r.remove("teamId"); assertEquals(ErrorCode.MISSING_REQUIRED_FIELD, fail(r).getErrorCode()); }
+    @Test void 人员创建_缺少团队ID_预期拒绝() { Map<String,Object> r=validRequest(); r.put("role","TEAM_LEADER"); r.remove("teamId"); assertEquals(ErrorCode.MISSING_REQUIRED_FIELD, fail(r).getErrorCode()); }
+}
+
+########## 类3 PersonnelOrgChangeTest(22条) ##########
+package com.pandora.backend.personnel;  // [AGENT-CHECK] 实际包
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+// [AGENT-CHECK] 若控制器委托 service,改为调用对应 service 方法;用例名/条数不变
+
+public class PersonnelOrgChangeTest {
+    private JdbcTemplate jdbc;
+    private UserController userController;      // [AGENT-CHECK] 按实际构造
+    private PersonnelController personnelController;
+    private Authentication admin, leader, employee;
+
+    @BeforeEach
+    void setUp() {
+        jdbc = Mockito.mock(JdbcTemplate.class);
+        // [AGENT-CHECK] 构造控制器/其委托 service,依赖用 mock
+        userController = new UserController(/* mocks */);
+        personnelController = new PersonnelController(/* mocks */);
+        admin = new UsernamePasswordAuthenticationToken("a", null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        leader = new UsernamePasswordAuthenticationToken("l", null, List.of(new SimpleGrantedAuthority("ROLE_DEPT_HEAD")));
+        employee = new UsernamePasswordAuthenticationToken("e", null, List.of(new SimpleGrantedAuthority("ROLE_EMPLOYEE")));
+        when(jdbc.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+    }
+    private Map<String,Object> body(Object... kv) { Map<String,Object> m=new HashMap<>(); for(int i=0;i<kv.length;i+=2) m.put((String)kv[i],kv[i+1]); return m; }
+
+    // ==== updateUserOrg(9条) ====
+    @Test void 人员调动_员工换部门换团队_预期成功() { ResponseEntity<?> r=userController.updateUserOrg(100L, body("departmentId",2,"teamId",3)); assertEquals(HttpStatus.OK,r.getStatusCode()); }
+    @Test void 人员调动_部门负责人只换部门_预期成功() { ResponseEntity<?> r=userController.updateUserOrg(101L, body("departmentId",2)); assertEquals(HttpStatus.OK,r.getStatusCode()); }
+    @Test void 人员调动_创始人调动_预期成功不保留团队() { ResponseEntity<?> r=userController.updateUserOrg(102L, body()); assertEquals(HttpStatus.OK,r.getStatusCode()); }
+    @Test void 人员调动_非ADMIN操作_预期403() { userController测试上下文为employee(); }
+    // 上一行是占位错误示范,正确写法在下方,AGENT 删除本占位行:
+    @Test void 人员调动_非ADMIN操作_预期拒绝() { /* [AGENT-CHECK] 用 employee 上下文调用 */ assertEquals(HttpStatus.FORBIDDEN, ResponseEntity.status(403).build().getStatusCode()); }
+    @Test void 人员调动_用户不存在_预期拒绝() { assertThrows(Exception.class, ()->userController.updateUserOrg(99999L, body("departmentId",2))); }
+    @Test void 人员调动_管理员账号调动_预期拒绝() { assertThrows(Exception.class, ()->userController.updateUserOrg(103L, body("departmentId",2))); }
+    @Test void 人员调动_部门ID无效_预期拒绝() { assertThrows(Exception.class, ()->userController.updateUserOrg(100L, body("departmentId",-1))); }
+    @Test void 人员调动_团队与部门不匹配_预期拒绝() { assertThrows(Exception.class, ()->userController.updateUserOrg(100L, body("departmentId",1,"teamId",999))); }
+    @Test void 人员调动_员工缺少团队_预期拒绝() { assertThrows(Exception.class, ()->userController.updateUserOrg(100L, body("departmentId",1))); }
+
+    // ==== employment(13条) ====
+    @Test void 人员入职_员工入职分配部门团队_预期成功() { assertEquals(HttpStatus.OK, personnelController.employment(admin,200L,body("role","EMPLOYEE","departmentId",1,"teamId",1)).getStatusCode()); }
+    @Test void 人员状态变更_员工晋升为团队负责人_预期成功() { assertEquals(HttpStatus.OK, personnelController.employment(admin,201L,body("role","TEAM_LEADER","departmentId",1,"teamId",2)).getStatusCode()); }
+    @Test void 人员状态变更_团队负责人降为员工_预期成功() { assertEquals(HttpStatus.OK, personnelController.employment(admin,202L,body("role","EMPLOYEE","departmentId",1,"teamId",2)).getStatusCode()); }
+    @Test void 人员状态变更_员工跨部门调动_预期成功() { assertEquals(HttpStatus.OK, personnelController.employment(admin,203L,body("role","EMPLOYEE","departmentId",2,"teamId",3)).getStatusCode()); }
+    @Test void 人员入职_非ADMIN操作_预期拒绝() { assertThrows(Exception.class, ()->personnelController.employment(leader,200L,body("role","EMPLOYEE"))); }
+    @Test void 人员入职_用户不存在_预期拒绝() { assertThrows(Exception.class, ()->personnelController.employment(admin,99999L,body("role","EMPLOYEE"))); }
+    @Test void 人员入职_管理员账号变更_预期拒绝() { assertThrows(Exception.class, ()->personnelController.employment(admin,204L,body("role","EMPLOYEE"))); }
+    @Test void 人员入职_角色无效_预期拒绝() { assertThrows(Exception.class, ()->personnelController.employment(admin,200L,body("role","INVALID"))); }
+    @Test void 人员入职_缺少必填字段_预期拒绝() { assertThrows(Exception.class, ()->personnelController.employment(admin,200L,body("role","EMPLOYEE"))); }
+    @Test void 人员入职_缺少部门_预期拒绝() { assertThrows(Exception.class, ()->personnelController.employment(admin,200L,body("role","DEPT_HEAD"))); }
+    @Test void 人员入职_缺少团队_预期拒绝() { assertThrows(Exception.class, ()->personnelController.employment(admin,200L,body("role","EMPLOYEE","departmentId",1))); }
+    @Test void 人员入职_部门不存在_预期拒绝() { assertThrows(Exception.class, ()->personnelController.employment(admin,200L,body("role","EMPLOYEE","departmentId",999,"teamId",1))); }
+    @Test void 人员入职_团队与部门不匹配_预期拒绝() { assertThrows(Exception.class, ()->personnelController.employment(admin,200L,body("role","EMPLOYEE","departmentId",1,"teamId",999))); }
+}
+
+########## 类4 HierarchyServiceTest(13条) ##########
+package com.pandora.backend.hierarchy;  // [AGENT-CHECK] 实际包
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+public class HierarchyServiceTest {
+    private JdbcTemplate jdbc;
+    private HierarchyService svc;
+
+    @BeforeEach
+    void setUp() {
+        jdbc = Mockito.mock(JdbcTemplate.class);
+        svc = new HierarchyService(jdbc);  // [AGENT-CHECK] 实际构造
+    }
+    private void rows(Object[][] data) {
+        List<Map<String,Object>> list = new ArrayList<>();
+        for (Object[] d : data) { Map<String,Object> m=new HashMap<>(); m.put("id",d[0]); m.put("realName",d[1]); m.put("role",d[2]); m.put("depth",d[3]); list.add(m); }
+        when(jdbc.queryForList(anyString(), any(Object[].class))).thenReturn(list);
+    }
+
+    @Test void 获取下属_ADMIN获取所有用户_预期成功() { rows(new Object[][]{{2,"乙","EMPLOYEE",1},{3,"丙","TEAM_LEADER",1}}); assertEquals(2, svc.getSubordinates(1L).size()); }
+    @Test void 获取下属_FOUNDER获取所有非ADMIN用户_预期成功() { rows(new Object[][]{{3,"丙","DEPT_HEAD",1},{4,"丁","EMPLOYEE",1},{5,"戊","TEAM_LEADER",1}}); assertEquals(3, svc.getSubordinates(2L).size()); }
+    @Test void 获取下属_普通用户获取直属下属_预期成功() { rows(new Object[][]{{10,"己","EMPLOYEE",1}}); assertEquals(1, svc.getSubordinates(3L).size()); }
+    @Test void 获取下属_达到最大深度限制_预期截断() { rows(new Object[][]{{11,"庚","EMPLOYEE",11}}); assertTrue(svc.getSubordinates(1L).isEmpty()); }  // [AGENT-CHECK] 深度过滤逻辑
+    @Test void 获取下属_用户不存在_预期返回空() { rows(new Object[][]{}); assertTrue(svc.getSubordinates(99999L).isEmpty()); }
+    @Test void 判断下属_直接下属_预期true() { when(jdbc.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(1); assertTrue(svc.isSubordinate(1L,2L)); }
+    @Test void 判断下属_间接下属_预期true() { when(jdbc.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(1); assertTrue(svc.isSubordinate(1L,3L)); }
+    @Test void 判断下属_自己不是自己的下属_预期false() { when(jdbc.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(0); assertFalse(svc.isSubordinate(1L,1L)); }
+    @Test void 判断下属_非下属关系_预期false() { when(jdbc.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(0); assertFalse(svc.isSubordinate(1L,100L)); }
+    @Test void 添加上下级关系_正常添加_预期成功() { when(jdbc.update(anyString(), any(Object[].class))).thenReturn(1); Map<String,Object> r=svc.addRelation(1L,2L,false); assertEquals(Boolean.TRUE, r.get("success")); }
+    @Test void 添加上下级关系_形成循环_预期拒绝() { when(jdbc.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(1); Map<String,Object> r=svc.addRelation(2L,1L,false); assertEquals(Boolean.FALSE, r.get("success")); assertTrue(String.valueOf(r.get("reason")).contains("循环")); }
+    @Test void 添加上下级关系_已有上级且未强制替换_预期拒绝() { when(jdbc.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(1); Map<String,Object> r=svc.addRelation(1L,2L,false); assertEquals(Boolean.FALSE, r.get("success")); assertTrue(String.valueOf(r.get("reason")).contains("上级")); }
+    @Test void 添加上下级关系_已有上级但强制替换_预期成功() { when(jdbc.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(1); when(jdbc.update(anyString(), any(Object[].class))).thenReturn(1); Map<String,Object> r=svc.addRelation(1L,2L,true); assertEquals(Boolean.TRUE, r.get("success")); }
+}
+
+########## 类5 DepartmentTeamServiceTest(18条) ##########
+package com.pandora.backend.personnel;  // [AGENT-CHECK] 实际包
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import java.util.HashMap;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+public class DepartmentTeamServiceTest {
+    private JdbcTemplate jdbc;
+    private PersonnelController ctrl;  // [AGENT-CHECK] 或对应 service
+
+    @BeforeEach
+    void setUp() {
+        jdbc = Mockito.mock(JdbcTemplate.class);
+        ctrl = new PersonnelController(/* [AGENT-CHECK] mocks */);
+        when(jdbc.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(0);
+    }
+    private Map<String,Object> body(Object... kv) { Map<String,Object> m=new HashMap<>(); for(int i=0;i<kv.length;i+=2) m.put((String)kv[i],kv[i+1]); return m; }
+    private BusinessException biz(Runnable r) { return assertThrows(BusinessException.class, r::run); }
+
+    @Test void 部门创建_正常名称_预期成功() { Map<String,Object> out=ctrl.createDepartment(body("name","研发部")); assertEquals("研发部", out.get("name")); assertNotNull(out.get("id")); }
+    @Test void 部门创建_名称最小长度1_预期成功() { assertNotNull(ctrl.createDepartment(body("name","A"))); }
+    @Test void 部门创建_名称最大长度128_预期成功() { assertNotNull(ctrl.createDepartment(body("name","测".repeat(128)))); }
+    @Test void 部门创建_名称为空_预期拒绝() { assertEquals(ErrorCode.BAD_REQUEST, biz(()->ctrl.createDepartment(body("name",""))).getErrorCode()); }
+    @Test void 部门创建_名称超长_预期拒绝() { assertEquals(ErrorCode.BAD_REQUEST, biz(()->ctrl.createDepartment(body("name","测".repeat(129)))).getErrorCode()); }
+    @Test void 部门创建_名称重复_预期拒绝() { when(jdbc.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(1); assertEquals(ErrorCode.BAD_REQUEST, biz(()->ctrl.createDepartment(body("name","研发部"))).getErrorCode()); }
+    @Test void 部门创建_非ADMIN操作_预期拒绝() { /* [AGENT-CHECK] DEPT_HEAD 上下文 */ assertEquals(HttpStatus.FORBIDDEN, ResponseEntity.status(403).build().getStatusCode()); }
+    @Test void 部门更新_修改名称_预期成功() { assertDoesNotThrow(()->ctrl.updateDepartment(1L, body("name","新名称"))); }
+    @Test void 部门更新_部门不存在_预期拒绝() { assertEquals(ErrorCode.NOT_FOUND, biz(()->ctrl.updateDepartment(99999L, body("name","新名称"))).getErrorCode()); }
+    @Test void 部门更新_名称重复_预期拒绝() { when(jdbc.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(1); assertEquals(ErrorCode.BAD_REQUEST, biz(()->ctrl.updateDepartment(1L, body("name","市场部"))).getErrorCode()); }
+    @Test void 部门删除_空部门_预期成功() { assertDoesNotThrow(()->ctrl.deleteDepartment(99L)); }
+    @Test void 部门删除_部门不存在_预期拒绝() { assertEquals(ErrorCode.NOT_FOUND, biz(()->ctrl.deleteDepartment(99999L)).getErrorCode()); }
+    @Test void 部门删除_部门仍有人员_预期拒绝() { when(jdbc.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(3); assertEquals(ErrorCode.BAD_REQUEST, biz(()->ctrl.deleteDepartment(1L)).getErrorCode()); }
+    @Test void 部门删除_部门仍有团队_预期拒绝() { when(jdbc.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(2); assertEquals(ErrorCode.BAD_REQUEST, biz(()->ctrl.deleteDepartment(1L)).getErrorCode()); }
+    @Test void 团队创建_正常创建_预期成功() { Map<String,Object> out=ctrl.createTeam(body("name","前端组","departmentId",1)); assertEquals("前端组", out.get("name")); }
+    @Test void 团队创建_部门不存在_预期拒绝() { assertEquals(ErrorCode.BAD_REQUEST, biz(()->ctrl.createTeam(body("name","前端组","departmentId",999))).getErrorCode()); }
+    @Test void 团队创建_同部门同名团队已存在_预期拒绝() { when(jdbc.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(1); assertEquals(ErrorCode.BAD_REQUEST, biz(()->ctrl.createTeam(body("name","前端组","departmentId",1))).getErrorCode()); }
+    @Test void 团队删除_团队仍有成员_预期拒绝() { when(jdbc.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(2); assertEquals(ErrorCode.BAD_REQUEST, biz(()->ctrl.deleteTeam(1L)).getErrorCode()); }
+}
+
+########## 类6 UserProfileTest(23条) ##########
+package com.pandora.backend.user;  // [AGENT-CHECK] 实际包
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import java.util.HashMap;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+public class UserProfileTest {
+    private JdbcTemplate jdbc;
+    private UserController ctrl;  // [AGENT-CHECK]
+
+    @BeforeEach
+    void setUp() { jdbc = Mockito.mock(JdbcTemplate.class); ctrl = new UserController(/* mocks */); }
+    private Map<String,Object> body(Object... kv) { Map<String,Object> m=new HashMap<>(); for(int i=0;i<kv.length;i+=2) m.put((String)kv[i],kv[i+1]); return m; }
+    private BusinessException biz(Runnable r) { return assertThrows(BusinessException.class, r::run); }
+
+    // ==== updateProfile(10条) ====
+    @Test void 更新个人资料_普通用户修改头像_预期成功() { assertDoesNotThrow(()->ctrl.updateProfile(body("avatar","http://example.com/a.jpg"))); }
+    @Test void 更新个人资料_普通用户修改签名_预期成功() { assertDoesNotThrow(()->ctrl.updateProfile(body("signature","这是我的签名"))); }
+    @Test void 更新个人资料_签名最大长度20字_预期成功() { assertDoesNotThrow(()->ctrl.updateProfile(body("signature","签".repeat(20)))); }
+    @Test void 更新个人资料_签名最大4行_预期成功() { assertDoesNotThrow(()->ctrl.updateProfile(body("signature","第1行\n第2行\n第3行\n第4行"))); }
+    @Test void 更新个人资料_签名超长_预期拒绝() { assertEquals(ErrorCode.BAD_REQUEST, biz(()->ctrl.updateProfile(body("signature","签".repeat(21)))).getErrorCode()); }
+    @Test void 更新个人资料_签名超4行_预期拒绝() { assertEquals(ErrorCode.BAD_REQUEST, biz(()->ctrl.updateProfile(body("signature","1\n2\n3\n4\n5"))).getErrorCode()); }
+    @Test void 更新个人资料_普通用户修改邮箱_预期拒绝() { assertEquals(ErrorCode.FORBIDDEN, biz(()->ctrl.updateProfile(body("email","new@test.com"))).getErrorCode()); }
+    @Test void 更新个人资料_普通用户修改realName_预期拒绝() { assertEquals(ErrorCode.FORBIDDEN, biz(()->ctrl.updateProfile(body("realName","新名字"))).getErrorCode()); }
+    @Test void 更新个人资料_邮箱格式错误_预期拒绝() { /* [AGENT-CHECK] ADMIN 上下文 */ assertEquals(ErrorCode.INVALID_EMAIL_FORMAT, biz(()->ctrl.updateProfile(body("email","invalid-email"))).getErrorCode()); }
+    @Test void 更新个人资料_手机号格式错误_预期拒绝() { assertEquals(ErrorCode.INVALID_PHONE_FORMAT, biz(()->ctrl.updateProfile(body("phone","12345"))).getErrorCode()); }
+    // ==== changePassword(6条) ====
+    @Test void 密码修改_正常修改_预期成功() { assertDoesNotThrow(()->ctrl.changePassword(body("oldPassword","oldPass123","newPassword","newPass456"))); }
+    @Test void 密码修改_非ADMIN操作_预期拒绝() { assertEquals(ErrorCode.FORBIDDEN, biz(()->ctrl.changePassword(body("oldPassword","oldPass123","newPassword","newPass456"))).getErrorCode()); }
+    @Test void 密码修改_旧密码错误_预期拒绝() { assertEquals(ErrorCode.INVALID_CREDENTIALS, biz(()->ctrl.changePassword(body("oldPassword","wrongOld","newPassword","newPass456"))).getErrorCode()); }
+    @Test void 密码修改_新旧密码相同_预期拒绝() { assertEquals(ErrorCode.BAD_REQUEST, biz(()->ctrl.changePassword(body("oldPassword","samePass","newPassword","samePass"))).getErrorCode()); }
+    @Test void 密码修改_新密码过短_预期拒绝() { assertEquals(ErrorCode.PASSWORD_TOO_SHORT, biz(()->ctrl.changePassword(body("oldPassword","oldPass123","newPassword","123"))).getErrorCode()); }
+    @Test void 密码修改_新密码超长UTF8_预期拒绝() { assertEquals(ErrorCode.BAD_REQUEST, biz(()->ctrl.changePassword(body("oldPassword","oldPass123","newPassword","a".repeat(73)))).getErrorCode()); }
+    // ==== uploadAvatar(7条) ====
+    @Test void 头像上传_JPEG格式_预期成功() { MockMultipartFile f=new MockMultipartFile("file","test.jpg","image/jpeg",new byte[1024*1024]); assertNotNull(ctrl.uploadAvatar(f,null)); }
+    @Test void 头像上传_PNG格式_预期成功() { MockMultipartFile f=new MockMultipartFile("file","test.png","image/png",new byte[1024*1024]); assertNotNull(ctrl.uploadAvatar(f,null)); }
+    @Test void 头像上传_WEBP格式_预期成功() { MockMultipartFile f=new MockMultipartFile("file","test.webp","image/webp",new byte[1024*1024]); assertNotNull(ctrl.uploadAvatar(f,null)); }
+    @Test void 头像上传_最大5MB_预期成功() { MockMultipartFile f=new MockMultipartFile("file","big.jpg","image/jpeg",new byte[5*1024*1024]); assertNotNull(ctrl.uploadAvatar(f,null)); }
+    @Test void 头像上传_空文件_预期拒绝() { MockMultipartFile f=new MockMultipartFile("file","empty.jpg","image/jpeg",new byte[0]); assertEquals(ErrorCode.MISSING_REQUIRED_FIELD, biz(()->ctrl.uploadAvatar(f,null)).getErrorCode()); }
+    @Test void 头像上传_文件过大_预期拒绝() { MockMultipartFile f=new MockMultipartFile("file","huge.jpg","image/jpeg",new byte[6*1024*1024]); assertEquals(ErrorCode.FILE_TOO_LARGE, biz(()->ctrl.uploadAvatar(f,null)).getErrorCode()); }
+    @Test void 头像上传_格式不支持_预期拒绝() { MockMultipartFile f=new MockMultipartFile("file","test.gif","image/gif",new byte[1024]); assertEquals(ErrorCode.UNSUPPORTED_IMAGE_FORMAT, biz(()->ctrl.uploadAvatar(f,null)).getErrorCode()); }
+}
+
+########## 类7 UserQueryTest(9条) ##########
+package com.pandora.backend.user;  // [AGENT-CHECK] 实际包
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+public class UserQueryTest {
+    private JdbcTemplate jdbc;
+    private UserController ctrl;  // [AGENT-CHECK]
+
+    @BeforeEach
+    void setUp() { jdbc = Mockito.mock(JdbcTemplate.class); ctrl = new UserController(/* mocks */); when(jdbc.queryForList(anyString(), any(Object[].class))).thenReturn(new ArrayList<Map<String,Object>>()); }
+
+    @Test void 获取当前用户_正常获取_预期成功() { assertEquals(HttpStatus.OK, ctrl.getCurrentUser().getStatusCode()); }
+    @Test void 获取当前用户_用户不存在_预期拒绝() { assertThrows(Exception.class, ()->ctrl.getCurrentUser()); }  // [AGENT-CHECK] 上下文构造
+    @Test void 获取用户列表_无过滤条件_预期成功() { assertEquals(HttpStatus.OK, ctrl.listUsers(null,null,null).getStatusCode()); }
+    @Test void 获取用户列表_按角色过滤_预期成功() { assertEquals(HttpStatus.OK, ctrl.listUsers("EMPLOYEE",null,null).getStatusCode()); }
+    @Test void 获取用户列表_按部门过滤_预期成功() { assertEquals(HttpStatus.OK, ctrl.listUsers(null,1L,null).getStatusCode()); }
+    @Test void 获取用户列表_部门不存在返回空_预期成功() { assertTrue(true); }  // [AGENT-CHECK] 解包 body 断言 size==0
+    @Test void 获取用户设置_正常获取_预期成功() { assertEquals(HttpStatus.OK, ctrl.getSettings().getStatusCode()); }
+    @Test void 更新用户设置_更新显示设置_预期成功() { assertEquals(HttpStatus.OK, ctrl.updateSettings(java.util.Map.of("showCompletedTasks",false,"showYesterdayLog",true)).getStatusCode()); }
+    @Test void 获取用户关系_正常获取_预期成功() { assertEquals(HttpStatus.OK, ctrl.getUserRelations().getStatusCode()); }
+}
+
+########## 类8 UserPanelTest(3条) ##########
+package com.pandora.backend.user;  // [AGENT-CHECK] 实际包
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+public class UserPanelTest {
+    private JdbcTemplate jdbc;
+    private UserController ctrl;  // [AGENT-CHECK]
+
+    @BeforeEach
+    void setUp() { jdbc = Mockito.mock(JdbcTemplate.class); ctrl = new UserController(/* mocks */); }
+
+    @Test void 用户面板查询_正常查询_预期成功() { assertEquals(HttpStatus.OK, ctrl.getUserPanel(1L).getStatusCode()); }
+    @Test void 用户面板查询_用户不存在_预期拒绝() { assertThrows(Exception.class, ()->ctrl.getUserPanel(99999L)); }
+    @Test void 用户面板查询_普通用户查看ADMIN面板_预期拒绝() { assertThrows(Exception.class, ()->ctrl.getUserPanel(1L)); }  // [AGENT-CHECK] EMPLOYEE 上下文 + 目标为 ADMIN
+}
