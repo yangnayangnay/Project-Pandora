@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""更新测试报告 - 完整版"""
+"""更新测试报告 - 官方口径修正版"""
 
 from docx import Document
 import re
@@ -8,32 +8,36 @@ import re
 # 打开文档
 doc = Document(r'D:\AndroidStudio\Project_Pandora\ofTests\测试报告.docx')
 
-# 新的测试数据
-NEW_GIT_HASH = "ae19d32"
+# ===== 官方事实（来自 run_all_tests.bat 输出） =====
+NEW_GIT_HASH = "3e608a6"
 OLD_GIT_HASH = "567b727"
 TEST_DATE = "2026 年 11 月 26 日"
 OLD_TEST_DATE = "2026 年 11 月 19 日"
-WEEK_NUM = "第 13 周"
-OLD_WEEK_NUM = "第 10 周"
+WEEK_NUM = "第 11 周"  # 11/19=第10周 -> 11/26=第11周
 
-# 后端测试数据 - 42 个测试类，465 条用例
-BACKEND_TESTS = 42
-BACKEND_CASES = 465
-BACKEND_TIME = "38 秒"
+# 后端测试数据 - 16 类 277 条
+BACKEND_TESTS = 16
+BACKEND_CASES = 277
 
-# Android 测试数据
+# Android 测试数据 - 沿用旧值，标注"沿用待核"
 ANDROID_TESTS = 9
 ANDROID_CASES = 77
 
 # 总计
-TOTAL_TESTS = BACKEND_TESTS + ANDROID_TESTS  # 51
-TOTAL_CASES = BACKEND_CASES + ANDROID_CASES  # 542
+TOTAL_TESTS = BACKEND_TESTS + ANDROID_TESTS  # 25
+TOTAL_CASES = BACKEND_CASES + ANDROID_CASES  # 354
+
+# 覆盖率（来自 JaCoCo 报告）
+INSTRUCTION_COV = "26%"
+BRANCH_COV = "23%"
+
+# 总耗时
+TOTAL_TIME = "144 秒"
 
 def update_text(text):
     """执行所有文本替换"""
     # 替换 Git 哈希（保留历史记录中的旧哈希）
     if OLD_GIT_HASH in text:
-        # 检查是否是历史记录上下文
         if "历史" not in text and "首轮" not in text:
             text = text.replace(OLD_GIT_HASH, NEW_GIT_HASH)
     
@@ -42,8 +46,8 @@ def update_text(text):
         text = text.replace(OLD_TEST_DATE, TEST_DATE)
     
     # 替换周次
-    if OLD_WEEK_NUM in text:
-        text = text.replace(OLD_WEEK_NUM, WEEK_NUM)
+    if "第 10 周" in text:
+        text = text.replace("第 10 周", WEEK_NUM)
     
     # 替换测试数据 - 总计
     if "17 个测试类，227 条用例" in text:
@@ -63,14 +67,30 @@ def update_text(text):
     
     # 替换总计行
     if "后端 150 条 + Android 77 条" in text:
-        text = text.replace("后端 150 条 + Android 77 条", f"后端 {BACKEND_CASES} 条 + Android {ANDROID_CASES} 条")
+        text = text.replace("后端 150 条 + Android 77 条", f"后端 {BACKEND_CASES} 条 + Android {ANDROID_CASES} 条（沿用待核）")
     
     if "17 类 227 条" in text:
         text = text.replace("17 类 227 条", f"{TOTAL_TESTS} 类 {TOTAL_CASES} 条")
     
     # 替换时间
     if "97 秒" in text:
-        text = text.replace("97 秒", BACKEND_TIME.replace("秒", ""))
+        text = text.replace("97 秒", TOTAL_TIME)
+    
+    # 替换覆盖率
+    if "79%" in text and "指令" in text:
+        text = text.replace("79%", INSTRUCTION_COV)
+    if "75%" in text and "分支" in text:
+        text = text.replace("75%", BRANCH_COV)
+    
+    # 替换 A/B 层描述
+    if "A 层(核心业务，6 类)" in text:
+        text = text.replace("A 层(核心业务，6 类)", "A 层(核心业务，6 类)")
+    if "B 层(业务规则，2 类)" in text:
+        text = text.replace("B 层(业务规则，2 类)", "B 层(业务规则，2 类)")
+    
+    # 替换方法论描述
+    if "8 个后端类" in text:
+        text = text.replace("8 个后端类", f"{BACKEND_TESTS} 个后端类")
     
     return text
 
@@ -78,7 +98,6 @@ def update_text(text):
 for para in doc.paragraphs:
     new_text = update_text(para.text)
     if new_text != para.text:
-        # 清空所有 run，然后设置新文本
         for run in para.runs:
             run.text = ""
         if para.runs:
@@ -96,19 +115,10 @@ for table in doc.tables:
                     if para.runs:
                         para.runs[0].text = new_text
 
-# 遍历所有页眉页脚
-for section in doc.sections:
-    for header in section.header.paragraphs:
-        new_text = update_text(header.text)
-        if new_text != header.text:
-            for run in header.runs:
-                run.text = ""
-            if header.runs:
-                header.runs[0].text = new_text
-
 # 保存文档
-output_path = r'D:\AndroidStudio\Project_Pandora\ofTests\测试报告.docx'
-doc.save(output_path)
-print(f"测试报告已更新: {output_path}")
+doc.save(r'D:\AndroidStudio\Project_Pandora\ofTests\测试报告.docx')
+print(f"测试报告已更新")
 print(f"Git 哈希: {OLD_GIT_HASH} -> {NEW_GIT_HASH}")
 print(f"测试数据: 17类227条 -> {TOTAL_TESTS}类{TOTAL_CASES}条")
+print(f"后端: {BACKEND_TESTS}类{BACKEND_CASES}条")
+print(f"覆盖率: 指令{INSTRUCTION_COV}, 分支{BRANCH_COV}")
