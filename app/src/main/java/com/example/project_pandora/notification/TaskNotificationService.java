@@ -29,15 +29,22 @@ import com.example.project_pandora.ui.task.TaskDetailActivity;
  */
 public class TaskNotificationService {
 
-    private static final String CHANNEL_ID = "task_notification";
-    private static final String CHANNEL_NAME = "任务通知";
+    public static final String CHANNEL_ID = "work_updates_v2";
+    private static final String CHANNEL_NAME = "工作动态提醒";
 
     public static void createNotificationChannel(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT);
             NotificationManager manager = context.getSystemService(NotificationManager.class);
-            if (manager != null) {
+            if (manager != null && manager.getNotificationChannel(CHANNEL_ID)==null) {
+                NotificationChannel old=manager.getNotificationChannel("task_notification");
+                // Migrate the old default-level channel, while respecting an explicit user block.
+                int importance=NotificationManager.IMPORTANCE_HIGH;
+                if(old!=null && (old.getImportance()==NotificationManager.IMPORTANCE_NONE
+                        || (Build.VERSION.SDK_INT>=29 && old.hasUserSetImportance()))) importance=old.getImportance();
+                NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, importance);
+                channel.setDescription("任务、日志评论及公司十大事项变更提醒");
+                channel.enableVibration(true);
+                channel.setLockscreenVisibility(android.app.Notification.VISIBILITY_PRIVATE);
                 manager.createNotificationChannel(channel);
             }
         }
@@ -93,13 +100,39 @@ public class TaskNotificationService {
 
     public static void showNotification(Context context, long notificationId, String type,
                                         String fallbackTitle, String content, Long taskId, Long logId) {
+        postNotification(context,notificationId,type,fallbackTitle,content,taskId,logId);
+    }
+
+    public static boolean alertsAllowed(Context context) {
+        createNotificationChannel(context);
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false;
+        if (Build.VERSION.SDK_INT>=33 && ContextCompat.checkSelfPermission(context,android.Manifest.permission.POST_NOTIFICATIONS)
+                !=android.content.pm.PackageManager.PERMISSION_GRANTED) return false;
+        if (Build.VERSION.SDK_INT>=26) {
+            NotificationManager manager=context.getSystemService(NotificationManager.class);
+            NotificationChannel channel=manager==null ? null : manager.getNotificationChannel(CHANNEL_ID);
+            return channel!=null && channel.getImportance()!=NotificationManager.IMPORTANCE_NONE;
+        }
+        return true;
+    }
+
+    public static String accountTag(Context context) {
+        return "work_user_"+com.example.project_pandora.core.network.TokenManager.getInstance(context).getUserId();
+    }
+
+    public static boolean postNotification(Context context, long notificationId, String type,
+                                        String fallbackTitle, String content, Long taskId, Long logId) {
         try {
+            if(!alertsAllowed(context)) return false;
             String title = titleOfType(type);
             if ("通知".equals(title) && fallbackTitle != null) {
                 title = fallbackTitle;
             }
 
             Intent intent = intentOfType(context, type, taskId, logId);
+            intent.putExtra("notificationId",notificationId);
+            intent.putExtra("notificationUserId",com.example.project_pandora.core.network.TokenManager.getInstance(context).getUserId().longValue());
+            intent.setData(android.net.Uri.parse("pandora://notification/"+accountTag(context)+"/"+notificationId));
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 
             android.app.PendingIntent pendingIntent = android.app.PendingIntent.getActivity(
@@ -110,17 +143,24 @@ public class TaskNotificationService {
                     .setSmallIcon(R.mipmap.ic_launcher)
                     .setContentTitle(title)
                     .setContentText(content != null ? content : "")
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setCategory(NotificationCompat.CATEGORY_EVENT)
+                    .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                    .setStyle(new NotificationCompat.BigTextStyle().bigText(content != null ? content : ""))
+                    .setOnlyAlertOnce(true)
                     .setAutoCancel(true)
                     .setContentIntent(pendingIntent);
 
             // R45: lint MissingPermission 显式防线（权限拒绝时静默跳过，语义与原 catch 一致）
             if (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS)
                     == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                NotificationManagerCompat.from(context).notify((int) notificationId, builder.build());
+                NotificationManagerCompat.from(context).notify(accountTag(context),(int) notificationId, builder.build());
+                return true;
             }
-        } catch (Exception ignored) {
+        } catch (Exception error) {
+            android.util.Log.w("WorkNotification","Notification posting failed",error);
             // TASK-R18-016 规则 6：未授予通知权限时不因弹通知失败而崩溃
         }
+        return false;
     }
 }

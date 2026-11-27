@@ -15,13 +15,23 @@ public class AuditService {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    public AuditService() {}
+    public AuditService(JdbcTemplate db) { this.jdbcTemplate=db; }
+
     /**
-     * Round19 REQ-19-02: 系统日志默认白名单过滤。
-     * 仅展示任务增删改 + 日志增删改 共 6 种 operation_type（登录不再记录到系统日志）。
+     * System log visibility includes business edits and personnel administration.
+     * Read acknowledgements and token-refresh noise remain excluded.
      */
     private static final List<String> DEFAULT_TYPE_WHITELIST = Arrays.asList(
             "TASK_CREATE", "TASK_UPDATE", "TASK_DELETE", "TASK_TRANSITION",
-            "LOG_CREATE", "LOG_UPDATE", "LOG_DELETE"
+            "LOG_CREATE", "LOG_UPDATE", "LOG_DELETE",
+            "USER_CREATE", "USER_DEPARTURE", "USER_HANDOVER", "USER_RESTORE", "USER_EMPLOYMENT_UPDATE",
+            "USER_ORG_TRANSFER", "USER_PROFILE_ADMIN_UPDATE", "USER_APPROVE", "USER_REJECT", "USER_BATCH_RENAME",
+            "DEPARTMENT_CREATE", "DEPARTMENT_UPDATE", "DEPARTMENT_DELETE", "TEAM_CREATE", "TEAM_UPDATE", "TEAM_DELETE",
+            "EMPLOYEE_RECORD_CREATE", "EMPLOYEE_RECORD_UPDATE", "EMPLOYEE_RECORD_DELETE", "HIERARCHY_ADD", "HIERARCHY_REMOVE",
+            "COMPANY_IMPORTANT_CREATE", "COMPANY_IMPORTANT_UPDATE", "COMPANY_IMPORTANT_DELETE",
+            "COMPANY_DISPATCH_CREATE", "COMPANY_DISPATCH_UPDATE", "COMPANY_DISPATCH_MARK", "COMPANY_DISPATCH_UNMARK",
+            "PERMISSION_SUBJECT_ADD", "PERMISSION_SUBJECT_REMOVE", "PERMISSION_SUBJECT_REPLACE"
     );
 
     public void record(Long operatorId, String action, String targetType, Long targetId, String detail) {

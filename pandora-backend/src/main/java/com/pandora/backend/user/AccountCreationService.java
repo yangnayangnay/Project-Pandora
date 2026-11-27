@@ -95,6 +95,11 @@ public class AccountCreationService {
         }
         long createdId = key.getKey().longValue();
         if (OrganizationRules.isBusinessRole(role)) relationships.synchronize(before, createdId);
+        var actor=org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if(actor!=null && actor.getPrincipal() instanceof Long operator) {
+            new com.pandora.backend.audit.AuditService(db).record(operator,"createUser","USER",createdId,
+                    "入职账号创建", "USER_CREATE", "创建账号入职："+realName+"（工号"+employeeNo+"），职级："+role);
+        }
         return Map.of("id", createdId, "employeeNo", employeeNo, "username", employeeNo);
     }
 

@@ -14,6 +14,7 @@ public class ApiResponse<T> {
      * App 端据此比对本地游标，游标超前（迁移基线差异）时自适应重置，避免永远拉空。
      */
     private Long maxNotificationId;
+    private Long unreadCount;
 
     public ApiResponse() {}
 

@@ -24,6 +24,23 @@ public class NotificationController {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private NotificationInbox inbox;
+
+    @GetMapping("/wait")
+    public org.springframework.web.context.request.async.DeferredResult<ApiResponse<List<Map<String,Object>>>> waitForNotifications(
+            @RequestParam(defaultValue="0") long lastId,
+            @RequestParam(defaultValue="-1") long unreadCount,
+            @RequestParam(defaultValue="25") int seconds) {
+        return inbox.await(getCurrentUserId(),lastId,unreadCount,seconds);
+    }
+
+    @GetMapping("/unread-count")
+    public ResponseEntity<ApiResponse<Long>> unreadCount() {
+        return ResponseEntity.ok(ApiResponse.success(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notifications WHERE target_user_id=? AND is_read=0",Long.class,getCurrentUserId())));
+    }
+
     /**
      * TASK-R18-006: 5 类通知类型枚举（与 NotificationService 保持一致）
      */
@@ -64,6 +81,18 @@ public class NotificationController {
         Long globalMaxId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM notifications", Long.class);
         response.setMaxNotificationId(globalMaxId != null ? globalMaxId : 0L);
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/read-all")
+    @org.springframework.transaction.annotation.Transactional
+    @Auditable(operationType = "NOTIFICATION_MARK_ALL_READ", targetType = "NOTIFICATION")
+    public ResponseEntity<ApiResponse<Map<String,Object>>> markAllAsRead() {
+        long user=getCurrentUserId();
+        Long newest=jdbcTemplate.queryForObject("SELECT COALESCE(MAX(id),0) FROM notifications WHERE target_user_id=?",Long.class,user);
+        long boundary=newest==null ? 0 : newest;
+        int updated=jdbcTemplate.update("UPDATE notifications SET is_read=1 WHERE target_user_id=? AND is_read=0 AND id<=?",user,boundary);
+        Long unread=jdbcTemplate.queryForObject("SELECT COUNT(*) FROM notifications WHERE target_user_id=? AND is_read=0",Long.class,user);
+        return ResponseEntity.ok(ApiResponse.success(Map.of("readThroughId",boundary,"updatedCount",updated,"unreadCount",unread==null?0:unread)));
     }
 
     @PutMapping("/{id}/read")

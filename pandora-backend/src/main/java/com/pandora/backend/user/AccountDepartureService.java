@@ -94,6 +94,19 @@ public class AccountDepartureService {
                     sameId(task.get("dispatcher_id"),target)?taskId:task.get("dispatcher_id"),workId);
         }
         finishDeparture(target,hierarchy,before);
+        var audit=new com.pandora.backend.audit.AuditService(db);
+        String leaver=personLabel(target);
+        if(positionRequired || !work.isEmpty()) {
+            String content="离职工作交接："+leaver+"；岗位接任人："+(positionId==null?"无需交接":personLabel(positionId))
+                    +"；任务接收人："+(work.isEmpty()?"无需交接":personLabel(taskId))+"；未完成任务："+work.size()+"项";
+            audit.record(actor,"handover","USER",target,content,"USER_HANDOVER",content);
+        }
+        audit.record(actor,"depart","USER",target,"账号已停用，历史任务和日志保留","USER_DEPARTURE","办理离职："+leaver);
+    }
+
+    private String personLabel(long user) {
+        var row=db.queryForMap("SELECT username,real_name FROM users WHERE id=?",user);
+        return Objects.toString(row.get("real_name"),"")+"（工号"+row.get("username")+"）";
     }
 
     private void requireAdmin(long actor) {

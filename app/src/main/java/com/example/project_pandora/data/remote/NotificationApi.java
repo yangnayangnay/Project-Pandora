@@ -14,6 +14,13 @@ import retrofit2.http.Query;
 
 public interface NotificationApi {
 
+    @GET("notification/wait")
+    retrofit2.Call<ApiResponse<List<Map<String,Object>>>> waitForNotifications(
+            @Query("lastId") long lastId, @Query("unreadCount") long unreadCount, @Query("seconds") int seconds);
+
+    @GET("notification/unread-count")
+    Observable<ApiResponse<Long>> unreadCount();
+
     @GET("notification/list")
     Observable<ApiResponse<List<Map<String, Object>>>> listNotifications(@Query("unreadOnly") Boolean unreadOnly);
 
@@ -22,6 +29,9 @@ public interface NotificationApi {
 
     @PUT("notification/{id}/read")
     Observable<ApiResponse<Void>> markAsRead(@Path("id") Long id);
+
+    @PUT("notification/read-all")
+    Observable<ApiResponse<Map<String,Object>>> markAllAsRead();
 
     /**
      * TASK-R18-006: 查询通知偏好（5 类通知开关状态）

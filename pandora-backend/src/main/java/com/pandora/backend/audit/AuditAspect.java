@@ -32,6 +32,10 @@ public class AuditAspect {
     public Object auditWriteOperation(ProceedingJoinPoint joinPoint) throws Throwable {
         Object result = joinPoint.proceed();
 
+        Object body=result instanceof org.springframework.http.ResponseEntity<?> response ? response.getBody() : result;
+        if(result instanceof org.springframework.http.ResponseEntity<?> response && !response.getStatusCode().is2xxSuccessful()) return result;
+        if(body instanceof com.pandora.backend.common.ApiResponse<?> response && response.getCode()!=200) return result;
+
         try {
             recordAuditLog(joinPoint);
         } catch (Exception e) {
@@ -58,6 +62,9 @@ public class AuditAspect {
             operationType = auditable.operationType();
             targetType = auditable.targetType();
         }
+
+        // These records are written with business details inside the account transaction.
+        if ("USER_CREATE".equals(operationType) || "USER_DEPARTURE".equals(operationType)) return;
 
         Long targetId = extractTargetId(method, joinPoint.getArgs());
         boolean sensitive = methodName.toLowerCase(java.util.Locale.ROOT).contains("password")

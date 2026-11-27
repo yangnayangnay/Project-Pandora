@@ -26,6 +26,19 @@ public final class AuditLabelMapper {
      * 按 spec.md 6.1 节定义的 14 个分类组织。
      */
     private static final Map<String, String> OPERATION_TYPE_MAP = Map.ofEntries(
+            Map.entry("USER_CREATE", "创建账号入职"),
+            Map.entry("USER_DEPARTURE", "办理离职"),
+            Map.entry("USER_HANDOVER", "离职工作交接"),
+            Map.entry("USER_RESTORE", "恢复账号"),
+            Map.entry("USER_EMPLOYMENT_UPDATE", "调整岗位关系"),
+            Map.entry("USER_ORG_TRANSFER", "人员调动"),
+            Map.entry("USER_PROFILE_ADMIN_UPDATE", "管理员修改人员资料"),
+            Map.entry("DEPARTMENT_CREATE", "创建部门"),
+            Map.entry("DEPARTMENT_UPDATE", "修改部门"),
+            Map.entry("DEPARTMENT_DELETE", "删除部门"),
+            Map.entry("TEAM_CREATE", "创建团队"),
+            Map.entry("TEAM_UPDATE", "修改团队"),
+            Map.entry("TEAM_DELETE", "删除团队"),
             // 认证类（8个）
             Map.entry("LOGIN", "登录"),
             Map.entry("LOGOUT", "登出"),
@@ -139,6 +152,8 @@ public final class AuditLabelMapper {
             Map.entry("NOTIFICATION", "通知"),
             Map.entry("TOKEN", "令牌"),
             Map.entry("UNKNOWN", "未知"),
+            Map.entry("DEPARTMENT", "部门"),
+            Map.entry("TEAM", "团队"),
 
             // 现有代码扩展的 4 个目标类型（存量数据兼容）
             Map.entry("WORK_LOG", "工作日志"),

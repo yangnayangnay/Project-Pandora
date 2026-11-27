@@ -1,0 +1,16 @@
+<resources>
+    <string name="notifications_title">全部通知</string>
+    <string name="notifications_back">返回首页</string>
+    <string name="notifications_refresh">刷新通知</string>
+    <string name="notifications_read_all">一键已读</string>
+    <string name="notifications_loading">正在加载通知…</string>
+    <string name="notifications_load_error">加载失败：%1$s，请点击右上角刷新重试</string>
+    <string name="notifications_empty">暂无通知</string>
+    <string name="notifications_summary">共 %1$d 条通知 · %2$d 条未读</string>
+    <string name="notifications_marking_all">正在标记已读…</string>
+    <string name="notifications_mark_all_error">标记失败：%1$s，请重试</string>
+    <string name="notifications_mark_all_done">已将 %1$d 条通知标记为已读</string>
+    <string name="notifications_mark_error">标记失败，请重试</string>
+    <string name="notifications_read_label">已读 · %1$s</string>
+    <string name="notifications_unread_label">未读 · %1$s</string>
+</resources>

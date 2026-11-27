@@ -49,7 +49,7 @@ public class NotificationService {
             Map<String, Object> task = jdbcTemplate.queryForMap("SELECT name FROM tasks WHERE id = ?", taskId);
             String taskName = task.get("name") != null ? task.get("name").toString() : task.get("NAME").toString();
             recordEvent("NEW_TASK", taskId, assigneeId, "新任务：" + taskName);
-        } catch (Exception ignored) {}
+        } catch (Exception error) { log.error("New-task notification creation failed: task={}",taskId,error); }
     }
 
     public void detectStatusChange(Long taskId, String oldStatus, String newStatus, Long modifierId) {
@@ -66,7 +66,7 @@ public class NotificationService {
                     ? "任务已完成：" + taskName
                     : "任务状态已更新：" + taskName;
             recordEvent("STATUS_CHANGE", taskId, targetUserId, content);
-        } catch (Exception ignored) {}
+        } catch (Exception error) { log.error("Task-status notification creation failed: task={}",taskId,error); }
     }
 
     /**
@@ -96,7 +96,7 @@ public class NotificationService {
 
             String content = "下属已完成日志：" + displayName + " " + (logDate != null ? logDate : "");
             recordEvent("LOG_COMPLETED", null, superiorId, content);
-        } catch (Exception ignored) {}
+        } catch (Exception error) { log.error("Log-completion notification creation failed: user={}",logUserId,error); }
     }
 
     /**
@@ -137,6 +137,6 @@ public class NotificationService {
                 Long targetId = ((Number) idObj).longValue();
                 recordEvent(notifType, null, targetId, content);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception error) { log.error("Top-ten notification creation failed: operator={},type={}",operatorUserId,notifType,error); }
     }
 }

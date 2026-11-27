@@ -27,6 +27,8 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // The original REQUEST is authenticated before entering a DeferredResult wait.
+                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
                         .requestMatchers("/auth/login", "/auth/register", "/auth/refresh", "/auth/forgot-password",
                                 "/actuator/**", "/h2-console/**", "/uploads/**").permitAll()
                         .anyRequest().authenticated()

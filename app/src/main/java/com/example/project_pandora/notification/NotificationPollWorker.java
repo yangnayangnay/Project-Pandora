@@ -74,7 +74,7 @@ public class NotificationPollWorker extends Worker {
                         .build();
         androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
                 "notification_poll_onetime",
-                androidx.work.ExistingWorkPolicy.REPLACE,
+                androidx.work.ExistingWorkPolicy.KEEP,
                 workRequest
         );
     }

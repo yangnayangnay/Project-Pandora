@@ -202,6 +202,7 @@ public class MainActivity extends PandoraActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if(TokenManager.getInstance(this).isLoggedIn()) NotificationPollWorker.enqueueOneTimeWork(this);
     }
 
     @Override

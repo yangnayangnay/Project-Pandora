@@ -2,195 +2,103 @@ package com.example.project_pandora.notification;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-
-import com.example.project_pandora.core.network.NetworkClient;
+import com.example.project_pandora.core.network.*;
+import com.example.project_pandora.core.util.NumberCompat;
+import com.example.project_pandora.core.util.TaskTags;
 import com.example.project_pandora.data.remote.NotificationApi;
-
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
+import retrofit2.Call;
 
-import io.reactivex.rxjava3.core.Observable;
-
-/**
- * R45 REQ-D: 通知轮询共享内核——Worker（WorkManager 15min 周期兜底）与
- * PollingForegroundService（前台服务保活）双入口的唯一轮询实现。
- * <p>防重复通知双保险：
- * <ol>
- *   <li>游标键唯一：PREF_NAME/KEY_LAST_ID 与既有 Worker 逐字一致（双入口写同一 SharedPreferences 游标）</li>
- *   <li>notify(notificationId) 系统级去重：同一通知 ID 重复 notify 仅刷新不新增</li>
- * </ol></p>
- * <p>逻辑自 NotificationPollWorker.doWork 完整迁移（TASK-R18-015 同步阻塞/偏好过滤/
- * D-33-02 游标基线自适应语义逐条保持）。</p>
- */
+/** Durable delivery acknowledgement; network waits never hold the processing lock. */
 public final class NotificationPollEngine {
-
-    private static final String PREF_NAME = "notification_prefs";
-    private static final String KEY_LAST_ID = "last_notification_id";
-    /** 偏好缓存 key 前缀（pref_type_ + 通知类型） */
-    private static final String KEY_PREF_PREFIX = "pref_type_";
-    /** 偏好缓存时间戳 key（用于判断缓存是否过期，1 小时过期） */
-    private static final String KEY_PREF_TIMESTAMP = "pref_timestamp";
-    private static final long PREF_CACHE_TTL_MS = 60 * 60 * 1000L;
-
-    /** 5 类通知类型（与后端保持一致） */
-    private static final String[] NOTIFICATION_TYPES = NotificationContent.TYPES;
-
+    private static final Object DELIVERY_LOCK=new Object();
     private NotificationPollEngine() {}
-
-    /**
-     * 单次轮询（同步阻塞，最长 30s）。
-     *
-     * @return true=本轮成功（含空结果）；false=失败（游标未推进，调用方可重试）
-     */
-    public static boolean pollOnce(Context context) {
-        try {
-            Context app = context.getApplicationContext();
-            SharedPreferences prefs = app.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-            long lastId = prefs.getLong(KEY_LAST_ID, 0);
-
-            NotificationApi api = NetworkClient.getInstance(app).createService(NotificationApi.class);
-
-            final CountDownLatch latch = new CountDownLatch(1);
-            final AtomicReference<Boolean> resultRef = new AtomicReference<>(true);
-
-            api.pollNotifications(lastId)
-                    .subscribe(
-                            response -> {
-                                try {
-                                    // D-33-02 修复：游标基线自适应——本地游标超前服务端全局 MAX(id)
-                                    // （单设备迁移到新库的基线差异）时重置为服务端基线，仅影响后续增量
-                                    // 拉取（不回溯弹历史通知），根治"永远拉空"
-                                    Long serverMaxId = response.getMaxNotificationId();
-                                    long effectiveLastId = lastId;
-                                    if (serverMaxId != null && effectiveLastId > serverMaxId) {
-                                        prefs.edit().putLong(KEY_LAST_ID, serverMaxId).apply();
-                                        effectiveLastId = serverMaxId;
-                                    }
-                                    if (response.isSuccess() && response.getData() != null) {
-                                        List<Map<String, Object>> notifications = response.getData();
-
-                                        Set<String> disabledTypes = loadDisabledTypes(api, prefs);
-
-                                        long maxId = effectiveLastId;
-                                        for (Map<String, Object> notification : notifications) {
-                                            Object idObj = notification.get("id");
-                                            if (idObj == null) idObj = notification.get("ID");
-                                            long notifId = com.example.project_pandora.core.util.NumberCompat.toLongOrDefault(idObj, 0L);
-
-                                            Object typeObj = notification.get("type");
-                                            if (typeObj == null) typeObj = notification.get("TYPE");
-                                            String type = typeObj != null ? typeObj.toString() : null;
-
-                                            Object contentObj = notification.get("content");
-                                            if (contentObj == null) contentObj = notification.get("CONTENT");
-                                            Object taskIdObj = notification.get("task_id");
-                                            if (taskIdObj == null) taskIdObj = notification.get("TASK_ID");
-                                            Long taskId = com.example.project_pandora.core.util.NumberCompat.toLong(taskIdObj);
-
-                                            // 被关闭类型的通知仅保留记录不弹窗
-                                            if (type == null || !disabledTypes.contains(type)) {
-                                                TaskNotificationService.showNotification(
-                                                        app, notifId, type,
-                                                        "通知",
-                                                        contentObj != null ? contentObj.toString() : "",
-                                                        taskId, NotificationContent.logId(notification));
-                                            }
-
-                                            if (notifId > maxId) maxId = notifId;
-                                        }
-                                        if (maxId > effectiveLastId) {
-                                            prefs.edit().putLong(KEY_LAST_ID, maxId).apply();
-                                        }
-                                    }
-                                    resultRef.set(true);
-                                } finally {
-                                    latch.countDown();
-                                }
-                            },
-                            error -> {
-                                try {
-                                    resultRef.set(false);
-                                } finally {
-                                    latch.countDown();
-                                }
-                            }
-                    );
-
-            // 等待回调落地（最长 30 秒超时，避免调用方卡死）
-            if (!latch.await(30, TimeUnit.SECONDS)) {
-                return false;
+    public static void confirmReadThrough(Context context,long user,long boundary) {
+        synchronized(DELIVERY_LOCK) {
+            var prefs=NotificationState.preferences(context,user);
+            prefs.edit().putLong("read_through_id",Math.max(boundary,prefs.getLong("read_through_id",0)))
+                    .putLong("last_notification_id",Math.max(boundary,prefs.getLong("last_notification_id",0))).commit();
+            android.app.NotificationManager manager=context.getSystemService(android.app.NotificationManager.class);
+            if(manager!=null) for(var notification:manager.getActiveNotifications()) {
+                if(("work_user_"+user).equals(notification.getTag()) && notification.getId()<=boundary)
+                    manager.cancel(notification.getTag(),notification.getId());
             }
-            return resultRef.get();
-        } catch (Exception e) {
+        }
+    }
+    public static boolean pollOnce(Context context) { return pollOnce(context,1,null); }
+    public interface ActiveCall { void set(Call<?> call); }
+    public static boolean pollOnce(Context context,int seconds,ActiveCall active) {
+        Context app=context.getApplicationContext(); TokenManager session=TokenManager.getInstance(app);
+        long user=session.getUserId(); String token=session.getToken();
+        if(user<0 || token==null) return false;
+        SharedPreferences prefs=NotificationState.preferences(app,user);
+        NotificationApi api=NetworkClient.getInstance(app).createService(NotificationApi.class);
+        long requestedAfter=prefs.getLong("last_notification_id",0);
+        Call<ApiResponse<List<Map<String,Object>>>> call=api.waitForNotifications(
+                requestedAfter,prefs.getLong("unread_count",-1),seconds);
+        if(active!=null) active.set(call);
+        android.os.PowerManager.WakeLock processing=null;
+        try {
+            var response=call.execute();
+            if(!response.isSuccessful() || response.body()==null || !response.body().isSuccess()) return false;
+            ApiResponse<List<Map<String,Object>>> body=response.body();
+            if(!token.equals(session.getToken()) || session.getUserId()!=user) return false;
+            processing=app.getSystemService(android.os.PowerManager.class).newWakeLock(
+                    android.os.PowerManager.PARTIAL_WAKE_LOCK,"pandora:notification-delivery");
+            processing.acquire(15000);
+            Map<String,Object> enabled=preferences(api,prefs);
+            synchronized(DELIVERY_LOCK) {
+                if(!token.equals(session.getToken()) || session.getUserId()!=user) return false;
+                if(requestedAfter<prefs.getLong("read_through_id",0)) NotificationState.refresh(app);
+                else if(body.getUnreadCount()!=null) NotificationState.publish(app,user,body.getUnreadCount());
+                long cursor=prefs.getLong("last_notification_id",0);
+                if(body.getMaxNotificationId()!=null && cursor==requestedAfter && cursor>body.getMaxNotificationId()) {
+                    cursor=NotificationDelivery.baseline(cursor,body.getMaxNotificationId());
+                    prefs.edit().remove("read_through_id").commit();
+                }
+                List<Map<String,Object>> rows=body.getData()==null ? new ArrayList<>() : new ArrayList<>(body.getData());
+                rows.sort(Comparator.comparingLong(row -> NumberCompat.toLongOrDefault(TaskTags.value(row,"id"),0)));
+                for(var row:rows) {
+                    long id=NumberCompat.toLongOrDefault(TaskTags.value(row,"id"),0);
+                    if(id<=cursor) continue;
+                    String type=Objects.toString(TaskTags.value(row,"type"),"");
+                    boolean read=NumberCompat.toBool(TaskTags.value(row,"is_read"))
+                            || NotificationDelivery.confirmedRead(id,prefs.getLong("read_through_id",0));
+                    boolean alerts=NumberCompat.toBool(enabled.getOrDefault(type,true));
+                    boolean handled=!NotificationDelivery.shouldAlert(read,alerts) || TaskNotificationService.postNotification(
+                            app,id,type,"通知",Objects.toString(TaskTags.value(row,"content"),""),
+                            NumberCompat.toLong(TaskTags.value(row,"task_id")),NotificationContent.logId(row));
+                    cursor=NotificationDelivery.acknowledge(cursor,id,handled);
+                    // Failed posting is retried; never acknowledge a notification that was silently dropped.
+                    prefs.edit().putLong("last_notification_id",cursor).commit();
+                    if(!handled) return false;
+                }
+                prefs.edit().putLong("last_notification_id",cursor).commit();
+            }
+            return true;
+        } catch(Exception error) {
+            android.util.Log.w("NotificationReceiver","Receive failed; cursor retained",error);
             return false;
+        } finally {
+            if(processing!=null && processing.isHeld()) processing.release();
+            if(active!=null) active.set(null);
         }
     }
 
-    /**
-     * 读取被关闭的通知类型集合。
-     * 本地 SharedPreferences 缓存优先，缓存缺失或过期时调偏好接口拉取并写缓存，接口失败默认全部开启（返回空集合）。
-     */
-    private static Set<String> loadDisabledTypes(NotificationApi api, SharedPreferences prefs) {
-        Set<String> disabled = new HashSet<>();
-
-        long cacheTimestamp = prefs.getLong(KEY_PREF_TIMESTAMP, 0);
-        boolean cacheExpired = (System.currentTimeMillis() - cacheTimestamp) > PREF_CACHE_TTL_MS;
-
-        if (!cacheExpired && cacheTimestamp > 0) {
-            for (String type : NOTIFICATION_TYPES) {
-                if (!prefs.getBoolean(KEY_PREF_PREFIX + type, true)) {
-                    disabled.add(type);
-                }
-            }
-            return disabled;
-        }
-
+    private static Map<String,Object> preferences(NotificationApi api,SharedPreferences prefs) {
+        Map<String,Object> values=new HashMap<>();
+        for(String type:NotificationContent.TYPES) values.put(type,prefs.getBoolean("pref_type_"+type,true));
+        if(System.currentTimeMillis()-prefs.getLong("pref_timestamp",0)<60000) return values;
         try {
-            final CountDownLatch latch = new CountDownLatch(1);
-            final boolean[] success = {false};
-            @SuppressWarnings("unchecked")
-            final Map<String, Object>[] prefsMap = new Map[]{null};
-
-            api.getPreferences()
-                    .subscribe(
-                            response -> {
-                                try {
-                                    if (response.isSuccess() && response.getData() != null) {
-                                        prefsMap[0] = response.getData();
-                                        success[0] = true;
-                                    }
-                                } finally {
-                                    latch.countDown();
-                                }
-                            },
-                            error -> latch.countDown()
-                    );
-
-            if (latch.await(10, TimeUnit.SECONDS) && success[0] && prefsMap[0] != null) {
-                SharedPreferences.Editor editor = prefs.edit();
-                for (String type : NOTIFICATION_TYPES) {
-                    Object value = prefsMap[0].get(type);
-                    boolean enabled = true;
-                    if (value instanceof Boolean) {
-                        enabled = (Boolean) value;
-                    } else if (value != null) {
-                        try { enabled = Boolean.parseBoolean(value.toString()); } catch (Exception ignored) {}
-                    }
-                    editor.putBoolean(KEY_PREF_PREFIX + type, enabled);
-                    if (!enabled) disabled.add(type);
-                }
-                editor.putLong(KEY_PREF_TIMESTAMP, System.currentTimeMillis());
-                editor.apply();
+            var response=api.getPreferences().timeout(10,TimeUnit.SECONDS).blockingFirst();
+            if(response.isSuccess() && response.getData()!=null) {
+                values.putAll(response.getData());
+                var editor=prefs.edit();
+                for(String type:NotificationContent.TYPES) editor.putBoolean("pref_type_"+type,NumberCompat.toBool(values.get(type)));
+                editor.putLong("pref_timestamp",System.currentTimeMillis()).apply();
             }
-        } catch (Exception ignored) {
-            // 异常时默认全部开启
-        }
-
-        return disabled;
+        } catch(Exception error) { android.util.Log.w("NotificationReceiver","Using cached alert preferences",error); }
+        return values;
     }
 }

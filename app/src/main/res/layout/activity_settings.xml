@@ -290,6 +290,14 @@
                     android:textColor="@color/color_text_secondary" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_system_notifications"
+                    style="@style/Widget.Pandora.Button.Outlined"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="系统通知与锁屏提醒设置" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_battery_whitelist"
                     style="@style/Widget.Pandora.Button.Outlined"
                     android:layout_width="match_parent"

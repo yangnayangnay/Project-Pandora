@@ -10,6 +10,19 @@
  * 按 spec.md 6.1 节定义的 14 个分类组织，与后端 AuditLabelMapper.OPERATION_TYPE_MAP 完全一致。
  */
 export const OPERATION_TYPE_MAP = {
+  USER_CREATE: '创建账号入职',
+  USER_DEPARTURE: '办理离职',
+  USER_HANDOVER: '离职工作交接',
+  USER_RESTORE: '恢复账号',
+  USER_EMPLOYMENT_UPDATE: '调整岗位关系',
+  USER_ORG_TRANSFER: '人员调动',
+  USER_PROFILE_ADMIN_UPDATE: '管理员修改人员资料',
+  DEPARTMENT_CREATE: '创建部门',
+  DEPARTMENT_UPDATE: '修改部门',
+  DEPARTMENT_DELETE: '删除部门',
+  TEAM_CREATE: '创建团队',
+  TEAM_UPDATE: '修改团队',
+  TEAM_DELETE: '删除团队',
   // 认证类（8个）
   LOGIN: '登录',
   LOGOUT: '登出',
@@ -103,6 +116,8 @@ export const OPERATION_TYPE_MAP = {
  * 确保存量数据兼容。与后端 AuditLabelMapper.TARGET_TYPE_MAP 完全一致。
  */
 export const TARGET_TYPE_MAP = {
+  DEPARTMENT: '部门',
+  TEAM: '团队',
   // spec.md 6.2 节定义的 19 个目标类型
   TASK: '任务',
   USER: '用户',

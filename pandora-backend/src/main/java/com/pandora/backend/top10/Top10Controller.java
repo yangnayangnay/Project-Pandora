@@ -363,6 +363,7 @@ public class Top10Controller {
 
         Map<String, Object> result = new HashMap<>();
         result.put("id", id);
+        notificationService.detectTop10DispatchChanged(userId,"修改");
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 

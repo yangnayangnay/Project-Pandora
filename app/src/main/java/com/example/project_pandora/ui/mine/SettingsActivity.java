@@ -121,15 +121,15 @@ public class SettingsActivity extends PandoraActivity {
 
         // DEF-30-02: 5 类通知开关绑定监听（isPressed 防程序化 setChecked 误触发，同上惯例）
         binding.switchNotifNewTask.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (!buttonView.isPressed()) return;
+            if (applyingNotificationPreference) return;
             updateNotificationPreference("NEW_TASK", isChecked, binding.switchNotifNewTask);
         });
         binding.switchNotifStatusChange.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (!buttonView.isPressed()) return;
+            if (applyingNotificationPreference) return;
             updateNotificationPreference("STATUS_CHANGE", isChecked, binding.switchNotifStatusChange);
         });
         binding.switchNotifLogCompleted.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (!buttonView.isPressed()) return;
+            if (applyingNotificationPreference) return;
             updateNotificationPreference("LOG_COMPLETED", isChecked, binding.switchNotifLogCompleted);
         });
         binding.switchNotifLogCommented.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -137,11 +137,11 @@ public class SettingsActivity extends PandoraActivity {
             updateNotificationPreference("LOG_COMMENTED", isChecked, binding.switchNotifLogCommented);
         });
         binding.switchNotifTop10Dispatch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (!buttonView.isPressed()) return;
+            if (applyingNotificationPreference) return;
             updateNotificationPreference("TOP10_DISPATCH_CHANGED", isChecked, binding.switchNotifTop10Dispatch);
         });
         binding.switchNotifTop10Important.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (!buttonView.isPressed()) return;
+            if (applyingNotificationPreference) return;
             updateNotificationPreference("TOP10_IMPORTANT_CHANGED", isChecked, binding.switchNotifTop10Important);
         });
 
@@ -158,6 +158,16 @@ public class SettingsActivity extends PandoraActivity {
 
         // Round29: 首次进入刷新服务器地址摘要
         binding.btnBatteryWhitelist.setOnClickListener(v -> requestBatteryWhitelist());
+        binding.btnSystemNotifications.setOnClickListener(v -> {
+            try {
+                startActivity(new android.content.Intent(android.provider.Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                        .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE,getPackageName())
+                        .putExtra(android.provider.Settings.EXTRA_CHANNEL_ID,com.example.project_pandora.notification.TaskNotificationService.CHANNEL_ID));
+            } catch(Exception error) {
+                startActivity(new android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:"+getPackageName())));
+            }
+        });
 
         refreshServerSummary();
         refreshKeepAliveSummary();
@@ -193,9 +203,16 @@ public class SettingsActivity extends PandoraActivity {
     private void refreshKeepAliveSummary() {
         boolean ignoring = ((android.os.PowerManager) getSystemService(POWER_SERVICE))
                 .isIgnoringBatteryOptimizations(getPackageName());
-        binding.textKeepAliveSummary.setText(ignoring
-                ? getString(R.string.keep_alive_whitelist_allowed)
-                : getString(R.string.keep_alive_whitelist_denied));
+        boolean enabled=com.example.project_pandora.notification.TaskNotificationService.alertsAllowed(this);
+        String alert=enabled ? "系统通知已开启" : "系统通知未开启，无法显示锁屏及横幅提醒";
+        if(enabled && android.os.Build.VERSION.SDK_INT>=26) {
+            var channel=getSystemService(android.app.NotificationManager.class).getNotificationChannel(
+                    com.example.project_pandora.notification.TaskNotificationService.CHANNEL_ID);
+            if(channel!=null && channel.getImportance()<android.app.NotificationManager.IMPORTANCE_HIGH)
+                alert="通知横幅提醒未开启，请进入系统通知设置调整";
+        }
+        binding.textKeepAliveSummary.setText(alert+"\n"+(ignoring ? "已允许忽略电池优化" : "电池优化可能延迟息屏通知")
+                +"\n锁屏显示、横幅及勿扰模式由系统通知设置控制");
     }
 
     private void refreshServerSummary() {
@@ -436,12 +453,17 @@ public class SettingsActivity extends PandoraActivity {
                         response -> {
                             if (response.isSuccess() && response.getData() != null) {
                                 Map<String, Object> data = response.getData();
-                                binding.switchNotifNewTask.setChecked(getPrefBool(data, "NEW_TASK", true));
-                                binding.switchNotifStatusChange.setChecked(getPrefBool(data, "STATUS_CHANGE", true));
-                                binding.switchNotifLogCompleted.setChecked(getPrefBool(data, "LOG_COMPLETED", true));
+                                setNotificationSwitch(binding.switchNotifNewTask, getPrefBool(data, "NEW_TASK", true));
+                                setNotificationSwitch(binding.switchNotifStatusChange, getPrefBool(data, "STATUS_CHANGE", true));
+                                setNotificationSwitch(binding.switchNotifLogCompleted, getPrefBool(data, "LOG_COMPLETED", true));
                                 setNotificationSwitch(binding.switchNotifLogCommented, getPrefBool(data, "LOG_COMMENTED", true));
-                                binding.switchNotifTop10Dispatch.setChecked(getPrefBool(data, "TOP10_DISPATCH_CHANGED", true));
-                                binding.switchNotifTop10Important.setChecked(getPrefBool(data, "TOP10_IMPORTANT_CHANGED", true));
+                                setNotificationSwitch(binding.switchNotifTop10Dispatch, getPrefBool(data, "TOP10_DISPATCH_CHANGED", true));
+                                setNotificationSwitch(binding.switchNotifTop10Important, getPrefBool(data, "TOP10_IMPORTANT_CHANGED", true));
+                                var cache=com.example.project_pandora.notification.NotificationState.preferences(this,
+                                        com.example.project_pandora.core.network.TokenManager.getInstance(this).getUserId()).edit();
+                                for(String type:com.example.project_pandora.notification.NotificationContent.TYPES)
+                                    cache.putBoolean("pref_type_"+type,getPrefBool(data,type,true));
+                                cache.putLong("pref_timestamp",System.currentTimeMillis()).apply();
                             } else {
                                 setAllNotifSwitches(true);
                             }
@@ -460,12 +482,12 @@ public class SettingsActivity extends PandoraActivity {
     }
 
     private void setAllNotifSwitches(boolean enabled) {
-        binding.switchNotifNewTask.setChecked(enabled);
-        binding.switchNotifStatusChange.setChecked(enabled);
-        binding.switchNotifLogCompleted.setChecked(enabled);
+        setNotificationSwitch(binding.switchNotifNewTask, enabled);
+        setNotificationSwitch(binding.switchNotifStatusChange, enabled);
+        setNotificationSwitch(binding.switchNotifLogCompleted, enabled);
         setNotificationSwitch(binding.switchNotifLogCommented, enabled);
-        binding.switchNotifTop10Dispatch.setChecked(enabled);
-        binding.switchNotifTop10Important.setChecked(enabled);
+        setNotificationSwitch(binding.switchNotifTop10Dispatch, enabled);
+        setNotificationSwitch(binding.switchNotifTop10Important, enabled);
     }
 
     /**
@@ -490,7 +512,8 @@ public class SettingsActivity extends PandoraActivity {
                                 return;
                             }
                             // 更新本地 SharedPreferences 偏好缓存（轮询 Worker 读取该缓存）
-                            android.content.SharedPreferences prefs = getSharedPreferences("notification_prefs", Context.MODE_PRIVATE);
+                            android.content.SharedPreferences prefs = com.example.project_pandora.notification.NotificationState.preferences(
+                                    this,com.example.project_pandora.core.network.TokenManager.getInstance(this).getUserId());
                             prefs.edit().putBoolean("pref_type_" + type, enabled)
                                     .putLong("pref_timestamp", System.currentTimeMillis())
                                     .apply();

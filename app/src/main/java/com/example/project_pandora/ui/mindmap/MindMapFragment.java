@@ -53,6 +53,7 @@ public class MindMapFragment extends Fragment {
     private boolean returningFromBoards;
     private int pendingEventsScroll = -1, pendingTasksScroll = -1;
     private final SerialDisposable birthdayRequest = new SerialDisposable();
+    private final SerialDisposable unreadSubscription = new SerialDisposable();
     private String birthdayCheckDate = "";
 
     @Nullable @Override
@@ -280,6 +281,13 @@ public class MindMapFragment extends Fragment {
 
     @Override public void onResume() {
         super.onResume(); loadHome();
+        long user=TokenManager.getInstance(requireContext()).getUserId();
+        updateUnread(com.example.project_pandora.notification.NotificationState.preferences(requireContext(),user).getLong("unread_count",0));
+        unreadSubscription.set(com.example.project_pandora.notification.NotificationState.changes()
+                .observeOn(AndroidSchedulers.mainThread()).subscribe(count -> {
+                    if(binding!=null && count.userId==TokenManager.getInstance(requireContext()).getUserId()) updateUnread(count.unread);
+                }));
+        com.example.project_pandora.notification.NotificationState.refresh(requireContext());
         checkBirthdayGreeting();
         // The boards cannot edit the personal agenda; keep its content and scroll intact on return.
         if (agenda != null && !returningFromBoards) agenda.refresh();
@@ -295,11 +303,18 @@ public class MindMapFragment extends Fragment {
     }
 
     @Override public void onDestroyView() {
+        unreadSubscription.set(null);
         viewState = new Bundle(); saveBoardState(viewState);
         if (agenda != null) { agenda.saveState(viewState); agenda.close(); agenda = null; }
         if (boardLoader != null) { boardLoader.close(); boardLoader = null; }
         birthdayRequest.set(null);
         binding = null;
         super.onDestroyView();
+    }
+
+    private void updateUnread(long count) {
+        if(binding==null) return;
+        binding.notificationUnreadDot.setVisibility(count>0 ? View.VISIBLE : View.GONE);
+        binding.btnAllNotifications.setContentDescription(count>0 ? "查看通知，"+count+"条未读" : "查看通知，暂无未读");
     }
 }

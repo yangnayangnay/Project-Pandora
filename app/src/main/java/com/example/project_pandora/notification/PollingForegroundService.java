@@ -18,13 +18,9 @@ import com.example.project_pandora.R;
 import com.example.project_pandora.core.network.TokenManager;
 
 /**
- * R45 REQ-D: 息屏通知保活前台服务。
- * <p>根因（R30 实测）：ColorOS 息屏约 10 分钟后将 cached 进程冻结，WorkManager 周期
- * 任务被 JobScheduler 强制延迟最长 45 分钟——息屏期间通知不可达。</p>
- * <p>机制：startForeground 将进程提升至前台服务优先级（系统不冻结），服务内守护线程
- * 每 15 分钟调用 NotificationPollEngine.pollOnce（与 Worker 共享游标键+notify(id)
- * 系统去重双保险防重复通知）。Android 15 dataSync 类型 6 小时限额到期 onTimeout
- * 优雅退出交 WorkManager 兜底（禁止超时后立即自启）。</p>
+ * Foreground receiver with bounded asynchronous server waits: new events return immediately.
+ * WorkManager remains the process-recovery fallback. Android background/network restrictions
+ * and the dataSync foreground-service time budget still apply; this is not vendor push.
  * <p>启动链：登录成功/已登录冷启（前台 Activity 生命周期内，规避 Android 12+ 后台
  * 启动限制）；停止链：登出。回前台补收兜底（enqueueOneTimeWork）原样保留。</p>
  */
@@ -34,8 +30,12 @@ public class PollingForegroundService extends Service {
     public static final String CHANNEL_KEEP_ALIVE = "keep_alive";
     private static final int NOTIF_ID_KEEP_ALIVE = 2001;
 
-    /** 守护轮询节拍（15 分钟，DFX 约束：不比 WorkManager 更频繁） */
-    private static final long POLL_INTERVAL_MS = 15 * 60 * 1000L;
+    /** Backoff only after failed delivery; successful waits reconnect immediately. */
+    private static final long RETRY_DELAY_MS = 15 * 1000L;
+    private volatile retrofit2.Call<?> activeCall;
+    private android.net.ConnectivityManager.NetworkCallback networkCallback;
+    private final Object retrySignal=new Object();
+    private boolean networkRestored;
 
     private volatile boolean running = false;
     private Thread pollThread;
@@ -44,6 +44,17 @@ public class PollingForegroundService extends Service {
     public void onCreate() {
         super.onCreate();
         createKeepAliveChannel();
+        android.net.ConnectivityManager connectivity=getSystemService(android.net.ConnectivityManager.class);
+        networkCallback=new android.net.ConnectivityManager.NetworkCallback() {
+            @Override public void onAvailable(android.net.Network network) {
+                synchronized(retrySignal) { networkRestored=true; retrySignal.notifyAll(); }
+                retrofit2.Call<?> call=activeCall;
+                if(call!=null) call.cancel();
+            }
+        };
+        try { connectivity.registerNetworkCallback(new android.net.NetworkRequest.Builder()
+                .addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET).build(),networkCallback); }
+        catch(Exception error) { Log.w(TAG,"Network reconnect listener unavailable",error); }
     }
 
     @Override
@@ -65,7 +76,7 @@ public class PollingForegroundService extends Service {
             pollThread = new Thread(this::pollLoop, "PollingForegroundService");
             pollThread.setDaemon(true);
             pollThread.start();
-            Log.i(TAG, "foreground polling started (interval=15min)");
+            Log.i(TAG, "notification long-poll receiver started");
         }
         return START_STICKY;
     }
@@ -75,24 +86,37 @@ public class PollingForegroundService extends Service {
             try {
                 // 登录态前置校验（兜住 TokenInterceptor 401 被动登出路径——未登录不空转轮询）
                 if (TokenManager.getInstance(this).isLoggedIn()) {
-                    boolean ok = NotificationPollEngine.pollOnce(this);
+                    boolean ok = NotificationPollEngine.pollOnce(this,25,call -> {
+                        activeCall=call;
+                        if(!running && call!=null) call.cancel();
+                    });
                     if (!ok) {
                         Log.w(TAG, "pollOnce failed（游标未推进，下轮重试）");
+                        retryDelay();
+                    } else {
+                        Thread.sleep(200); // Bound rapid reconnects when draining a backlog.
                     }
                 } else {
-                    Log.i(TAG, "not logged in, skip poll");
+                    stopSelf();
+                    break;
                 }
-                Thread.sleep(POLL_INTERVAL_MS);
             } catch (InterruptedException e) {
                 break;
             } catch (Exception e) {
                 Log.w(TAG, "pollLoop error: " + e.getMessage());
                 try {
-                    Thread.sleep(POLL_INTERVAL_MS);
+                    retryDelay();
                 } catch (InterruptedException ie) {
                     break;
                 }
             }
+        }
+    }
+
+    private void retryDelay() throws InterruptedException {
+        synchronized(retrySignal) {
+            if(!networkRestored && running) retrySignal.wait(RETRY_DELAY_MS);
+            networkRestored=false;
         }
     }
 
@@ -104,12 +128,20 @@ public class PollingForegroundService extends Service {
     public void onTimeout(int startId) {
         Log.i(TAG, "dataSync 6h limit reached, graceful shutdown（WorkManager 兜底接管）");
         running = false;
+        if(activeCall!=null) activeCall.cancel();
         stopSelf();
     }
+
+    @Override public void onTimeout(int startId,int fgsType) { onTimeout(startId); }
 
     @Override
     public void onDestroy() {
         running = false;
+        if(activeCall!=null) activeCall.cancel();
+        if(networkCallback!=null) {
+            try { getSystemService(android.net.ConnectivityManager.class).unregisterNetworkCallback(networkCallback); }
+            catch(Exception ignored) {}
+        }
         if (pollThread != null) {
             pollThread.interrupt();
         }

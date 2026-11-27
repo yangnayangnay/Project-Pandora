@@ -24,6 +24,19 @@ class AccountLifecycleTest {
         departures = new AccountDepartureService(db, sessions); tx = new TransactionTemplate(new DataSourceTransactionManager(source));
     }
     Map<String, Object> form(String key) { return new HashMap<>(Map.of("password", "secret123", "role", "FOUNDER", "realName", "测试", "email", key+"@example.test", "phone", "13800000000", "idCard", AccountInputRulesTest.identity("110101199001010"+key), "birthday", "1990-01-01")); }
+    @Test void accountCreationAuditKeepsNewAccountIdAndNeverCredentialsAndRollsBackTogether() {
+        var security=org.springframework.security.core.context.SecurityContextHolder.getContext();
+        security.setAuthentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(1L,null,List.of()));
+        try {
+            var created=tx.execute(s->accounts.create(form("21")));
+            var record=db.queryForMap("SELECT target_id,operation_content,detail FROM audit_logs WHERE operation_type='USER_CREATE'");
+            assertEquals(((Number)created.get("id")).longValue(),((Number)record.get("target_id")).longValue());
+            assertTrue(record.get("operation_content").toString().contains(created.get("employeeNo").toString()));
+            assertFalse(record.toString().contains("secret123"));
+            tx.executeWithoutResult(s->{accounts.create(form("22"));s.setRollbackOnly();});
+            assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE operation_type='USER_CREATE'",Integer.class));
+        } finally { org.springframework.security.core.context.SecurityContextHolder.clearContext(); }
+    }
     @Test void generatedNumberUsesFirstGapAndNeverReusesDepartedIdentity() {
         assertEquals("000002", accounts.nextEmployeeNumber());
         var created = tx.execute(status -> accounts.create(form("11")));

@@ -85,6 +85,14 @@ class DepartureHandoverTest {
         assertEquals(4L,db.queryForObject("SELECT assignee_id FROM tasks WHERE id=10",Long.class));
         assertEquals("session",sessions.get(4L));
         assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM notifications",Integer.class));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM audit_logs",Integer.class));
+    }
+    @Test void successfulDepartureRecordsWhoReceivedPostAndWorkExactlyOnce() {
+        tx.executeWithoutResult(s->departure.depart(1,4,Map.of("positionSuccessorId",6,"taskSuccessorId",5)));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE operation_type='USER_DEPARTURE'",Integer.class));
+        String content=db.queryForObject("SELECT operation_content FROM audit_logs WHERE operation_type='USER_HANDOVER'",String.class);
+        assertTrue(content.contains("员工乙")); assertTrue(content.contains("员工甲")); assertTrue(content.contains("3项"));
+        assertFalse(content.contains("unchanged"));
     }
     @Test void employeeWithWorkNeedsOnlyTaskRecipientAndNoWorkEmployeeCanLeave() {
         assertThrows(BusinessException.class,()->tx.execute(s->{departure.depart(1,5);return null;}));

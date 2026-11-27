@@ -7,6 +7,8 @@ public class ApiResponse<T> {
     private String traceId;
     /** D-33-02 修复：通知轮询专用可选字段（服务端全局通知 MAX(id)）；其他端点为 null（Gson 容忍缺失） */
     private Long maxNotificationId;
+    private Long unreadCount;
+    public Long getUnreadCount() { return unreadCount; }
 
     public int getCode() { return code; }
     public void setCode(int code) { this.code = code; }

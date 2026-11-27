@@ -31,7 +31,12 @@
         </template>
       </el-table-column>
       <el-table-column prop="target_id" label="目标ID" width="100" />
-      <el-table-column prop="operation_content" label="操作内容" show-overflow-tooltip />
+      <el-table-column label="操作内容" min-width="360">
+        <template #default="{ row }">
+          <HandoverAuditSummary v-if="row.handoverSummary" :summary="row.handoverSummary" />
+          <span v-else class="operation-content">{{ row.operation_content }}</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="detail" label="详情" width="200" show-overflow-tooltip />
       <el-table-column prop="operated_at" label="操作时间" width="180" />
     </el-table>
@@ -46,6 +51,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { getAuditLogs, exportAuditLogs } from '@/api/audit'
 import { mapOperationType, mapTargetType } from '@/utils/auditLabelMap'
+import { handoverAudit } from '@/utils/handoverAudit'
+import HandoverAuditSummary from '@/components/HandoverAuditSummary.vue'
 
 const logs = ref([])
 const loading = ref(false)
@@ -58,12 +65,25 @@ const filters = reactive({
 })
 const pagination = reactive({ page: 1, size: 20, total: 0 })
 
-// Round19 REQ-19-02: 操作类型下拉精简为7类白名单
+// Keep personnel administration and departure handover visible in the system log.
 const operationTypes = [
-  { label: '登录', value: 'LOGIN' },
+  { label: '创建账号入职', value: 'USER_CREATE' },
+  { label: '办理离职', value: 'USER_DEPARTURE' },
+  { label: '离职工作交接', value: 'USER_HANDOVER' },
+  { label: '恢复账号', value: 'USER_RESTORE' },
+  { label: '调整岗位关系', value: 'USER_EMPLOYMENT_UPDATE' },
+  { label: '人员调动', value: 'USER_ORG_TRANSFER' },
+  { label: '管理员修改人员资料', value: 'USER_PROFILE_ADMIN_UPDATE' },
+  { label: '创建部门', value: 'DEPARTMENT_CREATE' },
+  { label: '修改部门', value: 'DEPARTMENT_UPDATE' },
+  { label: '删除部门', value: 'DEPARTMENT_DELETE' },
+  { label: '创建团队', value: 'TEAM_CREATE' },
+  { label: '修改团队', value: 'TEAM_UPDATE' },
+  { label: '删除团队', value: 'TEAM_DELETE' },
   { label: '任务创建', value: 'TASK_CREATE' },
   { label: '任务更新', value: 'TASK_UPDATE' },
   { label: '任务删除', value: 'TASK_DELETE' },
+  { label: '任务状态流转', value: 'TASK_TRANSITION' },
   { label: '日志创建', value: 'LOG_CREATE' },
   { label: '日志更新', value: 'LOG_UPDATE' },
   { label: '日志删除', value: 'LOG_DELETE' }
@@ -89,7 +109,7 @@ async function loadLogs() {
   try {
     const res = await getAuditLogs(buildParams())
     const data = res.data
-    logs.value = data.records || []
+    logs.value = (data.records || []).map(row => ({ ...row, handoverSummary: handoverAudit(row) }))
     pagination.total = data.total || 0
   } catch (e) {
     console.error('加载审计日志失败', e)
