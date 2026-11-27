@@ -51,6 +51,20 @@ public final class OrganizationHierarchy {
         Map<Long, Map<String, Object>> byId = new HashMap<>();
         people.forEach(person -> byId.put(((Number) person.get("id")).longValue(), person));
         if (!byId.containsKey(id)) return List.of();
+        // A founder's company-wide scope must survive a vacant department/team head post.
+        // Direct reporting lines still come from superiors(); this only completes the visible subtree.
+        if (!upward && "FOUNDER".equals(byId.get(id).get("role"))) {
+            List<Map<String,Object>> company = new ArrayList<>();
+            for (var person : people) {
+                String role = Objects.toString(person.get("role"), "");
+                if ("FOUNDER".equals(role)) continue;
+                Map<String,Object> entry = new LinkedHashMap<>();
+                for (String key : List.of("id", "username", "real_name", "role")) entry.put(key,person.get(key));
+                entry.put("depth", "DEPT_HEAD".equals(role) ? 1 : "TEAM_LEADER".equals(role) ? 2 : 3);
+                company.add(entry);
+            }
+            return company;
+        }
         Map<Long, List<Long>> edges = new HashMap<>();
         for (var person : people) for (long parent : superiors(person, people)) {
             long child = ((Number) person.get("id")).longValue();

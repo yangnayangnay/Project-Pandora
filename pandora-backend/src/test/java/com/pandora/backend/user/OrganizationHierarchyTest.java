@@ -11,6 +11,16 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class OrganizationHierarchyTest {
+    @Test void founderRelationsKeepProductMembersVisibleWhenHeadPostIsVacant() {
+        db.update("UPDATE users SET deleted=1 WHERE id=6");
+        var hierarchy=new OrganizationHierarchy(db);
+        hierarchy.synchronize(hierarchy.snapshot(),6);
+        var visible=hierarchy.relatives(2,false);
+        assertTrue(visible.stream().anyMatch(p->Objects.equals(p.get("id"),7L)));
+        assertTrue(visible.stream().anyMatch(p->Objects.equals(p.get("id"),8L)));
+        assertFalse(visible.stream().anyMatch(p->"ADMIN".equals(p.get("role")) || "FOUNDER".equals(p.get("role"))));
+        assertTrue(hierarchy.relatives(7,true).stream().noneMatch(p->Objects.equals(p.get("id"),6L)));
+    }
     JdbcTemplate db;
     PersonnelController personnel;
     final UsernamePasswordAuthenticationToken admin = new UsernamePasswordAuthenticationToken(1L, null, List.of());

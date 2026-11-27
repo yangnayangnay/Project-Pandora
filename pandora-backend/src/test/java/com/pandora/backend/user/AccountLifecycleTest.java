@@ -28,7 +28,7 @@ class AccountLifecycleTest {
         assertEquals("000002", accounts.nextEmployeeNumber());
         var created = tx.execute(status -> accounts.create(form("11")));
         assertEquals("000002", created.get("employeeNo")); assertEquals("000004", accounts.nextEmployeeNumber());
-        tx.executeWithoutResult(status -> departures.depart(1, ((Number) created.get("id")).longValue()));
+        tx.executeWithoutResult(status -> departures.depart(1, ((Number) created.get("id")).longValue(),Map.of("positionSuccessorId",3)));
         assertEquals("000004", accounts.nextEmployeeNumber());
         assertEquals("unchanged", db.queryForObject("SELECT password_hash FROM users WHERE id=1", String.class));
     }
@@ -46,7 +46,7 @@ class AccountLifecycleTest {
         db.update("INSERT INTO user_hierarchy(superior_id,subordinate_id) VALUES(2,3)");
         db.update("INSERT INTO work_logs(user_id,log_date,work_item) VALUES(2,'2026-11-23','历史日志')");
         sessions.put(2L, "token");
-        tx.executeWithoutResult(status -> departures.depart(1, 2));
+        tx.executeWithoutResult(status -> departures.depart(1, 2,Map.of("positionSuccessorId",3)));
         assertNull(sessions.get(2L)); assertEquals(1, db.queryForObject("SELECT deleted FROM users WHERE id=2", Integer.class));
         assertEquals(1, db.queryForObject("SELECT COUNT(*) FROM work_logs WHERE user_id=2", Integer.class));
         assertEquals(0, db.queryForObject("SELECT COUNT(*) FROM user_hierarchy WHERE superior_id=2 OR subordinate_id=2", Integer.class));
@@ -56,7 +56,36 @@ class AccountLifecycleTest {
     }
     @Test void rollbackPreservesAccountRelationsAndSession() {
         sessions.put(2L, "token");
-        tx.executeWithoutResult(status -> { departures.depart(1, 2); status.setRollbackOnly(); });
+        tx.executeWithoutResult(status -> { departures.depart(1, 2,Map.of("positionSuccessorId",3)); status.setRollbackOnly(); });
         assertEquals("token", sessions.get(2L)); assertEquals(0, db.queryForObject("SELECT deleted FROM users WHERE id=2", Integer.class));
+    }
+    @Test void sameNameRecreationNeedsExplicitAcknowledgementAndNeverInheritsOldWork() {
+        db.update("UPDATE users SET real_name='测试' WHERE id=2");
+        db.update("INSERT INTO work_logs(user_id,log_date,work_item) VALUES(2,'2026-11-23','旧记录')");
+        tx.executeWithoutResult(s -> departures.depart(1,2,Map.of("positionSuccessorId",3)));
+        assertEquals(com.pandora.backend.common.ErrorCode.CONFLICT,
+                assertThrows(BusinessException.class,()->tx.execute(s->accounts.create(form("11")))).getErrorCode());
+        var request=form("11"); request.put("acknowledgeArchivedName",true);
+        var result=tx.execute(s->accounts.create(request));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM work_logs WHERE user_id=?",Integer.class,result.get("id")));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM work_logs WHERE user_id=2",Integer.class));
+    }
+    @Test void restoreKeepsOriginalIdentityPasswordAndWorkAndRebuildsRelations() {
+        db.update("INSERT INTO departments(id,name) VALUES(10,'产品部')");
+        db.update("UPDATE users SET role='DEPT_HEAD',department_id=10 WHERE id=2");
+        db.update("INSERT INTO users(id,username,password_hash,role,approval_status,department_id) VALUES(4,'000004','old','EMPLOYEE','APPROVED',10)");
+        db.update("INSERT INTO work_logs(user_id,log_date,work_item) VALUES(2,'2026-11-23','保留记录')");
+        tx.executeWithoutResult(s->departures.depart(1,2,Map.of("positionSuccessorId",4)));
+        assertEquals(10L,db.queryForObject("SELECT department_id FROM users WHERE id=2",Long.class));
+        var personnel=new PersonnelController(db);
+        var admin=new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(1L,null,List.of());
+        tx.executeWithoutResult(s->personnel.restore(admin,2,Map.of("role","DEPT_HEAD","departmentId",10)));
+        assertEquals("old",db.queryForObject("SELECT password_hash FROM users WHERE id=2",String.class));
+        assertEquals("000001",db.queryForObject("SELECT username FROM users WHERE id=2",String.class));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM work_logs WHERE user_id=2",Integer.class));
+        assertEquals(List.of(3L),db.queryForList("SELECT superior_id FROM user_hierarchy WHERE subordinate_id=2",Long.class));
+        tx.executeWithoutResult(s->departures.depart(1,2,Map.of("positionSuccessorId",4)));
+        assertThrows(BusinessException.class,()->tx.execute(s->personnel.restore(admin,2,Map.of("role","DEPT_HEAD","departmentId",99))));
+        assertEquals(1,db.queryForObject("SELECT deleted FROM users WHERE id=2",Integer.class));
     }
 }

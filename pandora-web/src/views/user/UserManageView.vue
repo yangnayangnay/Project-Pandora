@@ -16,6 +16,33 @@
 
     <el-alert v-if="loadError" :title="loadError" type="error" :closable="false" show-icon class="load-alert" />
 
+    <el-dialog v-model="departureVisible" title="办理离职与工作交接" width="min(680px, 94vw)" :close-on-click-modal="!departing" :show-close="!departing" :close-on-press-escape="!departing">
+      <div v-loading="departureLoading">
+        <p>{{ departurePerson?.real_name || departurePerson?.username }} · {{ departurePerson?.username }}</p>
+        <el-alert v-if="departureError" :title="departureError" type="error" :closable="false" />
+        <el-form label-position="top" :disabled="departing || departureLoading">
+          <el-form-item v-if="departurePreview?.positionrequired" label="岗位交接人" required>
+            <el-select v-model="departureForm.positionSuccessorId" filterable clearable placeholder="请选择接任原岗位的在职人员" style="width:100%">
+              <el-option v-for="person in departurePreview?.positioncandidates || []" :key="person.id" :value="person.id" :label="handoverLabel(person)" />
+            </el-select>
+          </el-form-item>
+          <el-form-item v-if="departurePreview?.tasks?.length" :label="`未完成任务交接人（${departurePreview.tasks.length}项，含执行及派发职责）`" required>
+            <el-select v-model="departureForm.taskSuccessorId" filterable clearable placeholder="请选择承担未完成工作的人员" style="width:100%">
+              <el-option v-for="person in departurePreview?.taskcandidates || []" :key="person.id" :value="person.id" :label="handoverLabel(person)" />
+            </el-select>
+          </el-form-item>
+        </el-form>
+        <el-alert v-if="departurePreview?.positionrequired && !departurePreview?.positioncandidates?.length" title="暂无符合条件的岗位交接人，请先配置或调入在职人员。" type="warning" :closable="false" />
+        <p v-if="positionChangeNote">{{ positionChangeNote }}</p>
+        <el-table :data="departurePreview?.tasks || []" max-height="260" empty-text="无未完成任务">
+          <el-table-column prop="name" label="待交接任务" min-width="200" />
+          <el-table-column label="当前职责" width="130"><template #default="{ row }">{{ departureTaskRole(row) }}</template></el-table-column>
+        </el-table>
+        <p>确认后将交接岗位、未完成任务及派发职责，再停用原账号。已完成任务和历史日志保留在原工号下；任务的其他协作人不变。</p>
+      </div>
+      <template #footer><el-button :disabled="departing" @click="departureVisible=false">取消</el-button><el-button type="primary" :loading="departing" :disabled="departureLoading || !departurePreview" @click="confirmDeparture">确认交接并离职</el-button></template>
+    </el-dialog>
+
     <el-tabs v-model="activeTab" class="directory-tabs">
       <el-tab-pane label="人员总表" name="directory">
         <div class="filters">
@@ -109,6 +136,17 @@
           </article>
         </div>
       </el-tab-pane>
+      <el-tab-pane v-if="isAdmin" label="离职档案" name="archived">
+        <el-alert title="历史任务和日志保留在原工号下。误操作请恢复原账号；同名新账号不会自动继承数据。" type="info" :closable="false" />
+        <el-table :data="archivedUsers" row-key="id" empty-text="暂无离职档案">
+          <el-table-column prop="real_name" label="姓名" min-width="110" />
+          <el-table-column prop="username" label="原工号" min-width="120" />
+          <el-table-column prop="task_count" label="保留任务" min-width="100" />
+          <el-table-column prop="log_count" label="保留日志" min-width="100" />
+          <el-table-column prop="updated_at" label="停用时间" min-width="180" />
+          <el-table-column label="操作" width="140"><template #default="{ row }"><el-button link type="primary" @click="startRestore(row)">恢复原账号</el-button></template></el-table-column>
+        </el-table>
+      </el-tab-pane>
     </el-tabs>
 
     <el-dialog :model-value="!!detail" title="人员全部资料" width="min(800px, 94vw)" @close="detail = null">
@@ -143,7 +181,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editVisible" title="调整职级与人员关系" width="min(540px, 94vw)" :close-on-click-modal="!saving" :show-close="!saving" :close-on-press-escape="!saving">
+    <el-dialog v-model="editVisible" :title="restoring ? '恢复原工号与历史数据' : '调整职级与人员关系'" width="min(540px, 94vw)" :close-on-click-modal="!saving" :show-close="!saving" :close-on-press-escape="!saving">
       <p>{{ selected?.real_name || selected?.username }} · 保存后在各端下一次请求时生效。</p>
       <el-form label-position="top" :model="form" :disabled="saving">
         <el-form-item label="职级"><el-select v-model="form.role" @change="onRoleChange"><el-option v-for="role in businessRoles" :key="role" :label="roleMap[role]" :value="role" /></el-select></el-form-item>
@@ -172,6 +210,7 @@ import { setUser } from '@/utils/auth'
 const userStore = useUserStore()
 const isAdmin = computed(() => userStore.role === 'ADMIN')
 const users = ref([]), departments = ref([]), teams = ref([])
+const archivedUsers = ref([]), restoring = ref(false)
 const loading = ref(false), saving = ref(false), loadError = ref('')
 const activeTab = ref('directory'), keyword = ref(''), filterRole = ref('')
 const detail = ref(null), selected = ref(null), editVisible = ref(false)
@@ -186,12 +225,36 @@ const profileRules = Object.fromEntries(Object.keys(profileForm.value).map(field
 }]]))
 const form = ref({ role: '', departmentId: null, teamId: null })
 const departing = ref(false)
+const departureVisible = ref(false), departureLoading = ref(false), departurePreview = ref(null), departurePerson = ref(null), departureError = ref('')
+const departureForm = ref({ positionSuccessorId: null, taskSuccessorId: null })
+const handoverLabel = person => `${person.real_name || person.username} · ${person.username} · ${roleMap[person.role] || person.role}${person.department_name ? ' · ' + person.department_name : ''}${person.team_name ? ' · ' + person.team_name : ''}`
+const positionChangeNote = computed(() => {
+  const person = departurePreview.value?.positioncandidates?.find(person => person.id === departureForm.value.positionSuccessorId)
+  return person ? `${person.real_name || person.username}将接任${roleMap[departurePerson.value?.role]}岗位，部门、团队及上下级关系将同步调整；工号、密码及原有任务日志保留。` : ''
+})
+const departureTaskRole = task => {
+  const id = departurePerson.value?.id
+  return String(task.assignee_id) === String(id) && String(task.dispatcher_id) === String(id) ? '执行及派发' : String(task.dispatcher_id) === String(id) ? '派发' : '执行/协作'
+}
 const depart = async row => {
-  if (departing.value) return
-  try { await ElMessageBox.confirm(`确定为“${row.real_name || row.username}”办理离职？账号将立即停用并移出组织，历史任务和日志保留；其进行中的工作请另行交接。`, '办理离职', { type: 'warning', confirmButtonText: '确认离职', cancelButtonText: '取消' }) }
-  catch { return }
+  if (departing.value || departureLoading.value) return
+  departurePerson.value=row; departureVisible.value=true; departureLoading.value=true; departurePreview.value=null; departureError.value=''
+  departureForm.value={ positionSuccessorId:null, taskSuccessorId:null }
+  try { departurePreview.value=(await request.get(`/user/${row.id}/departure-preview`)).data }
+  catch(error) { departureError.value=error.response?.data?.message || '交接资料加载失败，请关闭后重试。' }
+  finally { departureLoading.value=false }
+}
+const confirmDeparture = async () => {
+  if(departing.value || !departurePreview.value) return
+  if(departurePreview.value.positionrequired && !departureForm.value.positionSuccessorId) return ElMessage.warning('请选择岗位交接人')
+  if(departurePreview.value.tasks?.length && !departureForm.value.taskSuccessorId) return ElMessage.warning('请选择未完成任务交接人')
   departing.value = true
-  try { await request.post(`/user/${row.id}/departure`); detail.value = null; ElMessage.success('已办理离职，账号已停用'); await loadUsers() }
+  departureError.value=''
+  try {
+    const person=departurePreview.value.person
+    await request.post(`/user/${departurePerson.value.id}/departure`, { ...departureForm.value, expectedRole:person.role, expectedDepartmentId:person.department_id, expectedTeamId:person.team_id })
+    detail.value=null; departureVisible.value=false; ElMessage.success('交接已完成，原账号已停用'); await loadUsers()
+  } catch(error) { departureError.value=error.response?.data?.message || '交接失败，原账号未停用，请刷新后重试。' }
   finally { departing.value = false }
 }
 const statusNames = { APPROVED: '已批准', PENDING: '待审批', REJECTED: '已拒绝' }
@@ -233,7 +296,8 @@ const loadUsers = async (background = false) => {
   loadError.value = ''
   loadingRequest = (async () => {
     try {
-      const [directory, options] = await Promise.all([request.get('/user/directory'), request.get('/user/directory/options')])
+      const [directory, options, archived] = await Promise.all([request.get('/user/directory'), request.get('/user/directory/options'), isAdmin.value ? request.get('/user/archived') : Promise.resolve({ data: [] })])
+      archivedUsers.value = archived.data || []
       users.value = (directory.data || []).map(normalizeOrganization); departments.value = options.data?.departments || []; teams.value = options.data?.teams || []
       if (detail.value) detail.value = users.value.find(user => String(user.id) === String(detail.value.id)) || null
     } catch (e) { loadError.value = '人员资料加载失败，请点击刷新重试。' }
@@ -244,6 +308,12 @@ const loadUsers = async (background = false) => {
 const startEdit = row => {
   if (!isAdmin.value || !businessRoles.includes(row.role)) return
   selected.value = row
+  restoring.value = false
+  form.value = organizationPayload({ role: row.role, departmentId: row.department_id, teamId: row.team_id })
+  editVisible.value = true
+}
+const startRestore = row => {
+  selected.value = row; restoring.value = true
   form.value = organizationPayload({ role: row.role, departmentId: row.department_id, teamId: row.team_id })
   editVisible.value = true
 }
@@ -287,7 +357,8 @@ const saveEmployment = async () => {
   if (error) return ElMessage.warning(error)
   saving.value = true
   try {
-    await request.put(`/user/${selected.value.id}/employment`, organizationPayload(form.value))
+    if (restoring.value) await request.post(`/user/${selected.value.id}/restore`, organizationPayload(form.value))
+    else await request.put(`/user/${selected.value.id}/employment`, organizationPayload(form.value))
     ElMessage.success('人员关系已更新'); editVisible.value = false; await loadUsers()
   } catch (e) { /* request interceptor displays the server validation message */ }
   finally { saving.value = false }

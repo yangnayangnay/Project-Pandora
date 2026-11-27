@@ -45,7 +45,8 @@ class PersonnelEndpointsTest {
     }
     @Test void departureBindsPathIdAndRevokesTheSelectedAccount() throws Exception {
         sessions.put(2L, "old-token");
-        http.perform(post("/user/2/departure").principal(SecurityContextHolder.getContext().getAuthentication())).andExpect(status().isOk());
+        http.perform(post("/user/2/departure").principal(SecurityContextHolder.getContext().getAuthentication())
+                .contentType("application/json").content("{\"positionSuccessorId\":3}")).andExpect(status().isOk());
         assertEquals(1, db.queryForObject("SELECT deleted FROM users WHERE id=2", Integer.class));
         assertEquals(0, db.queryForObject("SELECT deleted FROM users WHERE id=3", Integer.class));
         assertNull(sessions.get(2L));

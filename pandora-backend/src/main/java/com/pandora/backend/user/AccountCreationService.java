@@ -69,6 +69,9 @@ public class AccountCreationService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "所选团队不存在、已停用或不属于所选部门");
         if (db.queryForObject("SELECT COUNT(*) FROM users WHERE username=?", Integer.class, employeeNo) > 0)
             throw new BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "工号已存在，请使用其他工号");
+        if (!Boolean.TRUE.equals(request.get("acknowledgeArchivedName")) && !db.queryForList(
+                "SELECT id FROM users WHERE real_name=? AND deleted=1", Long.class, realName).isEmpty())
+            throw new BusinessException(ErrorCode.CONFLICT, "存在同名离职账号，请先核对历史工号；新建账号不会继承原任务和日志");
         if (db.queryForObject("SELECT COUNT(*) FROM users WHERE LOWER(email)=LOWER(?) AND deleted=0", Integer.class, email) > 0)
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
         if (db.queryForObject("SELECT COUNT(*) FROM users WHERE UPPER(id_card)=? AND deleted=0", Integer.class, idCard) > 0)

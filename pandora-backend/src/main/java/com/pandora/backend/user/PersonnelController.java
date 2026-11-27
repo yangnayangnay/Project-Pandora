@@ -200,12 +200,18 @@ public class PersonnelController {
     @PostMapping("/{id}/departure")
     @PreAuthorize("hasRole('ADMIN')")
     @Auditable(operationType = "USER_DEPARTURE", targetType = "USER")
-    public ApiResponse<Void> departure(Authentication auth, @PathVariable("id") long id) {
-        departureService.depart(((Number) auth.getPrincipal()).longValue(), id);
+    public ApiResponse<Void> departure(Authentication auth, @PathVariable("id") long id, @RequestBody(required=false) Map<String,Object> body) {
+        departureService.depart(((Number) auth.getPrincipal()).longValue(), id,body==null?Map.of():body);
         return ApiResponse.success();
+    }
+    @GetMapping("/{id}/departure-preview")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<Map<String,Object>> departurePreview(Authentication auth,@PathVariable("id") long id) {
+        return ApiResponse.success(departureService.preview(((Number)auth.getPrincipal()).longValue(),id));
     }
 
     @PutMapping("/{id}/employment")
+    // A restore always keeps the original account ID and work ownership.
     @Transactional
     @Auditable(operationType = "USER_EMPLOYMENT_UPDATE", targetType = "USER")
     @PreAuthorize("hasRole('ADMIN')")
@@ -248,5 +254,30 @@ public class PersonnelController {
         if (value == null || value.toString().isBlank()) return null;
         try { return Long.valueOf(value.toString()); }
         catch (NumberFormatException e) { throw new BusinessException(ErrorCode.BAD_REQUEST, "人员或组织编号格式错误"); }
+    }
+
+    @GetMapping("/archived")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<Map<String, Object>>> archived() {
+        return ApiResponse.success(db.queryForList("SELECT u.id,u.username,u.real_name,u.role,u.department_id,u.team_id,u.updated_at, "
+                + "(SELECT COUNT(*) FROM tasks t WHERE t.assignee_id=u.id AND t.deleted=0) AS task_count, "
+                + "(SELECT COUNT(*) FROM work_logs l WHERE l.user_id=u.id AND l.deleted=0) AS log_count "
+                + "FROM users u WHERE u.deleted=1 AND u.role<>'ADMIN' ORDER BY u.updated_at DESC,u.id"));
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    @Auditable(operationType = "USER_RESTORE", targetType = "USER")
+    public ApiResponse<Void> restore(Authentication auth, @PathVariable long id, @RequestBody Map<String,Object> body) {
+        var old=db.queryForList("SELECT id,role FROM users WHERE id=? AND deleted=1 FOR UPDATE",id);
+        if(old.isEmpty()) throw new BusinessException(ErrorCode.USER_NOT_FOUND,"离职账号不存在或已经恢复");
+        if("ADMIN".equals(old.get(0).get("role"))) throw new BusinessException(ErrorCode.FORBIDDEN);
+        if(!db.queryForList("SELECT active.id FROM users active JOIN users old ON old.id=? "
+                + "WHERE active.deleted=0 AND ((old.id_card IS NOT NULL AND old.id_card<>'' AND UPPER(active.id_card)=UPPER(old.id_card)) "
+                + "OR (old.email IS NOT NULL AND old.email<>'' AND LOWER(active.email)=LOWER(old.email)))",Long.class,id).isEmpty())
+            throw new BusinessException(ErrorCode.CONFLICT,"身份证或邮箱已被在职账号使用，请先核对账号归属");
+        db.update("UPDATE users SET deleted=0,approval_status='APPROVED',updated_at=CURRENT_TIMESTAMP WHERE id=?",id);
+        return employment(auth,id,body);
     }
 }

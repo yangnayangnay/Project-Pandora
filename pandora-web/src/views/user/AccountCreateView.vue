@@ -51,12 +51,13 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { hasDepartment, hasTeam } from '@/utils/organization'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { createUser } from '@/api/user'
 import request from '@/utils/request'
 import { emptyAccountForm, teamsForDepartment, accountPayload, isFutureBirthday, birthdayFromIdCard, allocatedEmployeeNumber, validRealName, validPassword, validIdCard } from '@/utils/accountCreation'
 
 const numberError = ref(''), numberLoading = ref(false)
+const archivedAccounts = ref([])
 const formRef = ref(), submitting = ref(false), orgLoading = ref(false), orgError = ref('')
 const departments = ref([]), teams = ref([])
 const form = reactive(emptyAccountForm())
@@ -106,6 +107,13 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     const payload = accountPayload(form)
+    const historical = archivedAccounts.value.filter(person => person.real_name === payload.realName)
+    if (historical.length) {
+      try {
+        await ElMessageBox.confirm(`存在同名离职账号：${historical.map(person => person.username).join('、')}。如为误操作，请在人员管理的离职档案中恢复原账号，原任务和日志会随原工号恢复。继续新建将分配新工号，且不继承历史数据。`, '核对历史账号', { confirmButtonText: '确认是独立新账号', cancelButtonText: '取消并核对', type: 'warning' })
+      } catch { return }
+      payload.acknowledgeArchivedName = true
+    }
     // Preview is not a reservation; the server selects the smallest available number atomically.
     delete payload.employeeNo; delete payload.username
     const response = await createUser(payload)
@@ -115,7 +123,10 @@ const handleSubmit = async () => {
   finally { submitting.value = false }
 }
 const handleReset = () => { formRef.value?.resetFields(); Object.assign(form, emptyAccountForm()); loadEmployeeNumber() }
-onMounted(() => { loadOrganizations(); loadEmployeeNumber() })
+onMounted(() => {
+  loadOrganizations(); loadEmployeeNumber()
+  request.get('/user/archived').then(response => { archivedAccounts.value = response.data || [] }).catch(() => {})
+})
 </script>
 
 <style scoped>
