@@ -1,7 +1,7 @@
 # hierarchy Specification
 
 ## Purpose
-TBD - created by archiving change backfill-git-history. Update Purpose after archive.
+层级能力支持人员关系的树形结构管理。主要功能包括人员关系树形展示、树节点排序、子节点补充username字段。为用户和管理员提供清晰的层级关系视图。
 
 ## Requirements
 

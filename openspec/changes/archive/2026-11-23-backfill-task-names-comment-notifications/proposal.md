@@ -18,4 +18,10 @@
 - 评论通知及时
 
 ## Evidence
-- `27224d6` fix: show subordinate task names and notify log comments
+
+| 哈希 | 日期 | 主题 |
+|------|------|------|
+| 27224d6 | 2026-11-23 | fix: show subordinate task names and notify log comments |
+
+### 文件证据（摘自 git_history_files.txt）
+- `27224d6`: pandora-backend/src/main/java/.../notification/NotificationService.java, pandora-backend/src/main/java/.../task/TaskController.java, app/src/main/java/.../ui/task/TaskListAdapter.java

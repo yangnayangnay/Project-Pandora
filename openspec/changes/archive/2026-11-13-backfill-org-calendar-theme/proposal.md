@@ -22,5 +22,12 @@
 - 主题背景支持
 
 ## Evidence
-- `8622cef` feat: update task workflows, calendars, directory and product UI
-- `92d96a5` feat: refine organization, calendars, logs and themed backgrounds
+
+| 哈希 | 日期 | 主题 |
+|------|------|------|
+| 8622cef | 2026-11-12 | feat: update task workflows, calendars, directory and product UI |
+| 92d96a5 | 2026-11-13 | feat: refine organization, calendars, logs and themed backgrounds |
+
+### 文件证据（摘自 git_history_files.txt）
+- `8622cef`: pandora-backend/src/main/java/.../user/..., pandora-backend/src/main/java/.../view/..., app/src/main/java/.../ui/task/...
+- `92d96a5`: pandora-backend/src/main/java/.../theme/..., pandora-backend/src/main/java/.../log/..., app/src/main/res/values-night/...

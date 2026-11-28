@@ -1,7 +1,7 @@
 # sync Specification
 
 ## Purpose
-TBD - created by archiving change backfill-git-history. Update Purpose after archive.
+同步能力支持多设备间的数据同步与离线操作。主要功能包括多端同步、离线模式本地存储、多服务端故障转移。确保用户在不同设备间数据一致性。
 
 ## Requirements
 

@@ -24,4 +24,10 @@
 - 日期策略统一
 
 ## Evidence
-- `1aa989a` Round46: 日程视图重构 + 任务审核 + 人员关系管理 + 密码修改 + 日志/任务日期策略统一
+
+| 哈希 | 日期 | 主题 |
+|------|------|------|
+| 1aa989a | 2026-10-29 | Round46: 日程视图重构 + 任务审核 + 人员关系管理 + 密码修改 + 日志/任务日期策略统一 |
+
+### 文件证据（摘自 git_history_files.txt）
+- `1aa989a`: pandora-backend/src/main/java/.../view/ViewController.java, pandora-backend/src/main/java/.../daily/DailyItemService.java, pandora-backend/src/main/java/.../hierarchy/HierarchyService.java

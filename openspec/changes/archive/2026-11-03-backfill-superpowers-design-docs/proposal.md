@@ -19,6 +19,14 @@
 - 为后续开发提供规范
 
 ## Evidence
-- `6c1e6a2` docs: record approved calendar view design and verification
-- `2ed7afe` docs: record task details and tag design
-- `f6c8660` docs: record approved home and daily items design
+
+| 哈希 | 日期 | 主题 |
+|------|------|------|
+| 6c1e6a2 | 2026-11-02 | docs: record approved calendar view design and verification |
+| 2ed7afe | 2026-11-03 | docs: record task details and tag design |
+| f6c8660 | 2026-11-03 | docs: record approved home and daily items design |
+
+### 文件证据（摘自 git_history_files.txt）
+- `6c1e6a2`: docx/docx_generate/..., openspec/specs/...
+- `2ed7afe`: docx/docx_generate/..., openspec/specs/...
+- `f6c8660`: docx/docx_generate/..., openspec/specs/...

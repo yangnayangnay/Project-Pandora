@@ -1,7 +1,7 @@
 # draft Specification
 
 ## Purpose
-TBD - created by archiving change backfill-git-history. Update Purpose after archive.
+草稿能力支持任务和日志创建过程中的自动保存与恢复。主要功能包括草稿自动保存、草稿恢复对话框、草稿清空、竞态条件处理（创建成功后不错误恢复草稿）。防止用户因意外中断导致数据丢失。
 
 ## Requirements
 

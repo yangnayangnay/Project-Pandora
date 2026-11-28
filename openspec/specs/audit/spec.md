@@ -1,7 +1,7 @@
 # audit Specification
 
 ## Purpose
-TBD - created by archiving change backfill-git-history. Update Purpose after archive.
+审计日志能力支持系统敏感操作的记录与追溯。主要功能包括操作类型中文化显示、全覆盖敏感操作记录、操作人ID正确显示（修复1.0显示为1）。为管理员提供可查询的审计日志界面，支持系统安全事件的追踪与分析。
 
 ## Requirements
 

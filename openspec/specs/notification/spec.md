@@ -1,7 +1,7 @@
 # notification Specification
 
 ## Purpose
-TBD - created by archiving change backfill-git-history. Update Purpose after archive.
+通知能力支持应用内消息的推送与展示。主要功能包括应用内通知、偏好开关设置、15分钟轮询机制、息屏通知保活、日志评论通知。确保用户及时获取重要信息。
 
 ## Requirements
 

@@ -1,7 +1,7 @@
 # daily Specification
 
 ## Purpose
-TBD - created by archiving change backfill-git-history. Update Purpose after archive.
+日程能力支持用户对日常事项的规划与管理。主要功能包括日程视图重构、日常事项创建与编辑、月视图统一渲染。为用户提供直观的日程展示界面，支持月/周/日视图切换。
 
 ## Requirements
 

@@ -1,7 +1,7 @@
 # notification-inbox Specification
 
 ## Purpose
-TBD - created by archiving change notification-actions-and-handover-audit. Update Purpose after archive.
+通知收件箱能力支持用户对通知的管理与批量操作。主要功能包括刷新和一键已读操作、账号范围批量已读、并发通知到达处理。提供便捷的通知管理界面。
 
 ## Requirements
 

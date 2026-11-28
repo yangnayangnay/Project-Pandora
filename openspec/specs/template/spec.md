@@ -1,7 +1,7 @@
 # template Specification
 
 ## Purpose
-TBD - created by archiving change backfill-git-history. Update Purpose after archive.
+模板能力支持任务和日志的模板化管理。主要功能包括模板创建、编辑、删除、AI起草生成。为用户提供标准化内容生成能力。
 
 ## Requirements
 

@@ -20,5 +20,19 @@
 - 账号恢复能力
 
 ## Evidence
-- `0efb031` feat: 离职交接功能
-- `22908de` feat: 账号恢复功能
+
+| 哈希 | 日期 | 主题 |
+|------|------|------|
+| 0efb031 | 2026-11-27 | feat: 离职交接功能 |
+| 22908de | 2026-11-27 | feat: 账号恢复功能 |
+
+### 文件证据（摘自 git_history_files.txt）
+- `0efb031`: pandora-backend/src/main/java/.../user/AccountDepartureService.java, pandora-backend/src/main/java/.../audit/AuditService.java
+- `22908de`: pandora-backend/src/main/java/.../auth/..., pandora-backend/src/main/java/.../user/UserController.java
+
+### 关联归档
+本归档与 `2026-11-28-notification-actions-and-handover-audit` 存在功能关联：
+- 本归档（2026-11-27-backfill-departure-handover）：实现离职交接基础功能（提交 `0efb031`, `22908de`）
+- 对方归档（2026-11-28-notification-actions-and-handover-audit）：增强离职交接审计日志的可视化展示
+
+两者覆盖不同的功能层面，本归档提供基础数据与流程，对方归档提供审计日志的可读展示增强。

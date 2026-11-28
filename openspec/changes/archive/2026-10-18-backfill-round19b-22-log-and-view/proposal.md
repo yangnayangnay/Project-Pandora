@@ -40,11 +40,19 @@
 - 管理员权限控制加强
 
 ## Evidence
-- `a5f45e1` fix: 管理员禁止APP登录+登录不再记录审计日志+TASK_TRANSITION加入白名单
-- `9367c13` Round19-9req:5:删除客户端注册+导图页不可编辑+日志展示优化+草稿清空+FAB拆分+删除模板/AI起草+多行输入
-- `e036477` fix: 移除日志耗时字段+AI分析+任务展示按钮迁移至视图页
-- `280262f` feat: 日志增加内容字段+导图页移除加号FAB
-- `634a84e` Round22: 日志列表展示内容+增删改后自动刷新+保存按钮位置修复
-- `e54c0ca` Round22b: fix task creation failure and view page not showing tasks
-- `dc51f33` Round22b-fix: repair week view date calc, month nav sync, bottom panel deadline
-- `7b93265` fix: 日志/任务创建成功后草稿被自动保存写回(竞态)
+
+| 哈希 | 日期 | 主题 |
+|------|------|------|
+| a5f45e1 | 2026-10-18 | fix: 管理员禁止APP登录+登录不再记录审计日志+TASK_TRANSITION加入白名单 |
+| 9367c13 | 2026-10-18 | Round19-9req:5:删除客户端注册+导图页不可编辑+日志展示优化+草稿清空+FAB拆分+删除模板/AI起草+多行输入 |
+| e036477 | 2026-10-18 | fix: 移除日志耗时字段+AI分析+任务展示按钮迁移至视图页 |
+| 280262f | 2026-10-18 | feat: 日志增加内容字段+导图页移除加号FAB |
+| 634a84e | 2026-10-18 | Round22: 日志列表展示内容+增删改后自动刷新+保存按钮位置修复 |
+| e54c0ca | 2026-10-18 | Round22b: fix task creation failure and view page not showing tasks |
+| dc51f33 | 2026-10-18 | Round22b-fix: repair week view date calc, month nav sync, bottom panel deadline |
+| 7b93265 | 2026-10-18 | fix: 日志/任务创建成功后草稿被自动保存写回(竞态) |
+
+### 文件证据（摘自 git_history_files.txt）
+- `a5f45e1`: pandora-web/src/router/index.js, pandora-backend/src/main/java/.../auth/SecurityConfig.java
+- `9367c13`: app/src/main/java/.../ui/log/..., app/src/main/java/.../ui/mindmap/..., pandora-backend/src/main/java/.../template/...
+- `7b93265`: app/src/main/java/.../core/autosave/AutoSaveManager.java, pandora-backend/src/main/java/.../draft/DraftService.java

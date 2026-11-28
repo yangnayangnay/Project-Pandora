@@ -18,4 +18,10 @@
 - 管理员账号管理能力增强
 
 ## Evidence
-- `4aac3c4` feat: integrate mobile workflow updates and admin account editing
+
+| 哈希 | 日期 | 主题 |
+|------|------|------|
+| 4aac3c4 | 2026-11-06 | feat: integrate mobile workflow updates and admin account editing |
+
+### 文件证据（摘自 git_history_files.txt）
+- `4aac3c4`: pandora-backend/src/main/java/.../user/UserController.java, pandora-backend/src/main/java/.../permission/..., app/src/main/java/.../ui/task/...

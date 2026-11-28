@@ -24,11 +24,19 @@ Project Pandora 项目在 Sprint 0 完成需求分析与产品设计后，于 20
 - 修复资源链接失败、FocusActivity import 等初始缺陷
 
 ## Evidence
-- `0df00cd` feat: Project Pandora 三端初始版本
-- `128d757` feat: 后端AI分析新增项目完成分析接口
-- `6d6ae78` fix: 修复资源链接失败
-- `32a7381` feat: 初始化OpenSpec规格驱动开发框架
-- `dddd4b4` feat: 底部导航重构+日志功能增强
-- `7fc3b7b` feat: 添加首页信息面板+导图改为四象限视图
-- `c2339a6` docs: 更新所有相关文档
-- `0b5b780` fix: MineFragment缺少FocusActivity import
+
+| 哈希 | 日期 | 主题 |
+|------|------|------|
+| 0df00cd | 2026-09-18 | feat: Project Pandora 三端初始版本 |
+| 128d757 | 2026-09-18 | feat: 后端AI分析新增项目完成分析接口 |
+| 6d6ae78 | 2026-09-18 | fix: 修复资源链接失败 |
+| 32a7381 | 2026-09-18 | feat: 初始化OpenSpec规格驱动开发框架 |
+| dddd4b4 | 2026-09-18 | feat: 底部导航重构+日志功能增强 |
+| 7fc3b7b | 2026-09-18 | feat: 添加首页信息面板+导图改为四象限视图 |
+| c2339a6 | 2026-09-18 | docs: 更新所有相关文档 |
+| 0b5b780 | 2026-09-18 | fix: MineFragment缺少FocusActivity import |
+
+### 文件证据（摘自 git_history_files.txt）
+- `0df00cd`: app/src/main/java/..., pandora-backend/src/main/java/..., pandora-web/src/...
+- `32a7381`: openspec/changes/initial-mvp-delivery/..., openspec/specs/...
+- `dddd4b4`: app/src/main/res/menu/bottom_nav_menu.xml, app/src/main/java/.../ui/log/...

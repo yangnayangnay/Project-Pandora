@@ -1,7 +1,7 @@
 # personnel-audit Specification
 
 ## Purpose
-TBD - created by archiving change notification-actions-and-handover-audit. Update Purpose after archive.
+人员审计能力支持管理员对离职交接记录的可视化审计。主要功能包括离职交接日志展示、岗位继任者和任务接收人区分、历史记录兼容。为管理员提供清晰的交接审计界面。
 
 ## Requirements
 

@@ -1,7 +1,7 @@
 # top10 Specification
 
 ## Purpose
-TBD - created by archiving change backfill-git-history. Update Purpose after archive.
+十大重要工作能力支持重要工作的加权排序与展示。主要功能包括去重、加权排序、自动清理测试脏数据、账号信息条目。为用户提供清晰的重要工作视图。
 
 ## Requirements
 
