@@ -1,0 +1,60 @@
+﻿0df00cd|2026-09-18 14:23:43|yangnayangnay|feat: Project Pandora 三端初始版本
+128d757|2026-09-18 14:28:09|yangnayangnay|feat: 后端AI分析新增项目完成分析接口
+6d6ae78|2026-09-18 14:32:06|yangnayangnay|fix: 修复资源链接失败，abc_vector_back改为?attr/homeAsUpIndicator
+32a7381|2026-09-18 14:46:19|yangnayangnay|feat: 初始化OpenSpec规格驱动开发框架
+dddd4b4|2026-09-18 15:25:18|yangnayangnay|feat: 底部导航重构+日志功能增强
+7fc3b7b|2026-09-18 15:29:07|yangnayangnay|feat: 添加首页信息面板+导图改为四象限视图
+c2339a6|2026-09-18 15:35:00|yangnayangnay|docs: 更新所有相关文档
+0b5b780|2026-09-18 15:36:29|yangnayangnay|fix: MineFragment缺少FocusActivity import
+78430c7|2026-10-15 12:44:41|yangnayangnay|feat: Round 5-14 完整迭代开发
+48640a1|2026-10-15 16:51:37|yangnayangnay|fix: 修复客户端离线模式bug
+75e913f|2026-10-15 18:05:42|yangnayangnay|fix: Web管理端登录绕过修复
+5fb9c6c|2026-10-15 18:53:19|yangnayangnay|fix: 审计日志操作人ID显示1.0改为1
+8c93daf|2026-10-15 19:07:29|yangnayangnay|fix: Web管理端系统日志等页面数据不显示
+dd7133d|2026-10-15 22:13:23|yangnayangnay|Round 15: 日志系统修复与AI起草功能
+6e59153|2026-10-15 22:56:06|yangnayangnay|Round 16: 系统测试发现并修复10个bug
+ffd8714|2026-10-15 23:17:20|yangnayangnay|fix: Web端系统日志页面数据不显示+blob导出修复
+79767ea|2026-10-15 23:22:08|yangnayangnay|chore: 清理测试截图文件
+44ac282|2026-10-16 00:14:04|yangnayangnay|fix(round17): 修复7类试用缺陷 - Top10去重/提示精细化/导图日志/人员关系
+bb42f36|2026-10-16 01:02:17|yangnayangnay|fix: 人员关系树子节点补充username字段
+24d4924|2026-10-16 01:48:12|yangnayangnay|fix(audit): 操作类型中文化显示 + 审计日志全覆盖
+45e1035|2026-10-16 01:56:19|yangnayangnay|docs: 更新周报至2026-10-16
+01323c6|2026-10-16 14:43:13|yangnayangnay|fix: 个人十大信息展示增加账号信息自动生成条目
+3a069d3|2026-10-16 14:49:02|yangnayangnay|fix: seed数据用户名统一使用编号后缀，重启后无需再执行rename-batch
+22ceac4|2026-10-16 14:57:41|yangnayangnay|fix: 后端启动时自动清理top10测试脏数据，彻底防止数量已满问题
+df286a8|2026-10-16 16:24:04|yangnayangnay|fix(round18): 公司十大显示/人员关系树形排序返回/通知系统/Web端字段命名/账号信息实时生效
+7908417|2026-10-16 17:32:42|yangnayangnay|feat(round19): Web菜单精简/权限收口/加权排序/FAB迁移/梅花易数等12项需求
+1d25e78|2026-10-16 18:30:42|yangnayangnay|fix: 为AuditLogActivity/UserRelationActivity/DivinationActivity补充返回按钮
+a5f45e1|2026-10-18 15:05:23|yangnayangnay|fix: 管理员禁止APP登录+登录不再记录审计日志+TASK_TRANSITION加入白名单
+9367c13|2026-10-18 16:01:35|yangnayangnay|Round19-9req:5:删除客户端注册+导图页不可编辑+日志展示优化+草稿清空+FAB拆分+删除模板/AI起草+多行输入
+e036477|2026-10-18 18:08:46|yangnayangnay|fix: 移除日志耗时字段+AI分析+任务展示按钮迁移至视图页
+280262f|2026-10-18 18:52:15|yangnayangnay|feat: 日志增加内容字段+导图页移除加号FAB
+634a84e|2026-10-18 20:14:43|yangnayangnay|Round22: 日志列表展示内容+增删改后自动刷新+保存按钮位置修复
+e54c0ca|2026-10-18 21:39:14|yangnayangnay|Round22b: fix task creation failure and view page not showing tasks
+dc51f33|2026-10-18 21:58:31|yangnayangnay|Round22b-fix: repair week view date calc, month nav sync, bottom panel deadline
+7b93265|2026-10-18 23:05:44|yangnayangnay|fix: 日志/任务创建成功后草稿被自动保存写回(竞态)
+4443fcc|2026-10-23 14:10:27|yangnayangnay|Round23~43: 服务器地址可配置化+云部署+通知系统+暗色主题+任务正文+多端同步+401治理
+0c0476b|2026-10-23 22:10:19|yangnayangnay|Round44+45: 多服务端故障转移+交接清理+息屏通知保活+月视图渲染统一
+a131ff3|2026-10-24 12:52:44|yangnayangnay|docs: 更新 README 至当前项目状态
+1aa989a|2026-10-29 12:29:56|MING-711|Round46: 日程视图重构 + 任务审核 + 人员关系管理 + 密码修改 + 日志/任务日期策略统一
+6c1e6a2|2026-11-02 22:00:45|MING-711|docs: record approved calendar view design and verification
+2ed7afe|2026-11-03 19:20:51|MING-711|docs: record task details and tag design
+f6c8660|2026-11-03 21:12:28|MING-711|docs: record approved home and daily items design
+4aac3c4|2026-11-06 14:01:20|MING-711|feat: integrate mobile workflow updates and admin account editing
+8622cef|2026-11-12 13:52:39|XXHHYYY|feat: update task workflows, calendars, directory and product UI
+92d96a5|2026-11-13 18:09:24|XXHHYYY|feat: refine organization, calendars, logs and themed backgrounds
+66b2468|2026-11-18 23:51:07|yangnayangnay|fix: 修复h2_schema.sql删除顺序，解决外键约束冲突
+af85cd4|2026-11-19 01:25:56|yangnayangnay|fix: 测试 H2 schema 对齐 V2.0 结构，修复集成测试环境漂移
+567b727|2026-11-19 17:32:35|yangnayangnay|test: 分层测试套件 17/17 全绿,后端150用例,LogContentRulesTest 扩至11条
+f8936c3|2026-11-19 17:37:25|yangnayangnay|chore: 移除本地工具产物,仅保留源码与文档
+45fb358|2026-11-19 17:45:33|yangnayangnay|chore: 移除本地工具产物,仅保留源码与文档
+a447e21|2026-11-19 17:46:34|yangnayangnay|feat: multi-instrument MIDI confirmed (piano+drums tracks)
+98c8e75|2026-11-19 23:51:55|yangnayangnay|测试报告定稿:全部用例通过,覆盖报告更新
+27224d6|2026-11-23 23:00:45|XXHHYYY|fix: show subordinate task names and notify log comments
+65e7df0|2026-11-26 13:39:09|yangnayangnay|test: 补齐后端单测并恢复全绿(全量42类465条,0失败)
+140d53a|2026-11-26 14:23:31|yangnayangnay|build: 跑批脚本纳入8个新后端测试类(16后端+9安卓=25类),加gradlew检查
+f4395b8|2026-11-26 14:23:32|yangnayangnay|docs: 补充AI测试工作底稿(未覆盖函数清单/结构化用例清单)
+ae19d32|2026-11-26 18:55:37|yangnayangnay|chore: 删除测试遗留的重复 H2 schema，统一使用主 schema 单一来源
+3e608a6|2026-11-26 20:08:44|yangnayangnay|fix: 修复编译错误 + 更新测试报告至 42类465条
+5d8a02b|2026-11-26 21:21:10|yangnayangnay|docs: 测试报告口径修正为官方回归 25 类(后端16+Android9)
+4ef0ca1|2026-11-26 21:51:03|yangnayangnay|docs: 附录B按16类277条重写,Android用例数取实测值,修正脚本schema检查路径
