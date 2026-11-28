@@ -1,7 +1,7 @@
 # task-management Specification
 
 ## Purpose
-TBD - created by archiving change initial-mvp-delivery. Update Purpose after archive.
+覆盖任务的申请-审批创建、分派、执行与完成闭环:创建与修改经申请-审批域落库,执行状态由两态状态机(IN_PROGRESS 与 COMPLETED)管理,完成与恢复受角色约束并触发通知。
 
 ## Requirements
 
