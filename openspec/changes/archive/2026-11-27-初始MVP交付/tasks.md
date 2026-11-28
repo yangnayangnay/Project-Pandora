@@ -13,7 +13,7 @@
 
 ### 1.2 任务详情与状态流转
 - [x] 实现任务详情查看（`app/.../ui/task/TaskDetailActivity.java` + 后端 `GET /task/{taskId}`）
-- [x] 实现状态流转引擎（`backend task/TaskStateMachine.java`，实际为 IN_PROGRESS↔COMPLETED 2态流转，规格文档描述为5态，`backfill-task-state-machine`）
+- [x] 实现状态流转引擎（`backend task/TaskStateMachine.java`，实际为 IN_PROGRESS↔COMPLETED 2态流转，规格文档描述为5态，`2026-11-19-任务状态机`）
 - [x] 实现状态流转角色鉴权（仅责任人可开始/完成，仅上级可确认/退回，`TaskStateMachine.validateTransition` 第57行，部分实现）
 - [x] 实现状态流转接口（后端 `POST /task/{taskId}/transition`，经 TaskStateMachine 校验，非法跳转抛 BusinessException）
 
@@ -114,34 +114,34 @@
 - [x] 验证上级对 PENDING/IN_PROGRESS/COMPLETED 任务执行退回，状态变为 REJECTED（后端 `POST /task/{id}/transition`，任务113 PENDING→IN_PROGRESS→COMPLETED→REJECTED 全部成功）
 - [x] 验证 Android 任务详情中 REJECTED 任务显示为"已退回"（TaskDetailActivity 实测：任务"E2E_TEST_REJECTED"详情页状态显示"已退回"）
 - [x] 验证 Android 任务列表"已退回"筛选标签已新增（`TaskListFragment.setupTabs` 第64行 tabs 含"已退回"，第78行 case 5 映射 REJECTED；TaskListFragment 未在导航中引用，代码审查确认修复正确）
-- [x] 验证 REJECTED 任务可重新接收（→PENDING）或重新开始（→IN_PROGRESS）— **确实未做**（TaskStateMachine 仅支持 2 态流转，不含 PENDING/REJECTED 状态，`backfill-task-state-machine`）
+- [x] 验证 REJECTED 任务可重新接收（→PENDING）或重新开始（→IN_PROGRESS）— **确实未做**（TaskStateMachine 仅支持 2 态流转，不含 PENDING/REJECTED 状态，`2026-11-19-任务状态机`）
 
 ### 9.2 认证鉴权端到端验证
 - [x] 验证登录获取 JWT Token 后可访问 authenticated 端点（登录获取 Token 后 `/api/task/list` 返回 200）
 - [x] 验证 Token 过期或 SessionStore 会话失效后返回 401"会话已过期"（无 Token 时 `/api/task/list` 返回 401）
-- [x] 验证 5 种角色权限分级生效（仅责任人可开始/完成，仅上级可确认/退回）— **部分完成**（TaskStateMachine 定义5种角色但 validateTransition 仅校验 isAssignee/isSuperior，未实现完整角色权限矩阵，`backfill-task-state-machine`）
+- [x] 验证 5 种角色权限分级生效（仅责任人可开始/完成，仅上级可确认/退回）— **部分完成**（TaskStateMachine 定义5种角色但 validateTransition 仅校验 isAssignee/isSuperior，未实现完整角色权限矩阵，`2026-11-19-任务状态机`）
 
 ### 9.3 底部导航与专注模式验证
 - [x] 验证底部导航 5 项切换正常（导图/视图/日志/AI地图/我的，对应 5 个 Fragment，UI dump 确认 5 项标签存在）
-- [x] 验证专注模式从"我的"页入口启动独立 FocusActivity，不在底部导航中 — **已过时**（Round19 REQ-19-10 移除入口，MineFragment.java:57-58，`backfill-focus-mode-removed`）
+- [x] 验证专注模式从"我的"页入口启动独立 FocusActivity，不在底部导航中 — **已过时**（Round19 REQ-19-10 移除入口，MineFragment.java:57-58，`2026-10-16-专注模式移除`）
 
 ## 10. 回归测试
 
 ### 10.1 核心功能回归
 - [x] 回归验证任务创建/分发/详情/四象限功能正常（修复 REJECTED 后未破坏存量：导图页四象限正常显示任务，详情页正常打开）
-- [x] 回归验证日志录入/查询/统计/十大重要工作功能正常 — **确实未做**（无回归测试记录，`backfill-regression-tests`）
-- [x] 回归验证月/周/日视图与导图四大板块功能正常 — **确实未做**（无回归测试记录，`backfill-regression-tests`）
-- [x] 回归验证 MBTI/关键词/建议/占卜/项目分析 AI 功能正常 — **确实未做**（无回归测试记录，`backfill-regression-tests`）
+- [x] 回归验证日志录入/查询/统计/十大重要工作功能正常 — **确实未做**（无回归测试记录，`2026-11-19-回归测试`）
+- [x] 回归验证月/周/日视图与导图四大板块功能正常 — **确实未做**（无回归测试记录，`2026-11-19-回归测试`）
+- [x] 回归验证 MBTI/关键词/建议/占卜/项目分析 AI 功能正常 — **确实未做**（无回归测试记录，`2026-11-19-回归测试`）
 
 ### 10.2 三端联调回归
 - [x] 回归验证 Android 端经 Retrofit2+RxJava3 调用后端 API 正常（登录成功+导图页加载任务+详情页加载任务数据均正常）
-- [x] 回归验证 Web 管理端经 Axios 调用后端 API 正常 — **确实未做**（无回归测试记录，`backfill-regression-tests`）
+- [x] 回归验证 Web 管理端经 Axios 调用后端 API 正常 — **确实未做**（无回归测试记录，`2026-11-19-回归测试`）
 
 ## 11. 后续 Sprint 规划（Non-goals，本次不实施）
 
 ### 11.1 单元测试编写（待 Sprint 3）
-- [x] 规划 TaskStateMachine 单元测试覆盖（5 态流转 × 角色鉴权矩阵）— **已完成（部分）**（`TaskStateMachineTest.java` 29条用例，但仅覆盖2态非5态，`backfill-task-state-machine`）
-- [x] 规划 RoleAuthFilter 单元测试覆盖（白名单/无 Token/无效 Token/会话过期场景）— **确实未做**（无测试文件，`backfill-role-auth-filter-test`）
+- [x] 规划 TaskStateMachine 单元测试覆盖（5 态流转 × 角色鉴权矩阵）— **已完成（部分）**（`TaskStateMachineTest.java` 29条用例，但仅覆盖2态非5态，`2026-11-19-任务状态机`）
+- [x] 规划 RoleAuthFilter 单元测试覆盖（白名单/无 Token/无效 Token/会话过期场景）— **确实未做**（无测试文件，`2026-10-16-角色权限过滤测试`）
 
 ### 11.2 Oracle 数据库切换（已预留 profile）
 - [x] 规划 Oracle profile 切换验证（`application-oracle.yml` + ojdbc11 已引入 pom，用户安装 Oracle 后可切换）〔已过时:Non-goal,profile已预留未验证〕

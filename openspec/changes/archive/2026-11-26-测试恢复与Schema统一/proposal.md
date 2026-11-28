@@ -38,7 +38,7 @@
 | 5d8a02b | 2026-11-26 | docs: 测试报告口径修正为官方回归 25 类(后端16+Android9) |
 | 4ef0ca1 | 2026-11-26 | docs: 附录B按16类277条重写,Android用例数取实测值,修正脚本schema检查路径 |
 
-> 注：提交 `65e7df0` 已在 backfill-task-state-machine 归档中覆盖。
+> 注：提交 `65e7df0` 已在 2026-11-19-任务状态机 归档中覆盖。
 
 ### 文件证据（摘自 git_history_files.txt）
 - `140d53a`: run_all_tests.bat, pandora-backend/src/test/java/...

@@ -1,14 +1,14 @@
-# Proposal: Backfill Git History
+# Proposal: Git历史数据归档
 
 ## Summary
 
-本变更属**事后补录**性质，依据 git 提交历史（2026-09-18 至 2026-11-26）对 initial-mvp-delivery 未覆盖的模块演进进行补录记录。
+本变更依据 git 提交历史（2026-09-18 至 2026-11-26）对 initial-mvp-delivery 未覆盖的模块演进进行记录。
 
-## 补录依据
+## 依据
 
 - **数据来源**：`git_history.txt`、`git_history_files.txt`
 - **时间范围**：2026-09-18 至 2026-11-26
-- **补录原因**：initial-mvp-delivery 记录了 6 个 Epic 的核心功能，但后续迭代中新增了多个模块，需通过 OpenSpec 补录已交付能力
+- **记录原因**：initial-mvp-delivery 记录了 6 个 Epic 的核心功能，但后续迭代中新增了多个模块，需通过 OpenSpec 记录已交付能力
 
 ## 时间线概述（2026-10-8 之后）
 
@@ -57,7 +57,7 @@
 
 ## Evidence
 
-本变更为综合补录，覆盖 2026-09-18 至 2026-11-26 期间多个模块的演进。具体提交详见 tasks.md。
+本变更覆盖 2026-09-18 至 2026-11-26 期间多个模块的演进。具体提交详见 tasks.md。
 
 ## Non-goals（本变更不覆盖）
 
@@ -68,6 +68,6 @@
 
 ## Acceptance Criteria
 
-- 所有补录模块在 git 提交历史中有对应记录
+- 所有模块在 git 提交历史中有对应记录
 - 每条任务附（完成时间, commit短哈希）
 - 日期严格取自提交记录，禁止使用当前日期

@@ -26,4 +26,4 @@
 
 - 受影响规格:specs/task-management/spec.md(Task Status Transition 移除,Task Execution State Machine 落位,Purpose 补全)
 - 受影响代码:无(纯规格更正,以代码为事实基准)
-- 关联归档:2026-11-19-backfill-task-state-machine 的"仅 2 态"结论经本次核验确认无误
+- 关联归档:2026-11-19-任务状态机 的"仅 2 态"结论经本次核验确认无误

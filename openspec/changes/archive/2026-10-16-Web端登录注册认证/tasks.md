@@ -1,4 +1,4 @@
-# Tasks: Web 端认证鉴权补录
+# Tasks: Web 端认证鉴权记录
 
 > 本变更记录 initial-mvp-delivery 阶段已实现但未纳入任务追踪的 Web 端认证鉴权功能。
 

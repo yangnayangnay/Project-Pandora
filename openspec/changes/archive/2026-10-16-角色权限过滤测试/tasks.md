@@ -1,4 +1,4 @@
-# Tasks: RoleAuthFilter 单元测试未规划补录
+# Tasks: RoleAuthFilter 单元测试未规划记录
 
 > 本变更记录 initial-mvp-delivery 阶段 RoleAuthFilter 单元测试未规划，需明确标记为确实未做。
 

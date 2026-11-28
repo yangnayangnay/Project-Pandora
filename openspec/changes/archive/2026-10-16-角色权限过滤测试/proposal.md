@@ -1,7 +1,7 @@
-# Proposal: RoleAuthFilter 单元测试未规划补录
+# Proposal: RoleAuthFilter 单元测试未规划记录
 
 ## 变更性质
-**事后补录** — 本变更记录 initial-mvp-delivery 阶段 RoleAuthFilter 单元测试未规划，需明确标记为确实未做。
+本变更记录 initial-mvp-delivery 阶段 RoleAuthFilter 单元测试未规划，需明确标记为确实未做。
 
 ## 变更范围
 

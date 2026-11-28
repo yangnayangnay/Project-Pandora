@@ -1,4 +1,4 @@
-# Tasks: 专注模式入口移除补录
+# Tasks: 专注模式入口移除记录
 
 > 本变更记录 initial-mvp-delivery 阶段专注模式入口已在 Round19 移除，但 tasks.md 仍要求验证入口启动。
 

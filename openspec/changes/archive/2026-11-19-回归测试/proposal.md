@@ -1,7 +1,7 @@
-# Proposal: 回归测试未执行补录
+# Proposal: 回归测试未执行记录
 
 ## 变更性质
-**事后补录** — 本变更记录 initial-mvp-delivery 阶段回归测试任务未执行，需明确标记为确实未做。
+本变更记录 initial-mvp-delivery 阶段回归测试任务未执行，需明确标记为确实未做。
 
 ## 变更范围
 

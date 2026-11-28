@@ -31,8 +31,8 @@
 - `22908de`: pandora-backend/src/main/java/.../auth/..., pandora-backend/src/main/java/.../user/UserController.java
 
 ### 关联归档
-本归档与 `2026-11-28-notification-actions-and-handover-audit` 存在功能关联：
-- 本归档（2026-11-27-backfill-departure-handover）：实现离职交接基础功能（提交 `0efb031`, `22908de`）
-- 对方归档（2026-11-28-notification-actions-and-handover-audit）：增强离职交接审计日志的可视化展示
+本归档与 `2026-11-28-通知操作与交接审计` 存在功能关联：
+- 本归档（2026-11-27-离职交接与账号恢复）：实现离职交接基础功能（提交 `0efb031`, `22908de`）
+- 对方归档（2026-11-28-通知操作与交接审计）：增强离职交接审计日志的可视化展示
 
 两者覆盖不同的功能层面，本归档提供基础数据与流程，对方归档提供审计日志的可读展示增强。

@@ -1,4 +1,4 @@
-# Tasks: TaskStateMachine 规格不一致补录
+# Tasks: TaskStateMachine 规格不一致记录
 
 > 本变更记录 initial-mvp-delivery 阶段 TaskStateMachine 单元测试已补齐，但代码实现与规格文档存在不一致。
 
