@@ -1,25 +1,24 @@
 #!/usr/bin/env python3
 """
-sync_feishu_board.py — 从 OpenSpec tasks.md 自动生成飞书多维表格导入CSV
-当 tasks.md 或需求改动.txt 变更时，运行此脚本即可同步更新飞书CSV。
+sync_feishu_board.py — 从 OpenSpec 生成飞书多维表格导入CSV
 
-用法:
-    python scripts/sync_feishu_board.py
+任务源:
+  动态: openspec/changes/<change>/tasks.md — 自动发现所有 active 变更
+        (排除 archive/ 与下划线前缀目录;当前无 active 变更时贡献 0 条)
+  静态: SPRINT0_TASKS / SPRINT3_TASKS / FINAL_TASKS 内置清单
+任一变更 tasks.md 或需求改动.txt 变更时,pre-commit 钩子自动运行本脚本。
 
-输出:
-    docx/docx_generate/项目看板_飞书导入.csv
-    docx/docx_generate/潘多拉文档_飞书导入.csv
+用法: python scripts/sync_feishu_board.py
+输出: docx/docx_generate/项目看板_飞书导入.csv
 """
-
 import csv
-import json
 import os
 import re
 import sys
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GENERATE_DIR = os.path.join(PROJECT_ROOT, "docx", "docx_generate")
-OPENSPEC_TASKS = os.path.join(PROJECT_ROOT, "openspec", "changes", "initial-mvp-delivery", "tasks.md")
+CHANGES_DIR = os.path.join(PROJECT_ROOT, "openspec", "changes")
 
 SPRINT_MAP = {
     "Epic-1": "Sprint 1",
@@ -56,23 +55,18 @@ SPRINT0_TASKS = [
     ("S0-5", "任务清单生成", "全局", "Sprint 0", "initial-mvp-delivery/tasks.md", "已完成"),
 ]
 
-
-def parse_tasks_md(filepath):
+def parse_tasks_md(filepath, change_name):
     """从 OpenSpec tasks.md 解析任务列表"""
     if not os.path.exists(filepath):
         print(f"Warning: {filepath} not found", file=sys.stderr)
         return []
-
     with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
-
     tasks = []
     current_epic = "全局"
     task_counter = {"Sprint 1": 0, "Sprint 2": 0}
-
     for line in content.split("\n"):
         line = line.strip()
-
         m = re.match(r"## (Epic-\d+|Bug Fixes|NFR-\d+)", line)
         if m:
             tag = m.group(1)
@@ -81,7 +75,6 @@ def parse_tasks_md(filepath):
             else:
                 current_epic = tag
             continue
-
         m = re.match(r"-\s*\[([ x])\]\s*(.+)", line)
         if m:
             done = m.group(1) == "x"
@@ -90,24 +83,30 @@ def parse_tasks_md(filepath):
             task_counter[sprint] = task_counter.get(sprint, 0) + 1
             task_id = f"S{sprint[-1]}-{task_counter[sprint]}"
             status = "已完成" if done else "待开始"
-            change_ref = f"initial-mvp-delivery/tasks.md"
+            change_ref = f"{change_name}/tasks.md"
             tasks.append((task_id, name, current_epic, sprint, change_ref, status))
-
     return tasks
 
+def discover_active_tasks():
+    """扫描 openspec/changes 下所有 active 变更的 tasks.md(排除 archive 与 _ 前缀)"""
+    all_tasks = []
+    if not os.path.isdir(CHANGES_DIR):
+        return all_tasks
+    for name in sorted(os.listdir(CHANGES_DIR)):
+        if name == "archive" or name.startswith("_"):
+            continue
+        tp = os.path.join(CHANGES_DIR, name, "tasks.md")
+        if os.path.isfile(tp):
+            all_tasks.extend(parse_tasks_md(tp, name))
+    return all_tasks
 
 def generate_board_csv():
     """生成项目看板CSV"""
     all_tasks = []
-
     all_tasks.extend(SPRINT0_TASKS)
-
-    parsed = parse_tasks_md(OPENSPEC_TASKS)
-    all_tasks.extend(parsed)
-
+    all_tasks.extend(discover_active_tasks())
     all_tasks.extend(SPRINT3_TASKS)
     all_tasks.extend(FINAL_TASKS)
-
     dst = os.path.join(GENERATE_DIR, "项目看板_飞书导入.csv")
     with open(dst, "w", encoding="utf-8-sig", newline="") as f:
         writer = csv.writer(f)
@@ -115,17 +114,13 @@ def generate_board_csv():
         for tid, name, epic, sprint, change, status in all_tasks:
             assignee = "codearts" if status == "已完成" else "—"
             writer.writerow([tid, name, epic, sprint, change, status, assignee])
-
     print(f"项目看板: {len(all_tasks)} tasks -> {dst}")
     return len(all_tasks)
 
-
 def main():
-
     os.makedirs(GENERATE_DIR, exist_ok=True)
     n1 = generate_board_csv()
     print(f"\nDone. 看板{n1}条, 在2000行限制内。")
-
 
 if __name__ == "__main__":
     main()
