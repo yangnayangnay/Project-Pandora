@@ -4,7 +4,7 @@
 
 ## 1. 未规划任务记录
 
-- [x] 记录 RoleAuthFilter 单元测试未规划（tasks.md 第144行：规划 RoleAuthFilter 单元测试覆盖）
+- [x] [未执行] 记录 RoleAuthFilter 单元测试未规划（tasks.md 第144行）
 
 ## 2. 待测试场景
 
