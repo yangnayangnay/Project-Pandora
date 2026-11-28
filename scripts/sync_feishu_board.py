@@ -48,11 +48,11 @@ FINAL_TASKS = [
 ]
 
 SPRINT0_TASKS = [
-    ("S0-1", "需求分析文档", "全局", "Sprint 0", "initial-mvp-delivery/proposal", "已完成"),
-    ("S0-2", "技术架构设计", "全局", "Sprint 0", "initial-mvp-delivery/design", "已完成"),
+    ("S0-1", "需求分析文档", "全局", "Sprint 0", "archive/2026-11-27-initial-mvp-delivery/proposal.md", "已完成"),
+    ("S0-2", "技术架构设计", "全局", "Sprint 0", "archive/2026-11-27-initial-mvp-delivery/design.md", "已完成"),
     ("S0-3", "OpenSpec初始化", "全局", "Sprint 0", "openspec/config.yaml", "已完成"),
     ("S0-4", "核心能力规格6份", "全局", "Sprint 0", "openspec/specs/*.md", "已完成"),
-    ("S0-5", "任务清单生成", "全局", "Sprint 0", "initial-mvp-delivery/tasks.md", "已完成"),
+    ("S0-5", "任务清单生成", "全局", "Sprint 0", "archive/2026-11-27-initial-mvp-delivery/tasks.md", "已完成"),
 ]
 
 def parse_tasks_md(filepath, change_name):
